@@ -37,9 +37,9 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 3 — identity service
 
-- [ ] 3.1 Register, login, refresh with rotation and reuse detection, logout; Argon2id; JWKS endpoint.
-- [ ] 3.2 Profile read/update, password change, account deletion through `identity.anonymize_user`; outbox publishing of `identity.user.deleted.v1`.
-- [ ] 3.3 Login audit events (`login_succeeded`, `login_failed`) and a lockout or delay after repeated failures.
+- [x] 3.1 Register, login, refresh with rotation and reuse detection, logout; Argon2id; JWKS endpoint.
+- [x] 3.2 Profile read/update, password change, account deletion through `identity.anonymize_user`; outbox publishing of `identity.user.deleted.v1`.
+- [x] 3.3 Login audit events (`login_succeeded`, `login_failed`) and a lockout or delay after repeated failures.
       Done when: integration tests cover the happy paths, duplicate email, wrong password, expired and reused refresh token, deletion; no response or log contains a password or hash.
 
 ## Phase 4 — gateway

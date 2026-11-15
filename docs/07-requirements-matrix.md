@@ -22,7 +22,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Roles `app_read`, `app_write`, admin or better | Bootstrap; `docs/03-database.md#roles-and-access` | Privileges table in the dictionary; smoke test "rejected" lines | ready |
 | Application not under superuser | `svc_*` roles, `DATABASE_URL` rule, `assertServiceRole` in `packages/common/src/db.ts` | Start-up refuses superuser, `app_admin` and its members (`db.itest.ts`; sample service log "Refusing to start") | ready |
 | Permissions updated for new objects | Default privileges + `db-change` skill + dictionary diff in CI | PR showing privileges diff | ready |
-| Passwords encrypted, no MD5/SHA-1 | Argon2id in `identity`; `users_password_algo` check | Smoke test "non-argon2id hash rejected" | ready, hashing in P3 |
+| Passwords encrypted, no MD5/SHA-1 | Argon2id (node:crypto, OWASP parameters) in `services/identity/src/domain/password.ts`; `users_password_algo` check; refresh tokens stored as SHA-256 | Smoke test "non-argon2id hash rejected"; `identity.itest.ts` "no response or log line contains a password, a password hash or a refresh token" | ready |
 | Integrity through constraints and transactions | Migrations, procedures | Smoke test | ready |
 | No plain-text passwords, no CSV-only storage, no unmodelled JSON, no ignored integrity | Design; JSON only in `outbox.payload`, justified | `docs/03-database.md#normalisation-3nf` | ready |
 
@@ -42,7 +42,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 
 | Requirement | Where | Evidence | Status |
 | --- | --- | --- | --- |
-| At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services` | spec, P3–P7 |
+| At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services`; `services/identity` (P3) | identity ready; others P5–P7 |
 | Architecture diagram | `docs/02-architecture.md#container-diagram` | Diagram | ready |
 | Reasoning for the decomposition | `docs/02-architecture.md#why-this-split` | Section | ready |
 | Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml` (OpenAPI 3.1, gateway generated), `contracts/asyncapi/heatmap-events.yaml` (AsyncAPI 3); overview in `docs/04-contracts.md` | CI job `contracts` (Redocly lint, generated code up to date), `packages/contracts` tests | ready (implementations follow in P3–P7) |

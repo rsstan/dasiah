@@ -2277,7 +2277,8 @@
       ],
       "post": {
         "operationId": "changePassword",
-        "summary": "Change the password and revoke the other sessions",
+        "summary": "Change the password and end every other session",
+        "description": "The refresh-token cookie is scoped to `/api/v1/auth`, so this request cannot tell which\nsession is the current one. Every refresh token of the user is revoked and a new pair is\nissued in the response: the user stays signed in on this device only.\n",
         "tags": [
           "users"
         ],
@@ -2314,8 +2315,44 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "Password changed; all refresh tokens except the current one are revoked."
+          "200": {
+            "description": "Password changed; all previous sessions ended, a new one started.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "accessToken",
+                    "tokenType",
+                    "expiresIn"
+                  ],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT for the `Authorization: Bearer` header."
+                    },
+                    "tokenType": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Lifetime of the access token in seconds."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "400": {
             "description": "The request is malformed or fails schema validation.",

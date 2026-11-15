@@ -148,7 +148,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Change the password and revoke the other sessions */
+        /**
+         * Change the password and end every other session
+         * @description The refresh-token cookie is scoped to `/api/v1/auth`, so this request cannot tell which
+         *     session is the current one. Every refresh token of the user is revoked and a new pair is
+         *     issued in the response: the user stays signed in on this device only.
+         */
         post: operations["changePassword"];
         delete?: never;
         options?: never;
@@ -686,12 +691,15 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Password changed; all refresh tokens except the current one are revoked. */
-            204: {
+            /** @description Password changed; all previous sessions ended, a new one started. */
+            200: {
                 headers: {
+                    "Set-Cookie": components["headers"]["SetRefreshCookie"];
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

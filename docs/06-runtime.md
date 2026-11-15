@@ -37,7 +37,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `DATABASE_URL` | services | Connection as `svc_<name>`; never `postgres` or `app_admin` |
 | `AMQP_URL` | services | RabbitMQ |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all | Jaeger OTLP endpoint |
-| `JWT_PRIVATE_KEY`, `JWT_KEY_ID`, `ACCESS_TTL_S`, `REFRESH_TTL_S` | identity | Token signing |
+| `JWT_PRIVATE_KEY` (Ed25519, PKCS#8 PEM, `\n`-escaped), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE`, `ACCESS_TTL_S`, `REFRESH_TTL_S`, `COOKIE_SECURE`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_WINDOW_S`, `TRUST_PROXY` | identity | Token signing (EdDSA), refresh cookie, lockout after repeated failed sign-ins |
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` | gateway | Upstreams, limits store, CORS |
 | `TRANSIT_URL`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S` | accessibility | Upstreams and method parameters |
 | `GEOCODER_PROVIDER`, `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` | places | Geocoder selection and throttling |
@@ -59,7 +59,13 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 
 `packages/common/examples/sample-service.ts` is a minimal service built from it.
 
-New services start from `templates/service` (`pnpm new:service <name> --schema <schema>`): config
+`packages/testing` (`@heatmap/testing`) starts PostGIS with the real bootstrap, role passwords,
+the service's migrations and reference data, and RabbitMQ; integration tests connect as the
+service's own `svc_*` role.
+
+New services start from `templates/service` (`pnpm new:service <name> --schema <schema> --port <port>`):
+`app.ts` assembles the service (also used by integration tests through `app.inject()`), `main.ts`
+only starts it; config
 with database and broker, `assertServiceRole`, broker with outbox publisher and consumer,
 readiness checks for database and broker, shutdown order (consumer, outbox, broker, pool).
 

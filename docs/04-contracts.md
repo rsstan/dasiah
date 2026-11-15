@@ -37,7 +37,7 @@ Access: P = public, U = signed-in user, A = admin. Limits are per minute, per us
 | POST `/auth/logout` | identity | U | 30 | Revoke current refresh token |
 | GET `/users/me` | identity | U | 60 | Profile |
 | PATCH `/users/me` | identity | U | 20 | Change `displayName`, `locale` |
-| POST `/users/me/password` | identity | U | 5 | Change password, revoke other sessions |
+| POST `/users/me/password` | identity | U | 5 | Change password; every session revoked, a new token pair returned (200) |
 | DELETE `/users/me` | identity | U | 5 | Erase account (anonymise + event) |
 | GET `/cities` | transit-data | P | 120 | Cities with bounds, timezone, active feed validity |
 | GET `/cities/{code}/coverage` | transit-data | P | 60 | Numbers from `mv_city_coverage` |
