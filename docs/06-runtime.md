@@ -107,7 +107,7 @@ layout is kept (Node does not strip types under `node_modules`).
 
 | Level | Tool | Scope |
 | --- | --- | --- |
-| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, URL state |
+| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out) |
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |

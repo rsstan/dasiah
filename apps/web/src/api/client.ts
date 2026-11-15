@@ -30,12 +30,23 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | undefined>;
   signal?: AbortSignal;
+  /** Send the request without the access token and without the refresh-and-retry on 401. */
+  anonymous?: boolean;
+  /** Send the token but do not refresh and retry on 401 (used while refreshing). */
+  noRefresh?: boolean;
 }
 
-/** Supplies the Authorization header value; set by the session code (8.2). */
-let authorization: () => string | undefined = () => undefined;
-export function setAuthorization(provider: () => string | undefined): void {
-  authorization = provider;
+export interface AuthHooks {
+  /** Authorization header value, or undefined when signed out. */
+  authorization(): string | undefined;
+  /** Called on 401 for a request that carried a token; true = a new token is ready, retry once. */
+  refreshAfter401(): Promise<boolean>;
+}
+
+let auth: AuthHooks = { authorization: () => undefined, refreshAfter401: async () => false };
+/** Installed by the session (src/session). */
+export function setAuthHooks(hooks: AuthHooks): void {
+  auth = hooks;
 }
 
 export function buildUrl(path: string, query: RequestOptions['query'] = {}): string {
@@ -50,11 +61,32 @@ export function buildUrl(path: string, query: RequestOptions['query'] = {}): str
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const authorization = options.anonymous === true ? undefined : auth.authorization();
+  try {
+    return await send<T>(path, options, authorization);
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 401 &&
+      authorization !== undefined &&
+      options.noRefresh !== true &&
+      (await auth.refreshAfter401())
+    ) {
+      return send<T>(path, options, auth.authorization());
+    }
+    throw error;
+  }
+}
+
+async function send<T>(
+  path: string,
+  options: RequestOptions,
+  authorization: string | undefined,
+): Promise<ApiResponse<T>> {
   const correlationId = crypto.randomUUID();
   const headers: Record<string, string> = { accept: 'application/json', 'x-correlation-id': correlationId };
-  const auth = authorization();
-  if (auth !== undefined) {
-    headers['authorization'] = auth;
+  if (authorization !== undefined) {
+    headers['authorization'] = authorization;
   }
   if (options.body !== undefined) {
     headers['content-type'] = 'application/json';
@@ -98,6 +130,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
 /** Wording for the problem types a user can run into (contracts/openapi/*.yaml). */
 const PROBLEM_TEXT: Record<string, string> = {
+  '/problems/invalid-credentials': 'Email or password is wrong.',
+  '/problems/account-locked': 'Too many failed attempts. The account is locked for a while.',
+  '/problems/email-taken': 'An account with this email already exists.',
+  '/problems/duplicate-label': 'You already have a place with this name.',
+  '/problems/place-limit': 'You can save at most 20 places. Delete one first.',
   '/problems/origin-outside-city': 'The start point is outside the selected city. Pick a point inside it.',
   '/problems/date-outside-feed': 'The timetable does not cover this date. Pick a date inside its validity.',
   '/problems/no-timetable': 'The timetable of this city is not loaded yet.',

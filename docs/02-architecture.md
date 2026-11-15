@@ -140,6 +140,17 @@ A thin Fastify application: no business logic, no database.
 | Resilience | Per-upstream timeout to the response headers (accessibility longer) and circuit breaker (network errors, timeouts, 502/504 count; a deliberate 503 from a service is passed through). `503` problem with `Retry-After` when unavailable, timed out or open. |
 | Other | CORS for the web origin with credentials, request size limit, security headers (`nosniff`, `DENY`, `no-referrer`, CSP `default-src 'none'`, HSTS), aggregated `/health/ready` (Redis and every service). `X-Forwarded-For` is trusted only with `TRUST_PROXY` (behind Caddy). |
 
+## Sessions in the browser (`web`)
+
+| Concern | Behaviour |
+| --- | --- |
+| Storage | The access token (15 min) lives only in memory; the refresh token is an httpOnly, `SameSite=Strict` cookie with path `/api/v1/auth`, invisible to scripts. Nothing about the session is kept in `localStorage`. |
+| Restore | On page load `POST /auth/refresh`: a valid cookie signs the user in again; `401` means signed out. |
+| Refresh | A minute before the access token expires, and once after a `401` on a request that carried a token (that request is then retried once). |
+| No overlapping refreshes | `identity` rotates the refresh token and treats a reused one as theft (all sessions revoked). Refreshes therefore run one at a time: a single shared promise in the tab and a Web Lock (`navigator.locks`) across tabs, so each refresh sends the cookie the previous one set. |
+| Failures | A refused refresh (`401`/`403`) signs the user out; a network or `5xx` failure keeps the session and the next call tries again. Sign-out clears the token even if the server cannot be reached. |
+| Account deletion | `DELETE /users/me` after an explicit confirmation; `identity` anonymises the account and `places` erases places and history on `identity.user.deleted.v1`. |
+
 ## Cross-cutting rules for every service
 
 | Topic | Rule |

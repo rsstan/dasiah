@@ -79,7 +79,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 ## Phase 8 — web frontend
 
 - [x] 8.1 Map page: city switch, address search, heatmap layer, legend, cell popup, zoom aggregation, loading and error states, OSM attribution.
-- [ ] 8.2 Accounts: register, sign in, saved places, history, delete account.
+- [x] 8.2 Accounts: register, sign in, saved places, history, delete account.
 - [ ] 8.3 Admin page: feed versions, import, activate.
 - [ ] 8.4 Responsive layout for phones.
 

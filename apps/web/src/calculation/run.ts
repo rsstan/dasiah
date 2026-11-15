@@ -37,6 +37,23 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     );
   });
 
+/** Results of an existing calculation (history). 404 when it has expired and was removed. */
+export async function loadCalculation(calculationId: string, options: RunOptions = {}): Promise<Outcome> {
+  const { signal } = options;
+  const opts = signal === undefined ? {} : { signal };
+  let calculation = (await request<Calculation>(`/calculations/${calculationId}`, opts)).body;
+  const started = Date.now();
+  while (calculation.status === 'running' && Date.now() - started < (options.maxWaitMs ?? 90_000)) {
+    await sleep(options.pollIntervalMs ?? 1_000, signal);
+    calculation = (await request<Calculation>(`/calculations/${calculationId}`, opts)).body;
+  }
+  if (calculation.status !== 'done') {
+    throw new ApiError(404, { title: 'This map is no longer available.' }, '');
+  }
+  const results = await request<CalculationResults>(`/calculations/${calculationId}/results`, opts);
+  return { calculation, results: results.body, cached: true };
+}
+
 export async function runCalculation(input: CalculationRequest, options: RunOptions = {}): Promise<Outcome> {
   const { signal, pollIntervalMs = 1_000, maxWaitMs = 90_000 } = options;
   const created = await request<Calculation>('/calculations', {

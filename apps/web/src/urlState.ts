@@ -3,7 +3,10 @@
 export interface Origin {
   lat: number;
   lon: number;
+  /** Shown in the address box. */
   label: string;
+  /** Geocoded address, when the point came from search or a saved place. */
+  address?: string | undefined;
 }
 
 export interface UrlState {

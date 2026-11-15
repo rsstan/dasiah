@@ -323,3 +323,285 @@ input {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+/* ------------------------------------------------------------ accounts (8.2) */
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+}
+
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  text-align: left;
+}
+
+button.danger {
+  color: var(--error);
+  border: 1px solid #fecaca;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+}
+
+button.danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sign-in,
+.save-place > button,
+.quick-picks button,
+.item-actions button,
+.list-view > button,
+.account > button,
+.form button:not(.primary):not(.danger),
+.inline-edit button:not(.primary) {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.sign-in {
+  flex: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs button {
+  flex: 1;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.auth-form,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-form h2,
+.list-view h2,
+.account h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.auth-form label,
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.auth-form input,
+.form input[type='text'],
+.form select,
+.inline-edit input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+
+.form label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.form-error {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-picks button {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.save-place {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.save-place.form {
+  align-items: stretch;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-view .count {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.items li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: #fff;
+  text-align: left;
+}
+
+.item-main:hover,
+.item-main:focus-visible {
+  background: #eff6ff;
+}
+
+.item-main .meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 8px;
+}
+
+.item-actions button {
+  padding: 3px 10px;
+  font-size: 0.85rem;
+}
+
+.inline-edit {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+}
+
+.inline-edit input {
+  flex: 1;
+  min-width: 0;
+}
+
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.account dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.account dt {
+  color: var(--muted);
+}
+
+.account dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account > button {
+  align-self: flex-start;
+}
+
+.danger-zone {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.danger-zone h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--error);
+}
+
+.form > button {
+  align-self: flex-start;
+}
