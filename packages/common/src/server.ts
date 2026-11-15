@@ -35,6 +35,11 @@ export interface ServerOptions {
    * the gateway on the internal network.
    */
   readonly trustProxy?: boolean;
+  /**
+   * Put X-User-Id / X-User-Role into the request context (services behind the gateway). The
+   * gateway itself sets false: there these headers come from clients and are never trusted.
+   */
+  readonly identityHeaders?: boolean;
 }
 
 export interface Problem {
@@ -118,6 +123,7 @@ export function createServer({
   readinessTimeoutMs = 2_000,
   bodyLimit = 1_048_576,
   trustProxy = false,
+  identityHeaders = true,
 }: ServerOptions): FastifyInstance {
   let shuttingDown = false;
   const app = Fastify({
@@ -146,8 +152,8 @@ export function createServer({
       span?.updateName(`${req.method} ${route}`);
       span?.setAttribute('http.route', route);
     }
-    const userId = headerValue(req.headers['x-user-id']);
-    const userRole = headerValue(req.headers['x-user-role']);
+    const userId = identityHeaders ? headerValue(req.headers['x-user-id']) : undefined;
+    const userRole = identityHeaders ? headerValue(req.headers['x-user-role']) : undefined;
     runWithContext(
       {
         correlationId: req.id,

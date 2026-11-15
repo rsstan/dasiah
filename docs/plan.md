@@ -44,9 +44,9 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 4 — gateway
 
-- [ ] 4.1 Route table, proxying, correlation id, CORS, security headers, aggregated readiness.
-- [ ] 4.2 JWT verification through JWKS, access levels, identity headers set and incoming ones stripped.
-- [ ] 4.3 Redis rate limits per route group; per-upstream timeout and circuit breaker.
+- [x] 4.1 Route table, proxying, correlation id, CORS, security headers, aggregated readiness.
+- [x] 4.2 JWT verification through JWKS, access levels, identity headers set and incoming ones stripped.
+- [x] 4.3 Redis rate limits per route group; per-upstream timeout and circuit breaker.
       Done when: integration tests show 401 without a token on a user route, 403 for a user on an admin route, 429 after the limit with `Retry-After`, a spoofed `X-User-Id` ignored, and 503 when an upstream is down.
 
 ## Phase 5 — transit-data service

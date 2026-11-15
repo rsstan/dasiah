@@ -1,0 +1,25 @@
+{
+  "name": "@heatmap/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Public entry point: routing, JWT check, rate limits, resilience towards the services.",
+  "scripts": {
+    "start": "node --import @heatmap/common/otel src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=.env --watch --import @heatmap/common/otel src/main.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.4.3",
+    "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*",
+    "cockatiel": "4.0.0",
+    "jose": "6.2.17",
+    "redis": "6.3.1",
+    "undici": "8.12.4"
+  },
+  "devDependencies": {
+    "@heatmap/testing": "workspace:*",
+    "fastify": "5.12.8",
+    "testcontainers": "12.2.1"
+  }
+}

@@ -8,12 +8,14 @@ import { topology } from '@heatmap/contracts';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
 import amqp from 'amqplib';
+import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import pg from 'pg';
 import { migrate } from '../../../db/tools/migrations.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 export const POSTGIS_IMAGE = 'postgis/postgis:16-3.7';
 export const RABBITMQ_IMAGE = 'rabbitmq:4.3.7-management-alpine';
+export const REDIS_IMAGE = 'redis:8.8.4-alpine';
 
 /** Only for throw-away test containers. */
 const TEST_PASSWORD = 'test-only-password';
@@ -162,6 +164,26 @@ export async function startBroker(): Promise<TestBroker> {
     },
     async stop() {
       await connection.close();
+      await container.stop();
+    },
+  };
+}
+
+export interface TestRedis {
+  readonly container: StartedTestContainer;
+  readonly url: string;
+  stop(): Promise<void>;
+}
+
+export async function startRedis(): Promise<TestRedis> {
+  const container = await new GenericContainer(REDIS_IMAGE)
+    .withExposedPorts(6379)
+    .withWaitStrategy(Wait.forLogMessage('Ready to accept connections'))
+    .start();
+  return {
+    container,
+    url: `redis://${container.getHost()}:${container.getMappedPort(6379)}`,
+    stop: async () => {
       await container.stop();
     },
   };

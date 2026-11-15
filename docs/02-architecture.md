@@ -130,13 +130,13 @@ A thin Fastify application: no business logic, no database.
 
 | Concern | Behaviour |
 | --- | --- |
-| Routing | Public prefix `/api/v1`. Route table in `docs/04-contracts.md`. `/internal/*` paths of services are never exposed. |
-| Authentication | Verifies the access token (JWT, asymmetric signature) against the JWKS of `identity`, cached with refresh on unknown `kid`. |
+| Routing | Public prefix `/api/v1`. The route table is generated from the contracts (`routes` of `@heatmap/contracts`: every operation with `x-access` public, user or admin); `/internal/*` paths are never routed. Bodies and compressed responses are forwarded byte for byte; hop-by-hop headers, `Authorization`, `X-User-*` and client trace headers are not. |
+| Authentication | Verifies the access token (JWT, EdDSA/Ed25519, issuer and audience checked) against the JWKS of `identity`, cached with refresh on unknown `kid`. An invalid or expired token is `401` on every route; if identity cannot be reached, `503`. |
 | Authorization | Per route: `public`, `user`, `admin`. On success sets `X-User-Id` and `X-User-Role` for the service; always strips these headers from incoming requests. Services trust them because only the gateway can reach services on the internal network. Services still check ownership (a user reads only own places). |
-| Rate limiting | Redis-backed fixed window, keyed by user id when signed in, otherwise by client IP. Limits per route group (table in `04-contracts.md`). Response `429` with `Retry-After`. |
+| Rate limiting | Redis-backed fixed window (Lua `INCR` + `PEXPIRE`), one counter per route and caller: user id when signed in, otherwise client IP. Limits from `x-rate-limit` in the contracts. `RateLimit-*` headers; `429` with `Retry-After`. If Redis is down requests pass and a warning is logged. |
 | Correlation | Generates `X-Correlation-Id` (UUID) if the client sent none; forwards it and returns it in the response. Starts the trace. |
-| Resilience | Per-upstream timeout and circuit breaker; `503` problem response when open. |
-| Other | CORS for the web origin, request size limit, security headers, aggregated `/health/ready`. |
+| Resilience | Per-upstream timeout to the response headers (accessibility longer) and circuit breaker (network errors, timeouts, 502/504 count; a deliberate 503 from a service is passed through). `503` problem with `Retry-After` when unavailable, timed out or open. |
+| Other | CORS for the web origin with credentials, request size limit, security headers (`nosniff`, `DENY`, `no-referrer`, CSP `default-src 'none'`, HSTS), aggregated `/health/ready` (Redis and every service). `X-Forwarded-For` is trusted only with `TRUST_PROXY` (behind Caddy). |
 
 ## Cross-cutting rules for every service
 
