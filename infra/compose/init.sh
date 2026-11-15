@@ -16,9 +16,12 @@ scripts/db-seed.sh                 # reference data (upserts)
 
 count() { scripts/db-as.sh superuser -Atqc "$1"; }
 
-if [ "$(count "SELECT count(*) FROM transit.hex_cells c JOIN transit.cities USING (city_id) WHERE code = 'waw'")" = 0 ]; then
-  (cd services/transit-data && node src/cli/grid.ts --city waw)
-fi
+# H3 grids of both cities (testville is loaded for waw; a real feed can be imported for either).
+for city in waw vno; do
+  if [ "$(count "SELECT count(*) FROM transit.hex_cells c JOIN transit.cities USING (city_id) WHERE code = '$city'")" = 0 ]; then
+    (cd services/transit-data && node src/cli/grid.ts --city "$city")
+  fi
+done
 if [ "$(count "SELECT count(*) FROM identity.users WHERE email = 'demo.user@example.com'")" = 0 ]; then
   node db/seed/test/seed.ts        # testville active for waw, demo accounts and data
 fi

@@ -87,12 +87,16 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 - [x] 9.1 Compose profile `full`; Playwright end-to-end suite.
       Known flaky (to look at later): `services/accessibility/src/timetables/loader.itest.ts` "switches to a newly activated feed atomically" failed once in about ten runs (2026-11-15).
+      Known issue (to fix before running more than one accessibility instance): on start-up `failInterrupted` marks every `running` calculation failed, including those of another live instance, whose result then fails with "already failed" (500). Found 2026-11-15.
 - [ ] 9.2 Failure drills, each with a short note in `docs/evidence/resilience.md`: OSRM stopped (breaker opens, cached maps still served), RabbitMQ stopped (outbox drains after restart), geocoder timeout (cache fallback), poison message (DLQ).
 - [ ] 9.3 Trace screenshot and cross-service log excerpt for one calculation in `docs/evidence/`.
 - [ ] 9.4 k6 load test; rate-limit demonstration.
 - [ ] 9.5 Security pass: dependency audit, headers, secrets scan, no personal data in logs.
 
 ## Phase 10 — Cloud deployment
+
+Meanwhile a provider-agnostic single-VPS deployment exists (`infra/terraform/vps`, Compose profile
+`full` behind Caddy); the AWS steps below remain the target.
 
 - [ ] 10.1 Production Compose override, Caddy, image publishing in CI.
 - [ ] 10.2 EC2, S3, parameters; deploy job with migration step and health-gated rollback.

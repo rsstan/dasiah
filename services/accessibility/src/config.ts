@@ -29,6 +29,8 @@ export const configSchema = baseConfigSchema
     OSRM_TIMEOUT_MS: z.coerce.number().int().min(100).default(10_000),
     OSRM_CHUNK_SIZE: z.coerce.number().int().min(1).max(1_000).default(500),
     OSRM_PARALLEL: z.coerce.number().int().min(1).default(4),
+    /** Minimum gap between OSRM requests per city; 1000 for the public demo server. */
+    OSRM_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(0),
     /** car_s = round(duration x factor) + overhead (docs/05-algorithms.md#7). */
     CAR_TIME_FACTOR: z.coerce.number().min(0.1).max(5).default(1),
     CAR_OVERHEAD_S: z.coerce.number().int().min(0).default(0),

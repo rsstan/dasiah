@@ -65,9 +65,11 @@ services:
       - '${AMQP_PORT:-5672}:5672'
       - '${RABBITMQ_UI_PORT:-15672}:15672'
     healthcheck:
-      # As the rabbitmq user: run as root before the server has written its Erlang cookie, the
-      # CLI would create the cookie owned by root and the server could no longer start.
-      test: ['CMD', 'su-exec', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'ping']
+      # The AMQP listener opens only at the end of the start-up, so an open port means ready.
+      # Deliberately not `rabbitmq-diagnostics`: it boots an Erlang VM per check (over 10 s on a
+      # busy machine), and run as root before the server writes its Erlang cookie it would create
+      # the cookie owned by root, after which the broker cannot start.
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '5672']
       interval: 10s
       timeout: 10s
       retries: 12
@@ -236,6 +238,9 @@ services:
       CITIES: waw,vno
       OSRM_URL_WAW: ${CONTAINER_OSRM_URL_WAW:-http://osrm-stub:5000}
       OSRM_URL_VNO: ${CONTAINER_OSRM_URL_VNO:-http://osrm-stub:5000}
+      # Pacing towards OSRM; for the public demo server (one request per second) 1 and 1000.
+      OSRM_PARALLEL: ${CONTAINER_OSRM_PARALLEL:-4}
+      OSRM_MIN_INTERVAL_MS: ${CONTAINER_OSRM_MIN_INTERVAL_MS:-0}
       TIMETABLE_RETRY_MS: '10000'
       TRUST_PROXY: 'true'
     depends_on:
@@ -259,7 +264,7 @@ services:
       TRANSIT_URL: http://transit-data:3002
       GEOCODER_PROVIDER: ${CONTAINER_GEOCODER_PROVIDER:-photon}
       GEOCODER_URL: ${CONTAINER_GEOCODER_URL:-http://geocoder-stub:2322}
-      GEOCODER_MIN_INTERVAL_MS: ${CONTAINER_GEOCODER_MIN_INTERVAL_MS:-0}
+      GEOCODER_MIN_INTERVAL_MS: ${CONTAINER_GEOCODER_MIN_INTERVAL_MS:-1000}
       TRUST_PROXY: 'true'
 
   gateway:
@@ -280,7 +285,7 @@ services:
       ACCESSIBILITY_URL: http://accessibility:3003
       PLACES_URL: http://places:3004
       REDIS_URL: redis://redis:6379
-      WEB_ORIGIN: http://localhost:${WEB_PORT:-8000}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:${WEB_PORT:-8000}}
       RATE_LIMIT_WINDOW_S: ${RATE_LIMIT_WINDOW_S:-60}
       # Behind Caddy (web): X-Forwarded-For is the client address.
       TRUST_PROXY: 'true'

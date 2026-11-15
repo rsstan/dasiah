@@ -91,3 +91,18 @@ describe('OsrmClient', () => {
     );
   });
 });
+
+describe('pacing', () => {
+  it('spaces table requests by minIntervalMs, also across parallel workers', async () => {
+    const { lat, lon } = grid(1_200);
+    const client = new OsrmClient('vno', stub.url, captureLogger().logger, {
+      chunkSize: 400,
+      parallel: 3,
+      minIntervalMs: 80,
+    });
+    const started = Date.now();
+    await client.carTimes(origin, lat, lon);
+    expect(stub.requests).toBe(3);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(160);
+  });
+});

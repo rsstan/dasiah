@@ -22,6 +22,19 @@ needs is healthy (`db-init` must have completed), so `up --wait` returns when th
 In `full` the secrets come from the env file by name (`DB_PASSWORD_*`, `JWT_PRIVATE_KEY`, ...);
 the other settings are fixed in the Compose file for the container network.
 
+Local trial with Docker only: `compose.yaml` in the repository root includes the Compose file
+with `infra/compose/local.yml` (only the map, Jaeger UI and RabbitMQ UI published; project
+`heatmap-local`). `compose.setup.yaml` runs `scripts/setup-env.ts` in a Node container to create
+`.env` or add what it lacks (random passwords, Ed25519 key, `COMPOSE_PROFILES=full`); then
+`docker compose up -d --build --wait`. `.gitattributes` keeps LF line endings so the scripts that
+run in containers also work from a Windows checkout. `GET /health` on the web container returns
+the gateway's aggregated readiness.
+
+Single VPS: `infra/compose/vps.yml` on top of `full` publishes only the web container (80, and
+443 with `SITE_ADDRESS` set to a domain, for which Caddy obtains the certificate) and keeps every
+other port internal; `infra/terraform/vps` applies it over SSH to any Ubuntu/Debian server with
+generated secrets (`.env.vps` on the server, the Terraform state locally; both private).
+
 End-to-end stack: `pnpm e2e:up` runs `full` as a separate project `heatmap-e2e` with fresh
 volumes, secrets generated into `.e2e/.env` (git-ignored, never the root `.env`) and only the web
 page published (`E2E_WEB_PORT`, default 8088); `pnpm e2e` runs the Playwright suite against it;
@@ -61,7 +74,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all | Jaeger OTLP endpoint |
 | `JWT_PRIVATE_KEY` (Ed25519, PKCS#8 PEM, `\n`-escaped), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE`, `ACCESS_TTL_S`, `REFRESH_TTL_S`, `COOKIE_SECURE`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_WINDOW_S`, `TRUST_PROXY` | identity | Token signing (EdDSA), refresh cookie, lockout after repeated failed sign-ins |
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` (comma-separated), `JWT_ISSUER`, `JWT_AUDIENCE`, `UPSTREAM_TIMEOUT_MS`, `ACCESSIBILITY_TIMEOUT_MS`, `BREAKER_THRESHOLD`, `BREAKER_HALF_OPEN_MS`, `RATE_LIMIT_WINDOW_S`, `BODY_LIMIT_BYTES`, `TRUST_PROXY` | gateway | Upstreams, token checks, limits store, CORS, resilience |
-| `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL`, `MAX_QUEUED_CALCS`, `PURGE_INTERVAL_MS`, `TIMETABLE_RETRY_MS` (default 30 s) | accessibility | Upstreams, timetables in memory, method parameters |
+| `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL`, `OSRM_MIN_INTERVAL_MS` (pacing, 1000 for the public demo server), `MAX_QUEUED_CALCS`, `PURGE_INTERVAL_MS`, `TIMETABLE_RETRY_MS` (default 30 s) | accessibility | Upstreams, timetables in memory, method parameters |
 | `TRANSIT_URL`, `GEOCODER_PROVIDER` (`photon` default, `nominatim`), `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` (default 1000), `GEOCODER_TIMEOUT_MS`, `GEOCODE_CACHE_TTL_S` (default 30 days), `TRUST_PROXY` | places | City bounding boxes, geocoder selection, throttling and cache lifetime |
 | `GATEWAY_URL` (dev server only), `VITE_MAP_STYLE_URL` (basemap style; default OpenFreeMap Positron, must credit OpenStreetMap) | web | API target and basemap |
 | `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |

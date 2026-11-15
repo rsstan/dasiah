@@ -32,4 +32,5 @@ start=$(date +%s)
 run osrm-extract -p /opt/car.lua "/data/$region.osm.pbf"
 run osrm-partition "/data/$region.osrm"
 run osrm-customize "/data/$region.osrm"
+touch "$dir/.ready"   # tells automation (infra/terraform/vps) that the data is complete
 echo "OSRM data for $city ready in $dir ($(( $(date +%s) - start )) s); start: pnpm compose --profile osrm up -d osrm-$city"

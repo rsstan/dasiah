@@ -1,6 +1,8 @@
 // Car times from OSRM (docs/05-algorithms.md#7): `table` from the origin to every cell centre of
 // the city, in chunks of at most 500 destinations, a few chunks in parallel, each through the
-// city's resilient client (timeout, retries for the GET, one circuit breaker per city).
+// city's resilient client (timeout, retries for the GET, one circuit breaker per city). With
+// minIntervalMs (the public demo server allows one request per second) requests of the city are
+// spaced at least that far apart, across all calculations.
 //   car_s = round(duration x CAR_TIME_FACTOR) + CAR_OVERHEAD_S, at least 60 s; null stays null.
 // If any chunk fails the whole result fails: a partial car map is never used.
 import { HttpClient, ServiceUnavailableError, withSpan, type Logger } from '@heatmap/common';
@@ -12,6 +14,8 @@ export interface OsrmOptions {
   readonly timeoutMs?: number;
   readonly factor?: number;
   readonly overheadS?: number;
+  /** Minimum gap between two table requests to this server; 0 = no pacing. */
+  readonly minIntervalMs?: number;
 }
 
 interface TableResponse {
@@ -28,6 +32,9 @@ export class OsrmClient {
   private readonly parallel: number;
   private readonly factor: number;
   private readonly overheadS: number;
+  private readonly minIntervalMs: number;
+  /** Earliest time the next table request may start. */
+  private nextAt = 0;
   readonly city: string;
 
   constructor(city: string, baseUrl: string, logger: Logger, options: OsrmOptions = {}) {
@@ -36,6 +43,7 @@ export class OsrmClient {
     this.parallel = options.parallel ?? 4;
     this.factor = options.factor ?? 1;
     this.overheadS = options.overheadS ?? 0;
+    this.minIntervalMs = options.minIntervalMs ?? 0;
     this.http = new HttpClient({
       name: `osrm-${city}`,
       baseUrl,
@@ -44,6 +52,8 @@ export class OsrmClient {
       retries: 2,
       breakerThreshold: 5,
       breakerHalfOpenAfterMs: 15_000,
+      // Identifies the application, as the public OSRM demo server's usage policy asks.
+      headers: { 'user-agent': 'transit-heatmap/1.0' },
     });
   }
 
@@ -98,6 +108,7 @@ export class OsrmClient {
     for (let i = from; i < to; i++) {
       points.push([destLat[i] ?? 0, destLon[i] ?? 0]);
     }
+    await this.pace();
     const path = `/table/v1/driving/polyline(${encodeURIComponent(encodePolyline(points))})`;
     const res = await this.http.request<TableResponse>('GET', path, { query: { sources: 0, annotations: 'duration' } });
     const row = res.body?.durations?.[0];
@@ -111,5 +122,18 @@ export class OsrmClient {
       );
     }
     return row;
+  }
+
+  /** Waits for this request's slot when requests are paced. */
+  private async pace(): Promise<void> {
+    if (this.minIntervalMs === 0) {
+      return;
+    }
+    const now = Date.now();
+    const at = Math.max(now, this.nextAt);
+    this.nextAt = at + this.minIntervalMs;
+    if (at > now) {
+      await new Promise((resolve) => setTimeout(resolve, at - now));
+    }
   }
 }

@@ -91,6 +91,7 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
       new OsrmClient(city, url, logger, {
         chunkSize: config.OSRM_CHUNK_SIZE,
         parallel: config.OSRM_PARALLEL,
+        minIntervalMs: config.OSRM_MIN_INTERVAL_MS,
         timeoutMs: config.OSRM_TIMEOUT_MS,
         factor: config.CAR_TIME_FACTOR,
         overheadS: config.CAR_OVERHEAD_S,

@@ -1,0 +1,13 @@
+# Local trial with Docker only (Windows, macOS, Linux):
+#   docker compose -f compose.setup.yaml run --rm setup   # once: creates .env
+#   docker compose up -d --build --wait                    # builds, starts, waits until healthy
+#   docker compose ps / logs -f <service> / down [-v]
+# Every service in containers with testville as the Warsaw timetable and stand-ins for OSRM and
+# the geocoder (.env: COMPOSE_PROFILES=full). Published: the map (WEB_PORT, 8000), Jaeger UI and
+# RabbitMQ UI; databases, broker and Redis stay inside. Details: specs/microservices.md.
+name: heatmap-local
+
+include:
+  - path:
+      - infra/compose/docker-compose.yml
+      - infra/compose/local.yml
