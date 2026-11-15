@@ -15,6 +15,8 @@
     "contracts:lint": "redocly lint",
     "contracts:gen": "node contracts/tools/generate.ts",
     "new:service": "node scripts/new-service.ts",
+    "transit:grid": "pnpm --filter @heatmap/transit-data grid",
+    "transit:import": "pnpm --filter @heatmap/transit-data import",
     "compose": "scripts/with-env.sh docker compose --env-file .env -f infra/compose/docker-compose.yml",
     "infra:up": "pnpm -s compose --profile infra up -d --wait",
     "infra:down": "pnpm -s compose --profile infra down",

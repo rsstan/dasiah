@@ -19,8 +19,19 @@ Online part (per request, `accessibility`): steps 5 to 9.
 
 Checks done by `promote_feed`: every staged trip and stop_time lands in core (no unknown
 references), at least one service date, typed conversion of times and coordinates. Extra checks
-in the service before promotion (log as warnings, fail above a threshold): stops outside the
-city bounds, trips with fewer than two stop_times, non-increasing times inside a trip.
+in the service before promotion: stops more than 1 500 m outside the city boundary and trips
+with fewer than two stop_times are logged as warnings; the import fails when more than
+`MAX_STOPS_OUTSIDE_SHARE` (25 %) of the stops are outside (wrong feed for the city).
+
+Implementation (`services/transit-data/src/import/`): download with redirects, retries for
+network errors and 5xx, timeout and size limit, SHA-256 computed while writing; a failed
+attempt of the same archive is replaced, any other repeat is a no-op (`200`, `duplicate`).
+Files are streamed from the zip (yauzl) through a CSV parser into `COPY ... FROM STDIN`; the
+promotion transaction raises `statement_timeout` (`IMPORT_STATEMENT_TIMEOUT_MS`) and
+`work_mem`. Versions left `downloaded`/`staged` by a restart are marked `failed` at start-up.
+Timings per stage (`copy_ms`, `checks_ms`, `promote_ms`) and core row counts are logged in the
+"feed validated" line. Outside the API: `pnpm transit:import --source <code> (--file <zip> |
+--download) [--activate]`.
 
 Notes:
 
@@ -34,9 +45,14 @@ Notes:
 ## 2. Hexagon grid
 
 Per city, once (and when bounds change): `polygonToCells(bounds, h3_resolution)` with h3-js,
-insert into `transit.hex_cells` with `cellToLatLng` as centroid. Replace the seeded rectangle
-bounds with the administrative boundary from OSM. Expected size: Warsaw about 5 000 cells at
-resolution 9, Vilnius about 3 800.
+insert into `transit.hex_cells` with `cellToLatLng` as centroid, and the boundary replaces the
+seeded rectangle in `cities.bounds`. Boundaries: OSM relations 336075 (Warsaw) and 1529146
+(Vilnius), fetched through Nominatim and simplified to 0.0003 degrees, stored in
+`db/seed/reference/boundaries/*.geojson` (ODbL). Command: `pnpm transit:grid --city waw`.
+Size at resolution 9: Warsaw 5 333 cells, Vilnius 4 339 (cells at these latitudes average
+about 0.097 km2). The command also recomputes the access stops of the city's validated and
+active feed versions; `mv_city_coverage` shows the new grid after the next activation (only the
+view owner may refresh it, which `activate_feed` does).
 
 ## 3. Access stops and transfers (SQL procedures)
 
@@ -66,7 +82,10 @@ A pattern is a group of trips of one route with exactly the same stop sequence. 
 flat array `[arr0, dep0, arr1, dep1, ...]`. Trips inside a pattern are sorted by departure at
 the first stop; if two trips of a pattern overtake each other, split them into separate
 patterns (RAPTOR requires non-overtaking trips). Built with one SQL query per date and cached
-on disk by `(feedVersionId, date)`. The query reads most of a feed's `stop_times`, so a sequential
+in storage by `(feedVersionId, date)` (`artifacts/<id>/timetable-<date>.json.gz`, strong `ETag`
+from the content hash, `304` on `If-None-Match`, one build at a time per artifact). The query
+aggregates each trip's stop times into arrays, so a city-size feed comes back as tens of
+thousands of rows, not millions. It reads most of a feed's `stop_times`, so a sequential
 scan is expected; the transaction sets `SET LOCAL work_mem = '64MB'` so the sort stays in memory
 (`docs/db/query-plans.md`).
 

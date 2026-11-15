@@ -23,6 +23,9 @@ another local PostgreSQL. `scripts/with-env.sh` exports `.env` and the matching 
 
 First start: `pnpm infra:up` (bootstrap SQL runs on an empty volume), then `pnpm db:passwords`.
 
+City grids: `pnpm transit:grid --city waw` (and `vno`) after the first migration. GTFS by hand:
+`pnpm transit:import --source waw_ztm --file data/gtfs/<file>.zip --activate` (`data/` is ignored by Git).
+
 Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`,
 `db:bootstrap`, `db:migrate`, `db:seed`, `db:seed:test`, `db:smoke`, `db:dict`,
 `contracts:lint`, `contracts:gen`, `e2e`.
@@ -41,7 +44,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` (comma-separated), `JWT_ISSUER`, `JWT_AUDIENCE`, `UPSTREAM_TIMEOUT_MS`, `ACCESSIBILITY_TIMEOUT_MS`, `BREAKER_THRESHOLD`, `BREAKER_HALF_OPEN_MS`, `RATE_LIMIT_WINDOW_S`, `BODY_LIMIT_BYTES`, `TRUST_PROXY` | gateway | Upstreams, token checks, limits store, CORS, resilience |
 | `TRANSIT_URL`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S` | accessibility | Upstreams and method parameters |
 | `GEOCODER_PROVIDER`, `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` | places | Geocoder selection and throttling |
-| `STORAGE_DRIVER` (`fs` or `s3`), `STORAGE_PATH` or `S3_BUCKET` | transit-data | Raw GTFS and artifacts |
+| `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |
 
 ## Platform package (`packages/common`, `@heatmap/common`)
 

@@ -51,10 +51,10 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 5 — transit-data service
 
-- [ ] 5.1 Cities and coverage endpoints; grid generation command (h3-js) with real city boundaries.
-- [ ] 5.2 Import pipeline: download, hash, raw storage, COPY to staging, promote, transfers, hex access; status and errors visible through the admin API.
-- [ ] 5.3 Activation endpoint and `transit.feed.activated.v1`.
-- [ ] 5.4 Internal API: active feed, timetable artifact per date (pattern building, non-overtaking split), hex access.
+- [x] 5.1 Cities and coverage endpoints; grid generation command (h3-js) with real city boundaries.
+- [x] 5.2 Import pipeline: download, hash, raw storage, COPY to staging, promote, transfers, hex access; status and errors visible through the admin API.
+- [x] 5.3 Activation endpoint and `transit.feed.activated.v1`.
+- [x] 5.4 Internal API: active feed, timetable artifact per date (pattern building, non-overtaking split), hex access.
 - [ ] 5.5 Import of the real Warsaw and Vilnius feeds; record timings and row counts in `docs/evidence/import.md`.
       Done when: testville imports in the integration test with the expected row counts; a second import of the same zip is a no-op; a corrupted feed ends as `failed` with nothing left in core tables.
 

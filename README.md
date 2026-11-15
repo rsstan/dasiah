@@ -25,12 +25,16 @@ pnpm db:migrate                 # node-pg-migrate per service, as app_admin
 pnpm db:seed                    # reference data
 pnpm db:smoke                   # prints SMOKE TEST PASSED
 pnpm db:dict                    # regenerates docs/db/data-dictionary.md
+pnpm transit:grid --city waw    # H3 grid from the city boundary (also --city vno)
 pnpm db:seed:test               # testville feed (active for waw), demo accounts and data
 ```
 
 The smoke test expects a database without test data, so run it before `db:seed:test`.
 Demo accounts (`demo.user@example.com`, `demo.admin@example.com`, ...) get the password from
 `SEED_DEMO_PASSWORD`; if it is empty a random one is printed once.
+
+Each service reads the root `.env` and its own `services/<name>/.env` (copy its `.env.example`;
+`DATABASE_URL` uses the service's `svc_*` role).
 
 `pnpm db:reset` drops and recreates the database (fresh start). `pnpm db:migrate down --all`,
 `pnpm db:migrate redo --service places` and `pnpm db:psql <role>` are available for development.

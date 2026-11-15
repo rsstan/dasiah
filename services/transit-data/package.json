@@ -1,0 +1,33 @@
+{
+  "name": "@heatmap/transit-data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Timetable lifecycle: GTFS import, H3 grid, activation, timetable artifacts",
+  "scripts": {
+    "start": "node --import @heatmap/common/otel src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=.env --watch --import @heatmap/common/otel src/main.ts",
+    "grid": "node --env-file-if-exists=../../.env --env-file-if-exists=.env src/cli/grid.ts",
+    "import": "node --env-file-if-exists=../../.env --env-file-if-exists=.env src/cli/import.ts"
+  },
+  "dependencies": {
+    "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*",
+    "csv-parse": "7.0.3",
+    "h3-js": "4.5.0",
+    "kysely": "0.29.9",
+    "pg-copy-streams": "7.0.0",
+    "undici": "8.12.4",
+    "yauzl": "3.4.0"
+  },
+  "devDependencies": {
+    "@heatmap/testing": "workspace:*",
+    "@types/pg": "8.23.1",
+    "@types/pg-copy-streams": "1.2.5",
+    "@types/yauzl": "3.4.0",
+    "@types/yazl": "3.3.1",
+    "fastify": "5.12.8",
+    "pg": "8.23.1",
+    "yazl": "3.3.1"
+  }
+}
