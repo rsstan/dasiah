@@ -13,6 +13,8 @@ import {
   type FastifyInstance,
   type Logger,
 } from '@heatmap/common';
+import { CalculationService } from './calculation/calculations.ts';
+import { OsrmClient } from './car/osrm.ts';
 import type { Config } from './config.ts';
 import type { AppContext } from './context.ts';
 import { registerRoutes } from './http/routes.ts';
@@ -28,6 +30,7 @@ export interface Service {
   readonly app: FastifyInstance;
   readonly ctx: AppContext;
   readonly loader: TimetableLoader;
+  readonly calculations: CalculationService;
 }
 
 export async function createService(config: Config, logger: Logger): Promise<Service> {
@@ -73,6 +76,38 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
   outbox.start();
 
   const ctx: AppContext = { config, logger, pool, db: createKysely<AccessibilityDb>(pool), outbox, timetables };
+
+  const osrmUrls: Record<string, string | undefined> = { waw: config.OSRM_URL_WAW, vno: config.OSRM_URL_VNO };
+  const osrm = new Map<string, OsrmClient>();
+  for (const city of config.CITIES) {
+    const url = osrmUrls[city];
+    if (url === undefined) {
+      logger.warn({ city }, 'no OSRM configured: maps of this city cannot be computed');
+      continue;
+    }
+    osrm.set(
+      city,
+      new OsrmClient(city, url, logger, {
+        chunkSize: config.OSRM_CHUNK_SIZE,
+        parallel: config.OSRM_PARALLEL,
+        timeoutMs: config.OSRM_TIMEOUT_MS,
+        factor: config.CAR_TIME_FACTOR,
+        overheadS: config.CAR_OVERHEAD_S,
+      }),
+    );
+  }
+  const calculations = new CalculationService(ctx, osrm);
+  const interrupted = await calculations.failInterrupted(0);
+  if (interrupted > 0) {
+    logger.warn({ calculations: interrupted }, 'calculations interrupted by a restart marked failed');
+  }
+  const purge = setInterval(() => {
+    calculations
+      .purgeExpired()
+      .then((n) => n > 0 && logger.info({ removed: n }, 'expired calculations purged'))
+      .catch((error: unknown) => logger.warn({ err: error }, 'purge of expired calculations failed'));
+  }, config.PURGE_INTERVAL_MS);
+  purge.unref();
   const app = createServer({
     logger,
     trustProxy: config.TRUST_PROXY,
@@ -86,13 +121,14 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
       },
     },
   });
-  await registerRoutes(app, ctx);
+  await registerRoutes(app, ctx, calculations);
 
   app.addHook('onClose', async () => {
+    clearInterval(purge);
     await consumer.stop();
     await outbox.stop();
     await broker.close();
     await pool.end();
   });
-  return { app, ctx, loader };
+  return { app, ctx, loader, calculations };
 }

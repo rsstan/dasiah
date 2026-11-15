@@ -168,8 +168,15 @@ thresholds, the walking model, K, the horizon or the car factors requires bumpin
 
 - Cache key: `(feed_version_id, origin_h3, service_date, departure_s, window_s, algo_version)`.
 - Flow: look up `done` row -> return. Otherwise insert a `running` row; a unique-violation
-  means someone else is computing it -> `202`. On success insert results and set `done` in one
-  transaction; on failure set `failed` with `error_code`.
+  means someone else is computing it -> `202`. The key is taken before waiting for a bulkhead
+  slot (`MAX_PARALLEL_CALCS` running, `MAX_QUEUED_CALCS` waiting), so identical requests get
+  `202` rather than `503`; a rejected request is marked `failed` (`busy`) and answered `503`.
+  On success insert results, set `done` and write `accessibility.calculation.completed.v1` in
+  one transaction; on failure set `failed` with `error_code` (`osrm_unavailable`,
+  `timetable_unavailable`, `busy`, `internal_error`). A signed-in user's cache hit also writes the
+  event (`cacheHit: true`) so the history records it.
+- The computation starts from the centre of the origin's resolution-10 cell; RAPTOR and the OSRM
+  table run concurrently.
 - `expires_at` = now + 24 h. A timer calls `accessibility.purge_expired()` every 10 minutes. On
   start-up, `running` rows older than the request timeout are set to `failed`.
 

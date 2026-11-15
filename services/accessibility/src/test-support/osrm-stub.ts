@@ -11,6 +11,8 @@ export interface OsrmStub {
   requests: number;
   /** When set, every request answers this status. */
   failWith: number | undefined;
+  /** Delay before answering, ms. */
+  delayMs: number;
   /** Destinations (by index in the request) answered with null (no road). */
   readonly noRoute: Set<number>;
   close(): Promise<void>;
@@ -27,11 +29,15 @@ export async function startOsrmStub(port = 0): Promise<OsrmStub> {
     url: '',
     requests: 0,
     failWith: undefined,
+    delayMs: 0,
     noRoute: new Set(),
     close: () => app.close(),
   };
   app.get('/table/v1/driving/:coordinates', async (req, reply) => {
     stub.requests++;
+    if (stub.delayMs > 0) {
+      await new Promise((r) => setTimeout(r, stub.delayMs));
+    }
     if (stub.failWith !== undefined) {
       return reply.status(stub.failWith).send({ code: 'Error', message: 'stub failure' });
     }

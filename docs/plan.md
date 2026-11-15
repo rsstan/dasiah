@@ -64,7 +64,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 - [x] 6.1 RAPTOR as a pure library with unit tests from the testville expectations.
 - [x] 6.2 Timetable loader: start-up load, event consumer, atomic swap, snapshot rows, readiness.
 - [x] 6.3 OSRM client (chunking, parallelism, policies) and `infra/osrm/build.sh`; stub OSRM for tests.
-- [ ] 6.4 `POST /calculations`, status and results endpoints, cache and single flight, bulkhead, purge timer, legend endpoint, outbox event.
+- [x] 6.4 `POST /calculations`, status and results endpoints, cache and single flight, bulkhead, purge timer, legend endpoint, outbox event.
 - [ ] 6.5 Measure Warsaw: p95 uncached and cached; write the numbers to `docs/evidence/performance.md`. If the target is missed, profile before changing the design.
       Done when: the API matches the OpenAPI file in contract tests, parallel identical requests compute once, and results for testville equal the hand-computed table.
 

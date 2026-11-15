@@ -1,4 +1,5 @@
 // Environment of the accessibility service, validated at start-up (the process stops on any problem).
+import { availableParallelism } from 'node:os';
 import { baseConfigSchema, databaseConfigSchema, loadConfig, messagingConfigSchema, z } from '@heatmap/common';
 
 const httpUrl = z.url({ protocol: /^https?$/ });
@@ -31,6 +32,16 @@ export const configSchema = baseConfigSchema
     /** car_s = round(duration x factor) + overhead (docs/05-algorithms.md#7). */
     CAR_TIME_FACTOR: z.coerce.number().min(0.1).max(5).default(1),
     CAR_OVERHEAD_S: z.coerce.number().int().min(0).default(0),
+    /** Bump when the method changes, so old cached maps are not reused (docs/05-algorithms.md#8). */
+    ALGO_VERSION: z.coerce.number().int().min(1).default(1),
+    /** Bulkhead: calculations at once (default: CPU cores) and waiting in the queue. */
+    MAX_PARALLEL_CALCS: z.coerce.number().int().min(1).default(availableParallelism()),
+    MAX_QUEUED_CALCS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .default(availableParallelism() * 2),
+    PURGE_INTERVAL_MS: z.coerce.number().int().min(1_000).default(600_000),
     TRUST_PROXY: z.stringbool().default(true),
   });
 

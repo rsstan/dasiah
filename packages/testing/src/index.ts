@@ -7,10 +7,15 @@ import { resolve } from 'node:path';
 import { topology } from '@heatmap/contracts';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RabbitMQContainer, type StartedRabbitMQContainer } from '@testcontainers/rabbitmq';
+import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js';
+import addFormatsModule from 'ajv-formats';
 import amqp from 'amqplib';
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import pg from 'pg';
 import { migrate } from '../../../db/tools/migrations.ts';
+
+// ajv-formats is CommonJS; its default export is the plugin.
+const addFormats = addFormatsModule as unknown as (ajv: Ajv2020) => Ajv2020;
 
 const ROOT = resolve(import.meta.dirname, '../../..');
 export const POSTGIS_IMAGE = 'postgis/postgis:16-3.7';
@@ -202,4 +207,46 @@ export async function eventually(
     }
     await new Promise((r) => setTimeout(r, 50));
   }
+}
+
+// ------------------------------------------------------------------ contract tests
+
+/**
+ * Validates response bodies against an OpenAPI 3.1 document (dereferenced, from
+ * @heatmap/contracts): `check('post', '/calculations', 201, body)` throws with the schema errors
+ * when the body does not match the documented response.
+ */
+export function contractChecker(
+  document: unknown,
+): (method: string, path: string, status: number, body: unknown) => void {
+  const ajv = addFormats(new Ajv2020({ allErrors: true, strict: false }));
+  const cache = new Map<string, ValidateFunction>();
+  const paths = (
+    document as {
+      paths: Record<
+        string,
+        Record<string, { responses: Record<string, { content?: Record<string, { schema?: object }> }> }>
+      >;
+    }
+  ).paths;
+  return (method, path, status, body) => {
+    const key = `${method} ${path} ${status}`;
+    let validate = cache.get(key);
+    if (validate === undefined) {
+      const response = paths[path]?.[method.toLowerCase()]?.responses[String(status)];
+      if (response === undefined) {
+        throw new Error(`${key}: status not in the contract`);
+      }
+      const content = response.content ?? {};
+      const schema = (content['application/json'] ?? content['application/problem+json'])?.schema;
+      if (schema === undefined) {
+        throw new Error(`${key}: no JSON body in the contract`);
+      }
+      validate = ajv.compile(schema);
+      cache.set(key, validate);
+    }
+    if (!validate(body)) {
+      throw new Error(`${key}: body does not match the contract: ${ajv.errorsText(validate.errors)}`);
+    }
+  };
 }

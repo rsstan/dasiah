@@ -29,6 +29,8 @@ export interface Snapshot {
   readonly validFrom: string;
   readonly validTo: string;
   readonly cells: HexCells;
+  /** Cell index by H3 id (also: "is this point inside the city grid"). */
+  readonly cellIndex: ReadonlyMap<string, number>;
   readonly loadedAt: Date;
 }
 
@@ -95,6 +97,7 @@ export class TimetableStore {
         accessStop,
         accessWalk,
       },
+      cellIndex: new Map(access.cells.map((c, i) => [c.h3, i])),
       loadedAt: new Date(),
     };
     this.logger.info(
