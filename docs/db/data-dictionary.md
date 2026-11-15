@@ -81,6 +81,16 @@ Indexes:
 
 - `identity.outbox_unpublished_idx`: btree (occurred_at) WHERE (published_at IS NULL)
 
+### `identity.pgmigrations`
+
+_no description_
+
+| Column | Type | Null | Default | Key | Description |
+| --- | --- | --- | --- | --- | --- |
+| id | integer | no | nextval('identity.pgmigrations_id_seq'::regclass) | PK |  |
+| name | character varying(255) | no |  |  |  |
+| run_on | timestamp without time zone | no |  |  |  |
+
 ### `identity.refresh_tokens`
 
 Rotating refresh tokens (one row per issued token).
@@ -372,6 +382,16 @@ Constraints:
 Indexes:
 
 - `transit.outbox_unpublished_idx`: btree (occurred_at) WHERE (published_at IS NULL)
+
+### `transit.pgmigrations`
+
+_no description_
+
+| Column | Type | Null | Default | Key | Description |
+| --- | --- | --- | --- | --- | --- |
+| id | integer | no | nextval('transit.pgmigrations_id_seq'::regclass) | PK |  |
+| name | character varying(255) | no |  |  |  |
+| run_on | timestamp without time zone | no |  |  |  |
 
 ### `transit.route_types`
 
@@ -780,6 +800,16 @@ Indexes:
 
 - `accessibility.outbox_unpublished_idx`: btree (occurred_at) WHERE (published_at IS NULL)
 
+### `accessibility.pgmigrations`
+
+_no description_
+
+| Column | Type | Null | Default | Key | Description |
+| --- | --- | --- | --- | --- | --- |
+| id | integer | no | nextval('accessibility.pgmigrations_id_seq'::regclass) | PK |  |
+| name | character varying(255) | no |  |  |  |
+| run_on | timestamp without time zone | no |  |  |  |
+
 ### `accessibility.processed_messages`
 
 Inbox for idempotent consumers: a message id is handled at most once.
@@ -870,6 +900,16 @@ Indexes:
 
 - `places.geocode_cache_expires_idx`: btree (expires_at)
 - `places.geocode_cache_query_uq`: btree (city_code, query_norm)
+
+### `places.pgmigrations`
+
+_no description_
+
+| Column | Type | Null | Default | Key | Description |
+| --- | --- | --- | --- | --- | --- |
+| id | integer | no | nextval('places.pgmigrations_id_seq'::regclass) | PK |  |
+| name | character varying(255) | no |  |  |  |
+| run_on | timestamp without time zone | no |  |  |  |
 
 ### `places.place_kinds`
 
@@ -986,6 +1026,8 @@ Triggers:
 | accessibility | feed_snapshots | app_read | SELECT |
 | accessibility | outbox | accessibility_rw | DELETE, INSERT, SELECT, UPDATE |
 | accessibility | outbox | app_read | SELECT |
+| accessibility | pgmigrations | accessibility_rw | DELETE, INSERT, SELECT, UPDATE |
+| accessibility | pgmigrations | app_read | SELECT |
 | accessibility | processed_messages | accessibility_rw | DELETE, INSERT, SELECT, UPDATE |
 | accessibility | processed_messages | app_read | SELECT |
 | accessibility | ratio_classes | accessibility_rw | DELETE, INSERT, SELECT, UPDATE |
@@ -998,6 +1040,7 @@ Triggers:
 | identity | audit_event_types | identity_rw | DELETE, INSERT, SELECT, UPDATE |
 | identity | audit_log | identity_rw | INSERT, SELECT |
 | identity | outbox | identity_rw | DELETE, INSERT, SELECT, UPDATE |
+| identity | pgmigrations | identity_rw | DELETE, INSERT, SELECT, UPDATE |
 | identity | refresh_tokens | identity_rw | DELETE, INSERT, SELECT, UPDATE |
 | identity | roles | app_read | SELECT |
 | identity | roles | identity_rw | DELETE, INSERT, SELECT, UPDATE |
@@ -1008,6 +1051,7 @@ Triggers:
 | identity | v_users_masked | identity_rw | DELETE, INSERT, SELECT, UPDATE |
 | places | geocode_cache | app_read | SELECT |
 | places | geocode_cache | places_rw | DELETE, INSERT, SELECT, UPDATE |
+| places | pgmigrations | places_rw | DELETE, INSERT, SELECT, UPDATE |
 | places | place_kinds | app_read | SELECT |
 | places | place_kinds | places_rw | DELETE, INSERT, SELECT, UPDATE |
 | places | processed_messages | places_rw | DELETE, INSERT, SELECT, UPDATE |
@@ -1031,6 +1075,8 @@ Triggers:
 | transit | hex_stop_access | transit_rw | DELETE, INSERT, SELECT, UPDATE |
 | transit | outbox | app_read | SELECT |
 | transit | outbox | transit_rw | DELETE, INSERT, SELECT, UPDATE |
+| transit | pgmigrations | app_read | SELECT |
+| transit | pgmigrations | transit_rw | DELETE, INSERT, SELECT, UPDATE |
 | transit | route_types | app_read | SELECT |
 | transit | route_types | transit_rw | DELETE, INSERT, SELECT, UPDATE |
 | transit | routes | app_read | SELECT |

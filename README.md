@@ -17,16 +17,20 @@ Specification and database layer are in place; services are built step by step f
 - `services/*/migrations/` — schema of each service.
 - `AGENTS.md`, `.claude/skills/` — instructions for a coding agent.
 
-## Database quick start
+## Quick start
 
-Needs PostgreSQL 16 with PostGIS.
+Needs Node.js 24 (pnpm through `corepack enable`), Docker with Compose, and `psql` on the host.
 
 ```bash
-createdb -U postgres heatmap
-psql -U postgres -d heatmap -v ON_ERROR_STOP=1 -f db/bootstrap/001_roles_schemas.sql
-./scripts/db-set-passwords.sh                      # reads DB_PASSWORD_* from the environment
-# migrations: the part of each file between "-- Up Migration" and "-- Down Migration",
-# applied as app_admin (node-pg-migrate does this once phase 0 is done)
-for f in db/seed/reference/*.sql; do psql -U app_admin -d heatmap -v ON_ERROR_STOP=1 -f "$f"; done
-psql -U postgres -d heatmap -v ON_ERROR_STOP=1 -f db/tests/smoke.sql
+cp .env.example .env            # fill in the empty passwords (any random strings locally)
+pnpm install
+pnpm infra:up                   # PostGIS, RabbitMQ, Redis, Jaeger; bootstrap SQL runs on first start
+pnpm db:bootstrap               # idempotent; sets role passwords from .env
+pnpm db:migrate                 # node-pg-migrate per service, as app_admin
+pnpm db:seed                    # reference data
+pnpm db:smoke                   # prints SMOKE TEST PASSED
+pnpm db:dict                    # regenerates docs/db/data-dictionary.md
 ```
+
+`pnpm db:reset` drops and recreates the database (fresh start). `pnpm db:migrate down --all`,
+`pnpm db:migrate redo --service places` and `pnpm db:psql <role>` are available for development.

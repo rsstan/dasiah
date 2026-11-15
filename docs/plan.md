@@ -10,7 +10,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
       Done when: `pnpm install && pnpm lint && pnpm typecheck && pnpm test` pass on an empty workspace.
 - [x] 0.2 `infra/compose/docker-compose.yml` with profile `infra`: postgres (PostGIS), rabbitmq, redis, jaeger. Bootstrap SQL runs on first start; `scripts/db-set-passwords.sh` sets role passwords from `.env`.
       Done when: `docker compose --profile infra up -d` is healthy and `psql` as `svc_identity` connects while `SELECT 1 FROM transit.cities` is denied.
-- [ ] 0.3 node-pg-migrate per service (`--schema`, `--migrations-schema`, SQL files, connection as `app_admin`); root scripts `db:migrate`, `db:seed`, `db:smoke`, `db:dict`.
+- [x] 0.3 node-pg-migrate per service (`--schema`, `--migrations-schema`, SQL files, connection as `app_admin`); root scripts `db:migrate`, `db:seed`, `db:smoke`, `db:dict`.
       Done when: on a fresh database the four scripts run in order and the smoke test prints `SMOKE TEST PASSED`.
 - [ ] 0.4 GitHub Actions: lint, typecheck, unit tests, database job (bootstrap, up/down/up, seeds, smoke, dictionary diff).
       Done when: the workflow is green on a pull request.

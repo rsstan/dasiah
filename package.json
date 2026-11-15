@@ -15,7 +15,14 @@
     "compose": "scripts/with-env.sh docker compose --env-file .env -f infra/compose/docker-compose.yml",
     "infra:up": "pnpm -s compose --profile infra up -d --wait",
     "infra:down": "pnpm -s compose --profile infra down",
-    "db:passwords": "DB_TOOL=scripts/db-set-passwords.sh scripts/with-env.sh scripts/db-as.sh superuser"
+    "db:passwords": "DB_TOOL=scripts/db-set-passwords.sh scripts/with-env.sh scripts/db-as.sh superuser",
+    "db:reset": "scripts/with-env.sh scripts/db-reset.sh",
+    "db:bootstrap": "scripts/with-env.sh scripts/db-bootstrap.sh",
+    "db:migrate": "scripts/with-env.sh node db/tools/migrate.ts",
+    "db:seed": "scripts/with-env.sh scripts/db-seed.sh",
+    "db:smoke": "scripts/with-env.sh scripts/db-as.sh superuser -q -v ON_ERROR_STOP=1 -f db/tests/smoke.sql",
+    "db:dict": "DB_TOOL=scripts/gen-data-dictionary.sh scripts/with-env.sh scripts/db-as.sh app_admin",
+    "db:psql": "scripts/with-env.sh scripts/db-as.sh"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -23,6 +30,8 @@
     "eslint": "10.15.0",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.14.0",
+    "node-pg-migrate": "9.0.0",
+    "pg": "8.23.1",
     "prettier": "3.10.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2",
