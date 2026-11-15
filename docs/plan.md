@@ -6,7 +6,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 0 — Repository foundation
 
-- [ ] 0.1 pnpm workspace, TypeScript strict base config, ESLint, Prettier, Vitest, `.editorconfig`, `.gitignore`, `.env.example`.
+- [x] 0.1 pnpm workspace, TypeScript strict base config, ESLint, Prettier, Vitest, `.editorconfig`, `.gitignore`, `.env.example`.
       Done when: `pnpm install && pnpm lint && pnpm typecheck && pnpm test` pass on an empty workspace.
 - [ ] 0.2 `infra/compose/docker-compose.yml` with profile `infra`: postgres (PostGIS), rabbitmq, redis, jaeger. Bootstrap SQL runs on first start; `scripts/db-set-passwords.sh` sets role passwords from `.env`.
       Done when: `docker compose --profile infra up -d` is healthy and `psql` as `svc_identity` connects while `SELECT 1 FROM transit.cities` is denied.
