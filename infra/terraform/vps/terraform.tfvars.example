@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+host                 = "203.0.113.10"
+ssh_user             = "root"
+ssh_private_key_path = "~/.ssh/id_ed25519"
+repository_url       = "https://github.com/<owner>/<repo>.git"
+git_ref              = "main"
+# domain             = "heatmap.example.org"   # optional: HTTPS via Caddy
+# osrm_cities       = ["vno"]                  # optional: own car routing (data built on the server)
+# osrm_public       = true                     # optional: public OSRM for the other cities instead of the stand-in
+# geocoder_url      = "https://photon.komoot.io" # optional: real address search instead of the stand-in

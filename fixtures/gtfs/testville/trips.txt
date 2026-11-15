@@ -1,0 +1,20 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,wheelchair_accessible
+R1,WK,R1_WK_0800,East End,0,1
+R1,WK,R1_WK_0815_SLOW,East End,0,1
+R1,WK,R1_WK_0820,East End,0,1
+R1,WK,R1_WK_0840,East End,0,1
+R1,WK,R1_WK_2350,East End,0,1
+R1,WE,R1_WE_0900,East End,0,1
+R1,WE,R1_WE_1000,East End,0,1
+R1,WK,R1_WK_0830_W,Alpha Square,1,1
+R1X,WK,R1X_WK_0805,East End,0,1
+R2,WK,R2_WK_0805_S,Grove,0,1
+R2,WK,R2_WK_0815_S,Grove,0,1
+R2,WK,R2_WK_0825_S,Grove,0,1
+R2,WK,R2_WK_0835_S,Grove,0,1
+R2,WK,R2_WK_0800_N,Fern Hill,1,1
+R2,WK,R2_WK_0820_N,Fern Hill,1,1
+R3,WK,R3_WK_0820,Junction,0,1
+R3,WK,R3_WK_0850,Junction,0,1
+R4,WK,R4_WK_0810,Birch circle,,1
+R4,WK,R4_WK_0840,Birch circle,,1

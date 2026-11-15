@@ -1,0 +1,11 @@
+node_modules
+pnpm-lock.yaml
+dist
+coverage
+docs/db/data-dictionary.md
+packages/contracts/src/generated
+*.sql
+*.md
+contracts/openapi/gateway.yaml
+db/seed/reference/boundaries/*.geojson
+fixtures/gtfs/testville/artifacts/*.json

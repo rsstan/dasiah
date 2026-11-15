@@ -1,0 +1,243 @@
+[
+  {
+    "method": "POST",
+    "path": "/auth/register",
+    "service": "identity",
+    "operationId": "register",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 5
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/login",
+    "service": "identity",
+    "operationId": "login",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 10
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/refresh",
+    "service": "identity",
+    "operationId": "refresh",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 30
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/auth/logout",
+    "service": "identity",
+    "operationId": "logout",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 30
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/users/me",
+    "service": "identity",
+    "operationId": "getMe",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/users/me",
+    "service": "identity",
+    "operationId": "deleteMe",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 5
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/users/me",
+    "service": "identity",
+    "operationId": "updateMe",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 20
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/users/me/password",
+    "service": "identity",
+    "operationId": "changePassword",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 5
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cities",
+    "service": "transit-data",
+    "operationId": "listCities",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 120
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/cities/{code}/coverage",
+    "service": "transit-data",
+    "operationId": "getCityCoverage",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/admin/feed-versions",
+    "service": "transit-data",
+    "operationId": "listFeedVersions",
+    "access": "admin",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/admin/feed-versions/{id}",
+    "service": "transit-data",
+    "operationId": "getFeedVersion",
+    "access": "admin",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/admin/feed-sources/{code}/import",
+    "service": "transit-data",
+    "operationId": "importFeed",
+    "access": "admin",
+    "rateLimit": {
+      "perMinute": 6
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/admin/feed-versions/{id}/activate",
+    "service": "transit-data",
+    "operationId": "activateFeedVersion",
+    "access": "admin",
+    "rateLimit": {
+      "perMinute": 6
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/legend",
+    "service": "accessibility",
+    "operationId": "getLegend",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 120
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/calculations",
+    "service": "accessibility",
+    "operationId": "createCalculation",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 20,
+      "anonymousPerMinute": 6
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/calculations/{id}",
+    "service": "accessibility",
+    "operationId": "getCalculation",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 120
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/calculations/{id}/results",
+    "service": "accessibility",
+    "operationId": "getCalculationResults",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/geocode",
+    "service": "places",
+    "operationId": "geocode",
+    "access": "public",
+    "rateLimit": {
+      "perMinute": 30
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/places",
+    "service": "places",
+    "operationId": "listPlaces",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/places",
+    "service": "places",
+    "operationId": "createPlace",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 20
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/places/{id}",
+    "service": "places",
+    "operationId": "deletePlace",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 20
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/places/{id}",
+    "service": "places",
+    "operationId": "updatePlace",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 20
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/history",
+    "service": "places",
+    "operationId": "listHistory",
+    "access": "user",
+    "rateLimit": {
+      "perMinute": 60
+    }
+  }
+]

@@ -1,0 +1,16 @@
+# The tools image needs db/ and fixtures/ (seeds, testville) that service images leave out.
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+.env
+.env.*
+!.env.example
+.e2e
+backups
+data
+docs
+infra/osrm/data
+playwright-report
+test-results

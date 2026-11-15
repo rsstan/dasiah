@@ -1,0 +1,14 @@
+{
+  "name": "@heatmap/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Types, JSON documents and messaging topology generated from contracts/ (pnpm contracts:gen).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  }
+}

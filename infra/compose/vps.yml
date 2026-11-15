@@ -1,0 +1,28 @@
+# Overrides for a single VPS (infra/terraform/vps): only the web container is reachable from
+# outside (80, and 443 when a domain is set); the databases, broker, Redis, Jaeger and the gateway
+# stay on the internal Compose network.
+services:
+  postgres:
+    ports: !reset []
+  rabbitmq:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
+  gateway:
+    ports: !reset []
+  web:
+    environment:
+      # A domain (example.org) makes Caddy obtain a TLS certificate; empty serves plain HTTP on :80.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports: !override
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  caddydata:
+  caddyconfig:

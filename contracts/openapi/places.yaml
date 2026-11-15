@@ -1,0 +1,322 @@
+openapi: 3.1.0
+info:
+  title: places service
+  version: 1.0.0
+  description: |
+    Addresses: geocoding with a cache, saved places, search history. Owns schema `places`.
+    Saved places and history are personal data; a user reads and changes only their own rows
+    (other users' rows answer `404`, so their existence is not revealed).
+
+    `x-access`: access level at the gateway (`internal` = not routed). `x-rate-limit`: per-minute
+    limit at the gateway.
+servers:
+  - url: http://places:3004
+tags:
+  - name: geocoding
+  - name: places
+  - name: history
+  - name: health
+paths:
+  /geocode:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    get:
+      operationId: geocode
+      summary: Address candidates inside a city
+      description: |
+        Answers from the cache when possible; otherwise asks the geocoder (throttled) and caches
+        the result. If the geocoder is unavailable, only cached answers are returned.
+      tags: [geocoding]
+      x-access: public
+      x-rate-limit: { perMinute: 30 }
+      parameters:
+        - name: city
+          in: query
+          required: true
+          schema:
+            $ref: './common.yaml#/components/schemas/CityCode'
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 200
+      responses:
+        '200':
+          description: Up to 5 candidates, best first. Empty when nothing was found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 5
+                    items:
+                      $ref: '#/components/schemas/GeocodeCandidate'
+                additionalProperties: false
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /places:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: './common.yaml#/components/parameters/UserId'
+    get:
+      operationId: listPlaces
+      summary: Saved places of the signed-in user (at most 20)
+      tags: [places]
+      x-access: user
+      x-rate-limit: { perMinute: 60 }
+      responses:
+        '200':
+          description: All saved places, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: '#/components/schemas/SavedPlace'
+                additionalProperties: false
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+    post:
+      operationId: createPlace
+      summary: Save a place
+      tags: [places]
+      x-access: user
+      x-rate-limit: { perMinute: 20 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaceRequest'
+      responses:
+        '201':
+          description: Saved.
+          headers:
+            Location:
+              $ref: './common.yaml#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedPlace'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '409':
+          description: The user already has 20 places (`/problems/place-limit`) or a place with this label (`/problems/duplicate-label`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Problem'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /places/{id}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: './common.yaml#/components/parameters/UserId'
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: './common.yaml#/components/schemas/Uuid'
+    patch:
+      operationId: updatePlace
+      summary: Change a saved place (owner only)
+      tags: [places]
+      x-access: user
+      x-rate-limit: { perMinute: 20 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaceRequest'
+      responses:
+        '200':
+          description: Updated place.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedPlace'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          $ref: './common.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+    delete:
+      operationId: deletePlace
+      summary: Delete a saved place (owner only)
+      tags: [places]
+      x-access: user
+      x-rate-limit: { perMinute: 20 }
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /history:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: './common.yaml#/components/parameters/UserId'
+    get:
+      operationId: listHistory
+      summary: Maps the signed-in user asked for, newest first (latest 50 are kept)
+      tags: [history]
+      x-access: user
+      x-rate-limit: { perMinute: 60 }
+      parameters:
+        - $ref: './common.yaml#/components/parameters/Limit'
+        - $ref: './common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: One page of history.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HistoryEntry'
+                  nextCursor:
+                    $ref: './common.yaml#/components/schemas/Cursor'
+                additionalProperties: false
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /health/live:
+    $ref: './common.yaml#/components/pathItems/HealthLive'
+  /health/ready:
+    $ref: './common.yaml#/components/pathItems/HealthReady'
+
+components:
+  schemas:
+    PlaceKind:
+      type: string
+      enum: [home, work, study, other]
+    PlaceLabel:
+      type: string
+      minLength: 1
+      maxLength: 60
+    AddressText:
+      type: string
+      minLength: 3
+      maxLength: 300
+    GeocodeCandidate:
+      type: object
+      required: [displayName, lat, lon]
+      properties:
+        displayName:
+          type: string
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          minimum: -180
+          maximum: 180
+      additionalProperties: false
+    SavedPlace:
+      type: object
+      required: [placeId, kind, label, addressText, cityCode, location, createdAt, updatedAt]
+      properties:
+        placeId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        kind:
+          $ref: '#/components/schemas/PlaceKind'
+        label:
+          $ref: '#/components/schemas/PlaceLabel'
+        addressText:
+          $ref: '#/components/schemas/AddressText'
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        location:
+          $ref: './common.yaml#/components/schemas/Coordinates'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    CreatePlaceRequest:
+      type: object
+      required: [kind, label, addressText, cityCode, location]
+      properties:
+        kind:
+          $ref: '#/components/schemas/PlaceKind'
+        label:
+          $ref: '#/components/schemas/PlaceLabel'
+        addressText:
+          $ref: '#/components/schemas/AddressText'
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        location:
+          $ref: './common.yaml#/components/schemas/Coordinates'
+      additionalProperties: false
+    UpdatePlaceRequest:
+      type: object
+      minProperties: 1
+      properties:
+        kind:
+          $ref: '#/components/schemas/PlaceKind'
+        label:
+          $ref: '#/components/schemas/PlaceLabel'
+        addressText:
+          $ref: '#/components/schemas/AddressText'
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        location:
+          $ref: './common.yaml#/components/schemas/Coordinates'
+      additionalProperties: false
+    HistoryEntry:
+      type: object
+      required: [calculationId, cityCode, originH3, createdAt]
+      properties:
+        calculationId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        originH3:
+          $ref: './common.yaml#/components/schemas/H3Cell'
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false

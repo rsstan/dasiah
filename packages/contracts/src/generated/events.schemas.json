@@ -1,0 +1,202 @@
+{
+  "transit.feed.activated.v1": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "id",
+      "type",
+      "source",
+      "time",
+      "correlationId",
+      "data"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique per event (the outbox `event_id`); consumers deduplicate by it."
+      },
+      "type": {
+        "type": "string",
+        "const": "transit.feed.activated.v1"
+      },
+      "source": {
+        "type": "string",
+        "const": "transit-data"
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the state change happened (UTC)."
+      },
+      "correlationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 128,
+        "description": "Correlation id of the request that caused the event; null for scheduled work."
+      },
+      "data": {
+        "type": "object",
+        "required": [
+          "cityCode",
+          "feedVersionId",
+          "validFrom",
+          "validTo"
+        ],
+        "properties": {
+          "cityCode": {
+            "type": "string",
+            "pattern": "^[a-z]{3}$"
+          },
+          "feedVersionId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "validTo": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "accessibility.calculation.completed.v1": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "id",
+      "type",
+      "source",
+      "time",
+      "correlationId",
+      "data"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique per event (the outbox `event_id`); consumers deduplicate by it."
+      },
+      "type": {
+        "type": "string",
+        "const": "accessibility.calculation.completed.v1"
+      },
+      "source": {
+        "type": "string",
+        "const": "accessibility"
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the state change happened (UTC)."
+      },
+      "correlationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 128,
+        "description": "Correlation id of the request that caused the event; null for scheduled work."
+      },
+      "data": {
+        "type": "object",
+        "required": [
+          "calculationId",
+          "cityCode",
+          "originH3",
+          "userId",
+          "cacheHit"
+        ],
+        "properties": {
+          "calculationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cityCode": {
+            "type": "string",
+            "pattern": "^[a-z]{3}$"
+          },
+          "originH3": {
+            "type": "string",
+            "pattern": "^8[0-9a-f]{14}$"
+          },
+          "userId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Signed-in user who asked; null for anonymous requests."
+          },
+          "cacheHit": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "identity.user.deleted.v1": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "id",
+      "type",
+      "source",
+      "time",
+      "correlationId",
+      "data"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique per event (the outbox `event_id`); consumers deduplicate by it."
+      },
+      "type": {
+        "type": "string",
+        "const": "identity.user.deleted.v1"
+      },
+      "source": {
+        "type": "string",
+        "const": "identity"
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the state change happened (UTC)."
+      },
+      "correlationId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 128,
+        "description": "Correlation id of the request that caused the event; null for scheduled work."
+      },
+      "data": {
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

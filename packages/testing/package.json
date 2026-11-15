@@ -1,0 +1,20 @@
+{
+  "name": "@heatmap/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Integration-test helpers: PostgreSQL with the real bootstrap and migrations, RabbitMQ.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@heatmap/contracts": "workspace:*",
+    "@testcontainers/postgresql": "12.2.1",
+    "@testcontainers/rabbitmq": "12.2.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "amqplib": "2.3.1",
+    "pg": "8.23.1",
+    "testcontainers": "12.2.1"
+  }
+}

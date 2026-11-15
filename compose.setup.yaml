@@ -1,0 +1,15 @@
+# Step 1 of the local trial (needs only Docker): writes .env with random passwords and a fresh
+# token-signing key, or adds what an existing .env lacks; prints where to look afterwards.
+#   docker compose -f compose.setup.yaml run --rm setup
+# Kept apart from compose.yaml, which cannot be read before .env exists.
+name: heatmap-setup
+
+services:
+  setup:
+    image: node:24.12.0-alpine
+    working_dir: /work
+    # Entrypoint, not command: anything typed after `setup` reaches the script, which explains
+    # that it takes no arguments (instead of Docker trying to run it as a program).
+    entrypoint: ['node', 'scripts/setup-env.ts']
+    volumes:
+      - .:/work

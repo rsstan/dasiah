@@ -1,0 +1,21 @@
+{
+  "name": "@heatmap/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Accounts, sign-in, tokens and account deletion",
+  "scripts": {
+    "start": "node --import @heatmap/common/otel src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=.env --watch --import @heatmap/common/otel src/main.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.5",
+    "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*",
+    "jose": "6.2.17",
+    "kysely": "0.29.9"
+  },
+  "devDependencies": {
+    "@heatmap/testing": "workspace:*"
+  }
+}

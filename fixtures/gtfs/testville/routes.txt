@@ -1,0 +1,6 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color
+R1,TT,1,Alpha Square - East End,3,1d4ed8
+R1X,TT,1X,Alpha Square - East End express,3,1e40af
+R2,TT,2,Fern Hill - Grove,0,dc2626
+R3,TT,3,Harbour - Junction,3,15803d
+R4,,4,Birch circle,3,7e22ce

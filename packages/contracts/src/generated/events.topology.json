@@ -1,0 +1,43 @@
+{
+  "exchange": {
+    "name": "heatmap.events",
+    "type": "topic"
+  },
+  "deadLetterExchange": {
+    "name": "heatmap.dlx",
+    "type": "fanout"
+  },
+  "deadLetterQueue": "heatmap.dlq",
+  "deliveryLimit": 5,
+  "events": [
+    {
+      "type": "accessibility.calculation.completed.v1",
+      "publisher": "accessibility"
+    },
+    {
+      "type": "identity.user.deleted.v1",
+      "publisher": "identity"
+    },
+    {
+      "type": "transit.feed.activated.v1",
+      "publisher": "transit-data"
+    }
+  ],
+  "queues": [
+    {
+      "name": "accessibility.transit.feed.activated.v1",
+      "consumer": "accessibility",
+      "routingKey": "transit.feed.activated.v1"
+    },
+    {
+      "name": "places.accessibility.calculation.completed.v1",
+      "consumer": "places",
+      "routingKey": "accessibility.calculation.completed.v1"
+    },
+    {
+      "name": "places.identity.user.deleted.v1",
+      "consumer": "places",
+      "routingKey": "identity.user.deleted.v1"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+# Overrides for the local trial (compose.yaml in the repository root): only the pages a person
+# opens are published, so nothing clashes with a PostgreSQL, RabbitMQ or Redis already running on
+# the machine.
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  gateway:
+    ports: !reset []
+  rabbitmq:
+    ports: !override
+      - '${RABBITMQ_UI_PORT:-15672}:15672'
+  jaeger:
+    ports: !override
+      - '${JAEGER_UI_PORT:-16686}:16686'

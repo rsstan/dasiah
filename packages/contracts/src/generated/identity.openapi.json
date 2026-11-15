@@ -1,0 +1,3939 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "identity service",
+    "version": "1.0.0",
+    "description": "Accounts, sign-in, tokens and account deletion. Owns schema `identity`.\n\nAccess tokens are JWTs signed with the key published at `/.well-known/jwks.json`.\nClaims: `sub` (user id), `role` (`user` | `admin`), `iss`, `aud`, `iat`, `exp`, `jti`.\nRefresh tokens are opaque random strings sent only in the `refresh_token` cookie\n(`HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`); the database stores their SHA-256.\n\n`x-access` on each operation is the access level at the gateway (`public`, `user`, `admin`;\n`internal` = not routed). `x-rate-limit` is the per-minute limit at the gateway.\n"
+  },
+  "servers": [
+    {
+      "url": "http://identity:3001"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth"
+    },
+    {
+      "name": "users"
+    },
+    {
+      "name": "keys"
+    },
+    {
+      "name": "health"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "register",
+        "summary": "Create an account",
+        "tags": [
+          "auth"
+        ],
+        "x-access": "public",
+        "x-rate-limit": {
+          "perMinute": 5
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "description": "Case-insensitive; stored once per account."
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 128,
+                    "description": "Plain password in the request only; hashed with Argon2id, never stored or logged."
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "pl",
+                      "lt",
+                      "ru"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created. The user signs in with `/auth/login`.",
+            "headers": {
+              "Location": {
+                "description": "URL of the created or running resource.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId",
+                    "email",
+                    "displayName",
+                    "role",
+                    "locale",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "maxLength": 254,
+                      "description": "Case-insensitive; stored once per account."
+                    },
+                    "displayName": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "admin"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "en",
+                        "pl",
+                        "lt",
+                        "ru"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or fails schema validation.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A business rule prevents the change.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "login",
+        "summary": "Sign in with email and password",
+        "tags": [
+          "auth"
+        ],
+        "x-access": "public",
+        "x-rate-limit": {
+          "perMinute": 10
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "description": "Case-insensitive; stored once per account."
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in. The refresh token is set as a cookie.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "accessToken",
+                    "tokenType",
+                    "expiresIn"
+                  ],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT for the `Authorization: Bearer` header."
+                    },
+                    "tokenType": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Lifetime of the access token in seconds."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or fails schema validation.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "refresh",
+        "summary": "Exchange the refresh token for a new pair (rotation)",
+        "description": "The presented token is revoked and replaced. Presenting a token that was already\nreplaced is treated as theft: every session of the user is revoked and `401` is returned.\n",
+        "tags": [
+          "auth"
+        ],
+        "x-access": "public",
+        "x-rate-limit": {
+          "perMinute": 30
+        },
+        "parameters": [
+          {
+            "name": "refresh_token",
+            "in": "cookie",
+            "required": true,
+            "description": "Opaque refresh token set by `/auth/login` or `/auth/refresh`.",
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New access token; the new refresh token is set as a cookie.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "accessToken",
+                    "tokenType",
+                    "expiresIn"
+                  ],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT for the `Authorization: Bearer` header."
+                    },
+                    "tokenType": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Lifetime of the access token in seconds."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "logout",
+        "summary": "Revoke the current refresh token",
+        "tags": [
+          "auth"
+        ],
+        "x-access": "user",
+        "x-rate-limit": {
+          "perMinute": 30
+        },
+        "parameters": [
+          {
+            "name": "X-User-Id",
+            "in": "header",
+            "required": true,
+            "description": "Id of the signed-in user. Set by the gateway after verifying the access token; a client value is always stripped.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "refresh_token",
+            "in": "cookie",
+            "required": true,
+            "description": "Opaque refresh token set by `/auth/login` or `/auth/refresh`.",
+            "schema": {
+              "type": "string",
+              "minLength": 32,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Signed out; the cookie is cleared.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        },
+        {
+          "name": "X-User-Id",
+          "in": "header",
+          "required": true,
+          "description": "Id of the signed-in user. Set by the gateway after verifying the access token; a client value is always stripped.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getMe",
+        "summary": "Profile of the signed-in user",
+        "tags": [
+          "users"
+        ],
+        "x-access": "user",
+        "x-rate-limit": {
+          "perMinute": 60
+        },
+        "responses": {
+          "200": {
+            "description": "Profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId",
+                    "email",
+                    "displayName",
+                    "role",
+                    "locale",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "maxLength": 254,
+                      "description": "Case-insensitive; stored once per account."
+                    },
+                    "displayName": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "admin"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "en",
+                        "pl",
+                        "lt",
+                        "ru"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to the caller.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Change display name or locale",
+        "tags": [
+          "users"
+        ],
+        "x-access": "user",
+        "x-rate-limit": {
+          "perMinute": 20
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "displayName": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "pl",
+                      "lt",
+                      "ru"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId",
+                    "email",
+                    "displayName",
+                    "role",
+                    "locale",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "maxLength": 254,
+                      "description": "Case-insensitive; stored once per account."
+                    },
+                    "displayName": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "admin"
+                      ]
+                    },
+                    "locale": {
+                      "type": "string",
+                      "enum": [
+                        "en",
+                        "pl",
+                        "lt",
+                        "ru"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or fails schema validation.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to the caller.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMe",
+        "summary": "Erase the account",
+        "description": "Anonymises the account (`identity.anonymize_user`), ends every session and publishes\n`identity.user.deleted.v1`, after which `places` erases the user's places and history.\n",
+        "tags": [
+          "users"
+        ],
+        "x-access": "user",
+        "x-rate-limit": {
+          "perMinute": 5
+        },
+        "responses": {
+          "204": {
+            "description": "Account erased; the refresh cookie is cleared.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to the caller.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/password": {
+      "parameters": [
+        {
+          "name": "X-Correlation-Id",
+          "in": "header",
+          "required": false,
+          "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
+        },
+        {
+          "name": "X-User-Id",
+          "in": "header",
+          "required": true,
+          "description": "Id of the signed-in user. Set by the gateway after verifying the access token; a client value is always stripped.",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "changePassword",
+        "summary": "Change the password and end every other session",
+        "description": "The refresh-token cookie is scoped to `/api/v1/auth`, so this request cannot tell which\nsession is the current one. Every refresh token of the user is revoked and a new pair is\nissued in the response: the user stays signed in on this device only.\n",
+        "tags": [
+          "users"
+        ],
+        "x-access": "user",
+        "x-rate-limit": {
+          "perMinute": 5
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 128,
+                    "description": "Plain password in the request only; hashed with Argon2id, never stored or logged."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed; all previous sessions ended, a new one started.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "accessToken",
+                    "tokenType",
+                    "expiresIn"
+                  ],
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT for the `Authorization: Bearer` header."
+                    },
+                    "tokenType": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Lifetime of the access token in seconds."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or fails schema validation.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired credentials.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The current password does not match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; details are only in the logs under the correlation id.",
+            "headers": {
+              "X-Correlation-Id": {
+                "description": "Correlation id of the request (received or generated).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "type": "object",
+                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
+                  "required": [
+                    "type",
+                    "title",
+                    "status"
+                  ],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "format": "uri-reference",
+                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                      "examples": [
+                        "/problems/validation"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Short, human-readable summary of the problem kind."
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    },
+                    "detail": {
+                      "type": "string",
+                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                    },
+                    "instance": {
+                      "type": "string",
+                      "description": "Request path that produced the problem."
+                    },
+                    "correlationId": {
+                      "type": "string",
+                      "description": "Same value as the `X-Correlation-Id` response header."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "description": "Field errors of a validation problem.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "operationId": "getJwks",
+        "summary": "Public keys for access-token verification",
+        "tags": [
+          "keys"
+        ],
+        "x-access": "internal",
+        "responses": {
+          "200": {
+            "description": "JSON Web Key Set. Cache for a few minutes; refetch on an unknown `kid`.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "examples": [
+                    "public",
+                    "max-age=300"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "keys"
+                  ],
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kty",
+                          "kid",
+                          "alg",
+                          "use"
+                        ],
+                        "properties": {
+                          "kty": {
+                            "type": "string"
+                          },
+                          "kid": {
+                            "type": "string"
+                          },
+                          "alg": {
+                            "type": "string"
+                          },
+                          "use": {
+                            "type": "string",
+                            "const": "sig"
+                          },
+                          "crv": {
+                            "type": "string"
+                          },
+                          "x": {
+                            "type": "string"
+                          },
+                          "y": {
+                            "type": "string"
+                          },
+                          "n": {
+                            "type": "string"
+                          },
+                          "e": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "operationId": "healthLive",
+        "summary": "Liveness probe",
+        "tags": [
+          "health"
+        ],
+        "x-access": "internal",
+        "responses": {
+          "200": {
+            "description": "The process is up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "healthReady",
+        "summary": "Readiness probe",
+        "tags": [
+          "health"
+        ],
+        "x-access": "internal",
+        "responses": {
+          "200": {
+            "description": "All dependencies are reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "unavailable"
+                      ]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "description": "One entry per dependency (database, broker, upstreams, timetable).",
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "unavailable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "At least one dependency is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "checks"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "unavailable"
+                      ]
+                    },
+                    "checks": {
+                      "type": "object",
+                      "description": "One entry per dependency (database, broker, upstreams, timetable).",
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "unavailable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "RefreshCookie": {
+        "name": "refresh_token",
+        "in": "cookie",
+        "required": true,
+        "description": "Opaque refresh token set by `/auth/login` or `/auth/refresh`.",
+        "schema": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 128
+        }
+      },
+      "CorrelationId": {
+        "name": "X-Correlation-Id",
+        "in": "header",
+        "required": false,
+        "description": "Request correlation id. The gateway creates one (UUID) when the client sends none and\nforwards it; every service logs it, returns it and passes it on.\n",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._-]+$"
+        }
+      },
+      "UserId": {
+        "name": "X-User-Id",
+        "in": "header",
+        "required": true,
+        "description": "Id of the signed-in user. Set by the gateway after verifying the access token; a client value is always stripped.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "headers": {
+      "SetRefreshCookie": {
+        "description": "`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ClearRefreshCookie": {
+        "description": "`refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0`",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Location": {
+        "description": "URL of the created or running resource.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CorrelationId": {
+        "description": "Correlation id of the request (received or generated).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "RetryAfter": {
+        "description": "Seconds to wait before retrying.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "schemas": {
+      "Email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 254,
+        "description": "Case-insensitive; stored once per account."
+      },
+      "Password": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 128,
+        "description": "Plain password in the request only; hashed with Argon2id, never stored or logged."
+      },
+      "DisplayName": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "Locale": {
+        "type": "string",
+        "enum": [
+          "en",
+          "pl",
+          "lt",
+          "ru"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Case-insensitive; stored once per account."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "description": "Plain password in the request only; hashed with Argon2id, never stored or logged."
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "pl",
+              "lt",
+              "ru"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Case-insensitive; stored once per account."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "displayName": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "pl",
+              "lt",
+              "ru"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "description": "Plain password in the request only; hashed with Argon2id, never stored or logged."
+          }
+        },
+        "additionalProperties": false
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT for the `Authorization: Bearer` header."
+          },
+          "tokenType": {
+            "type": "string",
+            "const": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Lifetime of the access token in seconds."
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserProfile": {
+        "type": "object",
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "role",
+          "locale",
+          "createdAt"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Case-insensitive; stored once per account."
+          },
+          "displayName": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ]
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "pl",
+              "lt",
+              "ru"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Jwk": {
+        "type": "object",
+        "required": [
+          "kty",
+          "kid",
+          "alg",
+          "use"
+        ],
+        "properties": {
+          "kty": {
+            "type": "string"
+          },
+          "kid": {
+            "type": "string"
+          },
+          "alg": {
+            "type": "string"
+          },
+          "use": {
+            "type": "string",
+            "const": "sig"
+          },
+          "crv": {
+            "type": "string"
+          },
+          "x": {
+            "type": "string"
+          },
+          "y": {
+            "type": "string"
+          },
+          "n": {
+            "type": "string"
+          },
+          "e": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Jwks": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "kty",
+                "kid",
+                "alg",
+                "use"
+              ],
+              "properties": {
+                "kty": {
+                  "type": "string"
+                },
+                "kid": {
+                  "type": "string"
+                },
+                "alg": {
+                  "type": "string"
+                },
+                "use": {
+                  "type": "string",
+                  "const": "sig"
+                },
+                "crv": {
+                  "type": "string"
+                },
+                "x": {
+                  "type": "string"
+                },
+                "y": {
+                  "type": "string"
+                },
+                "n": {
+                  "type": "string"
+                },
+                "e": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Uuid": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "Problem": {
+        "type": "object",
+        "description": "RFC 9457 problem details. Every error response of every service uses it.",
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+            "examples": [
+              "/problems/validation"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "Short, human-readable summary of the problem kind."
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string",
+            "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+          },
+          "instance": {
+            "type": "string",
+            "description": "Request path that produced the problem."
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "Same value as the `X-Correlation-Id` response header."
+          },
+          "errors": {
+            "type": "array",
+            "description": "Field errors of a validation problem.",
+            "items": {
+              "type": "object",
+              "required": [
+                "path",
+                "message"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "HealthLive": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          }
+        }
+      },
+      "HealthReady": {
+        "type": "object",
+        "required": [
+          "status",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "description": "One entry per dependency (database, broker, upstreams, timetable).",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "unavailable"
+                  ]
+                },
+                "detail": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The request is malformed or fails schema validation.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "A business rule prevents the change.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected error; details are only in the logs under the correlation id.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid or expired credentials.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limit exceeded.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The resource does not exist or is not visible to the caller.",
+        "headers": {
+          "X-Correlation-Id": {
+            "description": "Correlation id of the request (received or generated).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "description": "RFC 9457 problem details. Every error response of every service uses it.",
+              "required": [
+                "type",
+                "title",
+                "status"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "format": "uri-reference",
+                  "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
+                  "examples": [
+                    "/problems/validation"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Short, human-readable summary of the problem kind."
+                },
+                "status": {
+                  "type": "integer",
+                  "minimum": 400,
+                  "maximum": 599
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
+                },
+                "instance": {
+                  "type": "string",
+                  "description": "Request path that produced the problem."
+                },
+                "correlationId": {
+                  "type": "string",
+                  "description": "Same value as the `X-Correlation-Id` response header."
+                },
+                "errors": {
+                  "type": "array",
+                  "description": "Field errors of a validation problem.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "message"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "HealthLive": {
+        "description": "The process is up.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "ok"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HealthReady": {
+        "description": "All dependencies are reachable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "status",
+                "checks"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "unavailable"
+                  ]
+                },
+                "checks": {
+                  "type": "object",
+                  "description": "One entry per dependency (database, broker, upstreams, timetable).",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "status"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ok",
+                          "unavailable"
+                        ]
+                      },
+                      "detail": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "HealthNotReady": {
+        "description": "At least one dependency is unavailable.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "status",
+                "checks"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "unavailable"
+                  ]
+                },
+                "checks": {
+                  "type": "object",
+                  "description": "One entry per dependency (database, broker, upstreams, timetable).",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "status"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ok",
+                          "unavailable"
+                        ]
+                      },
+                      "detail": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
