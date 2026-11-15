@@ -19,7 +19,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 - [x] 1.1 Migration `0002_column_comments.sql` in each service: `COMMENT ON COLUMN` for every column that has none. Regenerate the dictionary.
       Done when: the dictionary has no empty Description cell.
-- [ ] 1.2 `fixtures/gtfs/testville/` synthetic feed with the edge cases listed in `docs/03-database.md#test-data-phase-1`, plus a README with a hand-drawn network and expected travel times.
+- [x] 1.2 `fixtures/gtfs/testville/` synthetic feed with the edge cases listed in `docs/03-database.md#test-data-phase-1`, plus a README with a hand-drawn network and expected travel times.
 - [ ] 1.3 `db/seed/test/`: script that loads testville through staging and the procedures, then demo users (Argon2id hashes generated at seed time), saved places, calculations covering every legend class, expired rows.
       Done when: `pnpm db:seed:test` is repeatable on a fresh database and leaves an active feed for city `waw`.
 - [ ] 1.4 `docs/db/query-plans.md`: `EXPLAIN (ANALYZE, BUFFERS)` for sign-in by email, nearest stops of a cell, timetable export for a date, cache lookup, history page, outbox poll. Adjust indexes if a plan shows a sequential scan on a large table.

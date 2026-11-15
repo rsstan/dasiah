@@ -1,0 +1,14 @@
+stop_id,stop_code,stop_name,stop_lat,stop_lon,location_type,parent_station
+A,TV-A,Alpha Square,52.2000,21.0000,,
+B,TV-B,Birch Street,52.2000,21.0150,,
+C,TV-C,Central,52.2000,21.0300,0,CS
+CS,TV-CS,Central Station,52.2000,21.0300,1,
+D,TV-D,Dock,52.2000,21.0450,,
+E,TV-E,East End,52.2000,21.0600,,
+F,TV-F,Fern Hill,52.2090,21.0300,,
+G,TV-G,Grove,52.1910,21.0300,,
+H,TV-H,Harbour,52.2015,21.0450,,
+I,TV-I,Iron Works,52.2105,21.0450,,
+J,TV-J,Junction,52.2105,21.0600,,
+K,TV-K,Kiln,52.2090,21.0150,,
+M,TV-M,Meadow,52.1850,21.0000,,
