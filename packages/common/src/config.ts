@@ -24,6 +24,11 @@ export const databaseConfigSchema = z.object({
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(100).default(5_000),
 });
 
+/** Services that publish or consume events. */
+export const messagingConfigSchema = z.object({
+  AMQP_URL: z.string().regex(/^amqps?:\/\//, 'amqp://user:password@host:5672'),
+});
+
 export type BaseConfig = z.infer<typeof baseConfigSchema>;
 export type DatabaseConfig = z.infer<typeof databaseConfigSchema>;
 

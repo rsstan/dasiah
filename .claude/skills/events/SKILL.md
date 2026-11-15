@@ -17,8 +17,10 @@ description: Publish a new event, consume an event, or change an event payload o
 
 - Never publish from a handler directly. Insert into `<schema>.outbox` inside the transaction
   that changes the state (or inside the SQL procedure that does it).
-- The outbox loop from `packages/common/messaging` publishes with confirms, sets `published_at`,
-  and carries `correlationId` and `traceparent`.
+- Write the row inside `withTransaction()` from `@heatmap/common`: the outbox columns
+  `correlation_id` and `traceparent` default to the transaction-local settings it sets.
+- `OutboxPublisher` from `@heatmap/common` publishes with confirms, sets `published_at`, and
+  carries `correlationId` and `traceparent`; call `publisher.wake()` after the commit.
 - Payloads contain ids and facts, not personal data. If a user id is unavoidable, configure
   that event type for immediate deletion from the outbox after publishing.
 
@@ -35,6 +37,7 @@ description: Publish a new event, consume an event, or change an event payload o
      CONFLICT DO NOTHING`; if no row was inserted, acknowledge and return; otherwise apply the
      effect;
    - restore correlation id and trace context before logging anything;
-   - transient failure -> negative acknowledge with requeue; the delivery limit ends the loop.
+   - transient failure -> throw; the consumer retries with backoff (`x-retry-count`) and
+     dead-letters after 5 attempts. Never catch and ack a failure you want retried.
 3. Tests: effect applied once for a duplicated message; poison message reaches the DLQ; the
    consumer survives a broker restart.

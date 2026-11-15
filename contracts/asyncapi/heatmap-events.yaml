@@ -19,7 +19,11 @@ info:
     (W3C trace context) and `x-correlation-id`.
 
     Delivery is at least once. Consumers are idempotent by `id` (inbox table
-    `processed_messages`). Events are facts in the past tense, versioned by suffix; a breaking
+    `processed_messages`). A failing handler is retried by the consumer: the message is published
+    again to its queue with header `x-retry-count` + 1 after a backoff; after 5 attempts it is
+    rejected and dead-lettered (RabbitMQ 4 does not count requeues towards `x-delivery-limit`,
+    which therefore only catches messages whose consumer crashes). Malformed messages and
+    contract violations are dead-lettered at once. Events are facts in the past tense, versioned by suffix; a breaking
     change is a new version published alongside the old one until every consumer has moved.
 defaultContentType: application/json
 

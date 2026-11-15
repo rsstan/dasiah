@@ -6,3 +6,6 @@ export * from './http-client.ts';
 export * from './logger.ts';
 export * from './server.ts';
 export { injectTraceHeaders, startTracing, stopTracing, withExtractedContext, withSpan } from './tracing.ts';
+export * from './messaging/broker.ts';
+export * from './messaging/consumer.ts';
+export * from './messaging/outbox-publisher.ts';

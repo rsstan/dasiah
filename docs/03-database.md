@@ -130,6 +130,9 @@ Transactions:
 - Activation: `activate_feed` archives the old version, activates the new one, writes the
   outbox event and refreshes the materialized view atomically.
 - A calculation row and its results are inserted in one transaction together with the outbox row.
+- Outbox rows take `correlation_id` and `traceparent` from the transaction-local settings
+  `app.correlation_id` and `app.traceparent` (set by `withTransaction` in `packages/common`), also
+  when a procedure such as `anonymize_user` writes them, so events stay traceable.
 - Consumers insert into `processed_messages` and apply the effect in one transaction.
 - Concurrency: `SELECT ... FOR UPDATE` on the feed version during promote/activate;
   `FOR UPDATE SKIP LOCKED` in the outbox publisher and in `purge_expired`; advisory lock per

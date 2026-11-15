@@ -30,6 +30,8 @@ erDiagram
     jsonb payload
     timestamptz occurred_at
     timestamptz published_at
+    text correlation_id
+    text traceparent
   }
   refresh_tokens {
     uuid token_id PK
@@ -119,11 +121,15 @@ Transactional outbox: events written in the same transaction as the state change
 | payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
 | occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
 | published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
+| correlation_id | text | yes | NULLIF(current_setting('app.correlation_id'::text, true), ''::text) |  | Correlation id of the request that caused the event (app.correlation_id); NULL for scheduled work. |
+| traceparent | text | yes | NULLIF(current_setting('app.traceparent'::text, true), ''::text) |  | W3C trace context of the writing transaction (app.traceparent); the publisher continues this trace. |
 
 Constraints:
 
+- `outbox_correlation_id`: CHECK ((correlation_id ~ '^[A-Za-z0-9._-]{1,128}$'::text))
 - `outbox_event_type_check`: CHECK ((event_type ~ '^[a-z]+(\.[a-z_]+)+\.v[0-9]+$'::text))
 - `outbox_payload_check`: CHECK ((jsonb_typeof(payload) = 'object'::text))
+- `outbox_traceparent`: CHECK ((traceparent ~ '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'::text))
 
 Indexes:
 
@@ -301,6 +307,8 @@ erDiagram
     jsonb payload
     timestamptz occurred_at
     timestamptz published_at
+    text correlation_id
+    text traceparent
   }
   route_types {
     int2 route_type_id PK
@@ -531,11 +539,15 @@ Transactional outbox: events written in the same transaction as the state change
 | payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
 | occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
 | published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
+| correlation_id | text | yes | NULLIF(current_setting('app.correlation_id'::text, true), ''::text) |  | Correlation id of the request that caused the event (app.correlation_id); NULL for scheduled work. |
+| traceparent | text | yes | NULLIF(current_setting('app.traceparent'::text, true), ''::text) |  | W3C trace context of the writing transaction (app.traceparent); the publisher continues this trace. |
 
 Constraints:
 
+- `outbox_correlation_id`: CHECK ((correlation_id ~ '^[A-Za-z0-9._-]{1,128}$'::text))
 - `outbox_event_type_check`: CHECK ((event_type ~ '^[a-z]+(\.[a-z_]+)+\.v[0-9]+$'::text))
 - `outbox_payload_check`: CHECK ((jsonb_typeof(payload) = 'object'::text))
+- `outbox_traceparent`: CHECK ((traceparent ~ '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'::text))
 
 Indexes:
 
@@ -883,6 +895,8 @@ erDiagram
     jsonb payload
     timestamptz occurred_at
     timestamptz published_at
+    text correlation_id
+    text traceparent
   }
   processed_messages {
     uuid message_id PK
@@ -998,11 +1012,15 @@ Transactional outbox: events written in the same transaction as the state change
 | payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
 | occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
 | published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
+| correlation_id | text | yes | NULLIF(current_setting('app.correlation_id'::text, true), ''::text) |  | Correlation id of the request that caused the event (app.correlation_id); NULL for scheduled work. |
+| traceparent | text | yes | NULLIF(current_setting('app.traceparent'::text, true), ''::text) |  | W3C trace context of the writing transaction (app.traceparent); the publisher continues this trace. |
 
 Constraints:
 
+- `outbox_correlation_id`: CHECK ((correlation_id ~ '^[A-Za-z0-9._-]{1,128}$'::text))
 - `outbox_event_type_check`: CHECK ((event_type ~ '^[a-z]+(\.[a-z_]+)+\.v[0-9]+$'::text))
 - `outbox_payload_check`: CHECK ((jsonb_typeof(payload) = 'object'::text))
+- `outbox_traceparent`: CHECK ((traceparent ~ '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'::text))
 
 Indexes:
 

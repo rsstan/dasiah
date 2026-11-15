@@ -1,7 +1,7 @@
 // OpenTelemetry SDK: traces exported over OTLP/HTTP (Jaeger), automatic spans for inbound and
 // outbound HTTP (node:http, fetch/undici) and PostgreSQL. W3C `traceparent` is propagated on
 // every outgoing call. Started by src/otel-register.ts before any other module is imported.
-import { context, propagation, trace, SpanStatusCode, type Span } from '@opentelemetry/api';
+import { context, propagation, trace, SpanKind, SpanStatusCode, type Span } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
@@ -52,8 +52,9 @@ export async function withSpan<T>(
   name: string,
   fn: (span: Span) => Promise<T>,
   attributes: Record<string, string | number | boolean> = {},
+  kind: SpanKind = SpanKind.INTERNAL,
 ): Promise<T> {
-  return tracer().startActiveSpan(name, { attributes }, async (span) => {
+  return tracer().startActiveSpan(name, { attributes, kind }, async (span) => {
     try {
       return await fn(span);
     } catch (error) {

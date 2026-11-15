@@ -51,6 +51,6 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Health endpoints | `/health/live`, `/health/ready` from the server factory (`packages/common/src/server.ts`) | `server.test.ts`; curl output; Compose healthchecks in P9 | ready (platform), per service P3–P7 |
 | Logs with correlation ID | `packages/common` logger, request context, HTTP client header | `logger.test.ts`, `server.test.ts`; log excerpt across services in `docs/evidence/` (P9) | ready (platform), evidence P9 |
 | Gateway: routing, authorization, rate limiting | `apps/gateway` | Route table; 401/403/429 integration tests | spec, P4 |
-| Message broker | RabbitMQ, three events, outbox/inbox | AsyncAPI, RabbitMQ UI screenshot | spec, P2–P7 |
+| Message broker | RabbitMQ, three events, outbox/inbox (`packages/common/src/messaging`) | AsyncAPI; `messaging.itest.ts` (at-least-once, duplicate skipped, poison and failing messages in the DLQ); RabbitMQ UI screenshot in P9 | ready (platform), events wired in P3–P7 |
 | Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ | `docs/02-architecture.md#resilience-patterns`; test that stops OSRM | spec, P9 |
 | Tracing | OpenTelemetry + Jaeger (`packages/common/src/tracing.ts`) | Sample-service trace: server span, pg spans, outgoing fetch, nested inbound span; screenshot in P9 | ready (platform), evidence P9 |

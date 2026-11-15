@@ -160,9 +160,9 @@ A thin Fastify application: no business logic, no database.
 | Circuit breaker | `accessibility` -> OSRM, `places` -> geocoder, gateway -> each service. |
 | Bulkhead | `accessibility` runs at most N calculations at once (N = CPU cores); extra requests wait in a bounded queue, then get `503` with `Retry-After`. |
 | Fallback | Geocoder down: answer from `geocode_cache` only. OSRM down: calculation fails with a clear error instead of showing wrong car times; cached maps keep working. New timetable fails to load: keep serving the previous snapshot. |
-| Transactional outbox | A state change and its event are written in one database transaction; a publisher loop sends unpublished rows with publisher confirms. |
+| Transactional outbox | A state change and its event are written in one database transaction (with the request's correlation id and `traceparent`); a publisher loop sends unpublished rows with publisher confirms and marks them in the same transaction; rows that violate the contract are never sent. |
 | Idempotent consumer | `processed_messages` table: message id inserted in the same transaction as the effect; duplicates are acknowledged and skipped. |
-| Dead-letter queue | After 5 failed deliveries a message goes to `heatmap.dlx`; alert via log. |
+| Dead-letter queue | Malformed or contract-violating messages at once, failing handlers after 5 attempts (counted by the consumer in `x-retry-count`), crashing consumers after the quorum queue's delivery limit: all go through `heatmap.dlx` to `heatmap.dlq`; logged at error level. |
 | Single flight | Unique partial index on the calculation cache key: the same question in parallel is computed once. |
 
 Library: `cockatiel` (timeout, retry, breaker, bulkhead policies) wrapped in `packages/common`.

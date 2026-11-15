@@ -99,6 +99,9 @@ BEGIN
   ASSERT (SELECT email_masked FROM identity.v_users_masked) = 'J***@Example.com';
   ASSERT (SELECT ip_masked FROM identity.v_audit_masked WHERE ip_masked IS NOT NULL LIMIT 1) = '203.0.113.0/24';
 END $$;
+-- What withTransaction() in packages/common sets; the outbox row written by the procedure picks it up.
+SELECT set_config('app.correlation_id', 'smoke-corr-1', true),
+       set_config('app.traceparent', '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', true);
 CALL identity.anonymize_user(:'uid');
 DO $$
 BEGIN
@@ -106,7 +109,11 @@ BEGIN
   ASSERT (SELECT count(*) FROM identity.refresh_tokens) = 0;
   ASSERT (SELECT count(*) FROM identity.audit_log WHERE ip IS NOT NULL) = 0;
   ASSERT (SELECT count(*) FROM identity.outbox WHERE event_type = 'identity.user.deleted.v1') = 1;
+  ASSERT (SELECT correlation_id || ' ' || traceparent FROM identity.outbox WHERE event_type = 'identity.user.deleted.v1')
+         = 'smoke-corr-1 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', 'outbox trace context';
 END $$;
+SELECT pg_temp.must_fail($q$INSERT INTO identity.outbox (event_type, payload, traceparent) VALUES ('identity.user.deleted.v1', '{}', 'not-a-traceparent')$q$, 'malformed outbox traceparent');
+SELECT pg_temp.must_fail($q$INSERT INTO identity.outbox (event_type, payload, correlation_id) VALUES ('identity.user.deleted.v1', '{}', 'has spaces')$q$, 'malformed outbox correlation id');
 RESET ROLE;
 
 SET ROLE reporting;

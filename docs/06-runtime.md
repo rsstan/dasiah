@@ -54,6 +54,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `server` | `createServer` (correlation id, context, request log, problem+json, health, readiness checks, 503 while draining) and `runServer` (SIGTERM/SIGINT shutdown with timeout) |
 | `errors` | `ValidationError` 400, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, `UnprocessableError` 422, `TooManyRequestsError` 429, `ServiceUnavailableError` 503, `UpstreamError` 502 |
 | `db` | `createPool` (statement timeout), `assertServiceRole` (refuses superuser, `app_admin` and its members, CREATEROLE/CREATEDB/BYPASSRLS), `createKysely`, `withTransaction` (sets `app.correlation_id`), `pingDatabase` |
+| `messaging` | `Broker` (connection with automatic recovery, declares the topology from `@heatmap/contracts`), `OutboxPublisher` (confirms, retention, delete-after-publish for events with a user id), `EventConsumer` (envelope validation, inbox, correlation and trace restore, retries with backoff, dead-lettering) |
 | `http-client` | `HttpClient`: per-attempt timeout, retry with backoff and jitter for GET/HEAD, circuit breaker, correlation id header |
 
 `packages/common/examples/sample-service.ts` is a minimal service built from it.

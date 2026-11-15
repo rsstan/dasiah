@@ -110,7 +110,9 @@ Envelope (same for all events):
 ```
 
 AMQP properties: `messageId` = `id`, `type`, `contentType: application/json`, persistent;
-headers `traceparent`, `x-correlation-id`.
+headers `traceparent`, `x-correlation-id` (and `x-retry-count` on retries). The outbox row keeps
+the correlation id and `traceparent` of the transaction that wrote it, so the trace continues
+from the request to the consumer.
 
 | Event | Publisher | Consumers | `data` | Effect |
 | --- | --- | --- | --- | --- |
@@ -123,5 +125,8 @@ Rules:
 - Events are facts in the past tense, versioned by suffix. A breaking change is a new version
   published alongside the old one until consumers have moved.
 - Delivery is at least once; consumers are idempotent by `id`.
+- A failing handler is retried with backoff up to 5 attempts, then the message is dead-lettered;
+  malformed messages and contract violations are dead-lettered at once
+  (`packages/common/src/messaging/consumer.ts`).
 - Published outbox rows are deleted after 7 days. `calculation.completed` carries a user id, so
   for that event type the outbox row is deleted right after publishing.
