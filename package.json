@@ -34,7 +34,12 @@
     "db:diagrams": "node db/tools/export-diagrams.ts",
     "db:psql": "scripts/with-env.sh scripts/db-as.sh",
     "web:dev": "pnpm --filter @heatmap/web run dev",
-    "web:build": "pnpm --filter @heatmap/web run build"
+    "web:build": "pnpm --filter @heatmap/web run build",
+    "full:up": "pnpm -s compose --profile full up -d --build --wait --wait-timeout 600",
+    "full:down": "pnpm -s compose --profile full down",
+    "e2e:up": "scripts/e2e.sh up",
+    "e2e:down": "scripts/e2e.sh down",
+    "e2e": "pnpm --filter @heatmap/e2e run test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

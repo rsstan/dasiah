@@ -1,0 +1,16 @@
+# Overrides for the end-to-end stack (project heatmap-e2e, scripts/e2e.sh): fresh volumes of its
+# own and no host ports except the web page, so it runs next to a development stack.
+services:
+  postgres:
+    ports: !reset []
+  rabbitmq:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  jaeger:
+    ports: !reset []
+  gateway:
+    ports: !reset []
+  web:
+    ports: !override
+      - '${E2E_WEB_PORT:-8088}:80'

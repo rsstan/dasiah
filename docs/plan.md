@@ -85,7 +85,8 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 9 — Hardening and evidence
 
-- [ ] 9.1 Compose profile `full`; Playwright end-to-end suite.
+- [x] 9.1 Compose profile `full`; Playwright end-to-end suite.
+      Known flaky (to look at later): `services/accessibility/src/timetables/loader.itest.ts` "switches to a newly activated feed atomically" failed once in about ten runs (2026-11-15).
 - [ ] 9.2 Failure drills, each with a short note in `docs/evidence/resilience.md`: OSRM stopped (breaker opens, cached maps still served), RabbitMQ stopped (outbox drains after restart), geocoder timeout (cache fallback), poison message (DLQ).
 - [ ] 9.3 Trace screenshot and cross-service log excerpt for one calculation in `docs/evidence/`.
 - [ ] 9.4 k6 load test; rate-limit demonstration.

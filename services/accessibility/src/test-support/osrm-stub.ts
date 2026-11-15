@@ -33,6 +33,7 @@ export async function startOsrmStub(port = 0): Promise<OsrmStub> {
     noRoute: new Set(),
     close: () => app.close(),
   };
+  app.get('/health', async () => ({ status: 'ok' }));
   app.get('/table/v1/driving/:coordinates', async (req, reply) => {
     stub.requests++;
     if (stub.delayMs > 0) {

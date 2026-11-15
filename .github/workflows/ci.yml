@@ -105,3 +105,35 @@ jobs:
         run: |
           pnpm db:dict
           git diff --exit-code docs/db/data-dictionary.md
+
+  e2e:
+    name: end-to-end (Compose profile full, Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # Builds the images and starts the stack with secrets generated for this run (.e2e/.env).
+      - run: pnpm e2e:up
+      - name: Mask the generated secrets
+        run: grep -E '^(POSTGRES_PASSWORD|DB_PASSWORD_|RABBITMQ_PASSWORD|SEED_DEMO_PASSWORD)' .e2e/.env | cut -d= -f2- | sed 's/^/::add-mask::/'
+      # Uses the Chrome preinstalled on the runner (channel chrome), no browser download.
+      - run: pnpm e2e
+      - name: Container logs
+        if: failure()
+        run: scripts/e2e.sh logs > e2e-containers.log
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-report
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+            e2e-containers.log
+          retention-days: 7
+      - if: always()
+        run: pnpm e2e:down

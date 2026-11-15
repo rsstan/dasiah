@@ -1,9 +1,33 @@
 # Local stack. Profiles:
 #   infra - databases, broker, tracing (run services on the host with `pnpm dev`)
-#   full  - everything in containers (added in phase 9)
+#   full  - everything in containers: database initialisation, the four services, gateway, web
+#           (Caddy), and stand-ins for OSRM and the geocoder unless real ones are configured
+#   osrm  - real OSRM per city (data from infra/osrm/build.sh)
 # Usage from the repository root:
 #   pnpm infra:up      (= docker compose --env-file .env -f infra/compose/docker-compose.yml --profile infra up -d --wait)
+#   pnpm full:up       (profile full, images built from the repository; web on WEB_PORT, default 8000)
+#   pnpm e2e:up        (profile full as project heatmap-e2e with generated secrets, see scripts/e2e.sh)
 name: heatmap
+
+# Shared by the Node services (infra/docker/service.Dockerfile). Inside the network everything
+# is addressed by service name; secrets come from the env file, never from the images.
+x-node-service: &node-service
+  profiles: [full]
+  restart: unless-stopped
+  depends_on: &service-deps
+    db-init:
+      condition: service_completed_successfully
+    rabbitmq:
+      condition: service_healthy
+  logging:
+    options:
+      max-size: 10m
+      max-file: '3'
+
+x-common-env: &common-env
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  AMQP_URL: amqp://${RABBITMQ_USER:-heatmap}:${RABBITMQ_PASSWORD}@rabbitmq:5672
 
 services:
   postgres:
@@ -21,7 +45,8 @@ services:
     ports:
       - '${PG_PORT:-5432}:5432'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      # Over TCP: during the first start initdb runs a temporary server on the socket only.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -40,7 +65,9 @@ services:
       - '${AMQP_PORT:-5672}:5672'
       - '${RABBITMQ_UI_PORT:-15672}:15672'
     healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      # As the rabbitmq user: run as root before the server has written its Erlang cookie, the
+      # CLI would create the cookie owned by root and the server could no longer start.
+      test: ['CMD', 'su-exec', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
       timeout: 10s
       retries: 12
@@ -89,6 +116,207 @@ services:
     ports:
       - '${OSRM_VNO_PORT:-5002}:5000'
 
+  # ------------------------------------------------------------------ profile full
+
+  # Roles, migrations, reference data, the waw grid and the testville seed; idempotent.
+  db-init:
+    profiles: [full]
+    image: heatmap/tools:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/tools.Dockerfile
+    command: ['infra/compose/init.sh']
+    user: root
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      POSTGRES_DB: ${POSTGRES_DB:-heatmap}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_PASSWORD_APP_ADMIN: ${DB_PASSWORD_APP_ADMIN}
+      DB_PASSWORD_SVC_IDENTITY: ${DB_PASSWORD_SVC_IDENTITY}
+      DB_PASSWORD_SVC_TRANSIT: ${DB_PASSWORD_SVC_TRANSIT}
+      DB_PASSWORD_SVC_ACCESSIBILITY: ${DB_PASSWORD_SVC_ACCESSIBILITY}
+      DB_PASSWORD_SVC_PLACES: ${DB_PASSWORD_SVC_PLACES}
+      DB_PASSWORD_REPORTING: ${DB_PASSWORD_REPORTING}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
+      # For the grid CLI (transit-data configuration).
+      SERVICE_NAME: transit-grid
+      PORT: '3002'
+      DATABASE_URL: postgres://svc_transit:${DB_PASSWORD_SVC_TRANSIT}@postgres:5432/${POSTGRES_DB:-heatmap}
+      AMQP_URL: amqp://${RABBITMQ_USER:-heatmap}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    volumes:
+      - transitstorage:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Car times without road data: straight line x 1.4 at 36 km/h + 60 s.
+  osrm-stub:
+    profiles: [full]
+    image: heatmap/tools:local
+    working_dir: /app/services/accessibility
+    command: ['node', 'src/test-support/osrm-stub.ts']
+    user: node
+    environment:
+      PORT: '5000'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:5000/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Photon-compatible addresses of testville; no request leaves the machine.
+  geocoder-stub:
+    profiles: [full]
+    image: heatmap/tools:local
+    working_dir: /app/services/places
+    command: ['node', 'src/test-support/geocoder-stub.ts']
+    user: node
+    environment:
+      PORT: '2322'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:2322/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  identity:
+    <<: *node-service
+    image: heatmap/identity:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/service.Dockerfile
+      args:
+        SERVICE: services/identity
+    environment:
+      <<: *common-env
+      SERVICE_NAME: identity
+      PORT: '3001'
+      DATABASE_URL: postgres://svc_identity:${DB_PASSWORD_SVC_IDENTITY}@postgres:5432/${POSTGRES_DB:-heatmap}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?set JWT_PRIVATE_KEY in the env file}
+      JWT_KEY_ID: ${JWT_KEY_ID:-local}
+      ACCESS_TTL_S: ${ACCESS_TTL_S:-900}
+      REFRESH_TTL_S: ${REFRESH_TTL_S:-2592000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUST_PROXY: 'true'
+
+  transit-data:
+    <<: *node-service
+    image: heatmap/transit-data:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/service.Dockerfile
+      args:
+        SERVICE: services/transit-data
+    environment:
+      <<: *common-env
+      SERVICE_NAME: transit-data
+      PORT: '3002'
+      DATABASE_URL: postgres://svc_transit:${DB_PASSWORD_SVC_TRANSIT}@postgres:5432/${POSTGRES_DB:-heatmap}
+      STORAGE_PATH: /data/storage
+      TRUST_PROXY: 'true'
+    volumes:
+      - transitstorage:/data/storage
+
+  accessibility:
+    <<: *node-service
+    image: heatmap/accessibility:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/service.Dockerfile
+      args:
+        SERVICE: services/accessibility
+    environment:
+      <<: *common-env
+      SERVICE_NAME: accessibility
+      PORT: '3003'
+      DATABASE_URL: postgres://svc_accessibility:${DB_PASSWORD_SVC_ACCESSIBILITY}@postgres:5432/${POSTGRES_DB:-heatmap}
+      TRANSIT_URL: http://transit-data:3002
+      CITIES: waw,vno
+      OSRM_URL_WAW: ${CONTAINER_OSRM_URL_WAW:-http://osrm-stub:5000}
+      OSRM_URL_VNO: ${CONTAINER_OSRM_URL_VNO:-http://osrm-stub:5000}
+      TIMETABLE_RETRY_MS: '10000'
+      TRUST_PROXY: 'true'
+    depends_on:
+      <<: *service-deps
+      transit-data:
+        condition: service_healthy
+
+  places:
+    <<: *node-service
+    image: heatmap/places:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/service.Dockerfile
+      args:
+        SERVICE: services/places
+    environment:
+      <<: *common-env
+      SERVICE_NAME: places
+      PORT: '3004'
+      DATABASE_URL: postgres://svc_places:${DB_PASSWORD_SVC_PLACES}@postgres:5432/${POSTGRES_DB:-heatmap}
+      TRANSIT_URL: http://transit-data:3002
+      GEOCODER_PROVIDER: ${CONTAINER_GEOCODER_PROVIDER:-photon}
+      GEOCODER_URL: ${CONTAINER_GEOCODER_URL:-http://geocoder-stub:2322}
+      GEOCODER_MIN_INTERVAL_MS: ${CONTAINER_GEOCODER_MIN_INTERVAL_MS:-0}
+      TRUST_PROXY: 'true'
+
+  gateway:
+    <<: *node-service
+    image: heatmap/gateway:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/service.Dockerfile
+      args:
+        SERVICE: apps/gateway
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      SERVICE_NAME: gateway
+      PORT: '8080'
+      IDENTITY_URL: http://identity:3001
+      TRANSIT_URL: http://transit-data:3002
+      ACCESSIBILITY_URL: http://accessibility:3003
+      PLACES_URL: http://places:3004
+      REDIS_URL: redis://redis:6379
+      WEB_ORIGIN: http://localhost:${WEB_PORT:-8000}
+      RATE_LIMIT_WINDOW_S: ${RATE_LIMIT_WINDOW_S:-60}
+      # Behind Caddy (web): X-Forwarded-For is the client address.
+      TRUST_PROXY: 'true'
+    depends_on:
+      redis:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+      transit-data:
+        condition: service_healthy
+      accessibility:
+        condition: service_healthy
+      places:
+        condition: service_healthy
+    ports:
+      - '${GATEWAY_PORT:-8080}:8080'
+
+  web:
+    profiles: [full]
+    image: heatmap/web:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - '${WEB_PORT:-8000}:80'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata:
   rabbitmqdata:
+  transitstorage:

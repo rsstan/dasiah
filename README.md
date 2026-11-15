@@ -41,5 +41,10 @@ To see the map: start the services and the gateway (`pnpm --filter @heatmap/<nam
 car-time stub first with `PORT=5000 node services/accessibility/src/test-support/osrm-stub.ts` and
 set `OSRM_URL_VNO`/`OSRM_URL_WAW` to it), then `pnpm web:dev` and open http://localhost:5173.
 
+Everything in containers instead (testville as the Warsaw feed, stand-ins for OSRM and the
+geocoder): `pnpm full:up`, then http://localhost:8000 (demo accounts as above). End-to-end tests
+on a separate, throw-away stack: `pnpm e2e:up && pnpm e2e && pnpm e2e:down` (needs Docker and
+Google Chrome).
+
 `pnpm db:reset` drops and recreates the database (fresh start). `pnpm db:migrate down --all`,
 `pnpm db:migrate redo --service places` and `pnpm db:psql <role>` are available for development.

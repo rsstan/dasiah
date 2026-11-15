@@ -9,6 +9,7 @@
     "packages/*/test",
     "packages/*/examples",
     "tests/*/src",
+    "tests/*/*.config.ts",
     "scripts/**/*.ts",
     "db/**/*.ts",
     "contracts/**/*.ts",

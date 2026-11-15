@@ -5,17 +5,29 @@
 | Container | Image (pin a tag) | Port | Notes |
 | --- | --- | --- | --- |
 | `postgres` | `postgis/postgis:16-*` | 5432 | `db/bootstrap` mounted into `/docker-entrypoint-initdb.d`; data volume |
-| `db-migrate` | built from repo | – | One-shot: set role passwords, run all service migrations as `app_admin`, load reference data |
+| `db-init` | `heatmap/tools` (repo) | – | Profile `full`, one-shot (`infra/compose/init.sh`): bootstrap and role passwords, all migrations as `app_admin`, reference data, the `waw` grid and the testville seed (demo accounts); each step idempotent or skipped |
 | `rabbitmq` | `rabbitmq:*-management` | 5672, 15672 | Exchanges, queues and DLX are declared by the services from the topology in `contracts/asyncapi` |
 | `redis` | `redis:*-alpine` | 6379 | Gateway rate limits only |
-| `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend:v26.4.0` | 5001, 5002 | Profile `osrm`. Data prepared by `infra/osrm/build.sh <city>` (Geofabrik extract, MLD) into `infra/osrm/data/<city>`; without data use the stub `node services/accessibility/src/test-support/osrm-stub.ts` |
+| `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend:v26.4.0` | 5001, 5002 | Profile `osrm`. Data prepared by `infra/osrm/build.sh <city>` (Geofabrik extract, MLD) into `infra/osrm/data/<city>`; without data use the stub |
+| `osrm-stub`, `geocoder-stub` | `heatmap/tools` (repo) | – | Profile `full`: car times as straight line x 1.4 at 36 km/h + 60 s; Photon-compatible testville addresses. Replaced by real ones with `CONTAINER_OSRM_URL_WAW`, `CONTAINER_OSRM_URL_VNO`, `CONTAINER_GEOCODER_URL` |
 | `jaeger` | `jaegertracing/jaeger` (v2) | 16686, 4318 | OTLP HTTP in, UI out |
-| `identity`, `transit-data`, `accessibility`, `places` | built from repo | 3001–3004 | Not published to the host in the demo profile |
-| `gateway` | built from repo | 8080 | The only published API port |
-| `web` | built from repo | 5173 | Vite dev server locally (proxies `/api` to the gateway), static files in production |
+| `identity`, `transit-data`, `accessibility`, `places` | `heatmap/<name>` (repo) | 3001–3004 | Not published to the host; `transit-data` keeps raw feeds and artifacts in the volume `transitstorage` |
+| `gateway` | `heatmap/gateway` (repo) | 8080 (`GATEWAY_PORT`) | The only published API port; behind `web` it trusts `X-Forwarded-For` |
+| `web` | `heatmap/web` (repo, Caddy) | 8000 (`WEB_PORT`) | Built frontend and `/api` proxied to the gateway; locally during development the Vite dev server on 5173 does the same |
 
-Profiles: `infra` (databases, broker, tracing, OSRM) for running services with `pnpm dev`;
-`full` for everything in containers.
+Profiles: `infra` (databases, broker, tracing) for running services with `pnpm dev`; `full` for
+everything in containers (`pnpm full:up`, then http://localhost:8000; `pnpm full:down`); `osrm` for
+real car routing. Every container of `full` has a health check and starts only when what it
+needs is healthy (`db-init` must have completed), so `up --wait` returns when the page works.
+In `full` the secrets come from the env file by name (`DB_PASSWORD_*`, `JWT_PRIVATE_KEY`, ...);
+the other settings are fixed in the Compose file for the container network.
+
+End-to-end stack: `pnpm e2e:up` runs `full` as a separate project `heatmap-e2e` with fresh
+volumes, secrets generated into `.e2e/.env` (git-ignored, never the root `.env`) and only the web
+page published (`E2E_WEB_PORT`, default 8088); `pnpm e2e` runs the Playwright suite against it;
+`pnpm e2e:down` removes it with its volumes. It runs next to a development stack. Rate limits keep
+the values of the contracts but are counted per 10 s instead of per minute
+(`RATE_LIMIT_WINDOW_S`), so repeated runs from one address do not hit them.
 
 Host ports come from `.env` (`PG_PORT`, `AMQP_PORT`, `REDIS_PORT`, ...), so the stack can run next to
 another local PostgreSQL. `scripts/with-env.sh` exports `.env` and the matching `PG*` variables;
@@ -89,6 +101,14 @@ them with the sources, runs as user `node` with root-owned read-only files, and 
 `/health/ready`. There is no build step: Node strips the types at run time, so the workspace
 layout is kept (Node does not strip types under `node_modules`).
 
+`infra/docker/web.Dockerfile`: Vite build, then `caddy` serving the files (hashed assets cached
+for a year, `index.html` revalidated) and proxying `/api/*` to the gateway (`infra/web/Caddyfile`).
+
+`infra/docker/tools.Dockerfile`: the workspace with development dependencies and `psql`, for the
+one-shot `db-init` job and the two stubs only (it has its own `.dockerignore` so that `db/` and
+`fixtures/` are included). It is large (about 1.5 GB) because pnpm always installs the workspace
+root's development tools; it is never deployed.
+
 ## Observability
 
 - **Logs:** pino JSON to stdout. Base fields `service`, `correlation_id`, `trace_id`. Request
@@ -112,13 +132,15 @@ layout is kept (Node does not strip types under `node_modules`).
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
-| End to end | Playwright against the `full` profile with `testville` and a stub OSRM | Register, geocode, map, save place, history, delete account |
+| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
 | Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |
 
 ## CI (GitHub Actions)
 
 On pull request: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
-migrate up/down/up, seeds, smoke test, data dictionary diff), integration tests, image builds.
+migrate up/down/up, seeds, smoke test, data dictionary diff), integration tests, end-to-end job
+(builds every image, `pnpm e2e:up`, `pnpm e2e`; on failure the Playwright report, traces and
+container logs are kept as an artifact for 7 days).
 On main: the same plus push images tagged with the commit SHA. On tag: deploy.
 
 ## Deployment (phase 10)
