@@ -38,7 +38,10 @@ Notes:
 - GTFS times may exceed `24:00:00`; they are stored as seconds from the start of the service day.
 - Rows of `stops.txt` with `location_type` other than empty or 0 are stations or entrances and
   are skipped.
-- If a feed uses extended route types (100 to 1700), add them to `transit.route_types` first.
+- Extended route types (100 to 1700; Vilnius uses 800 for trolleybuses) are in the reference data.
+- `promote_feed` refreshes planner statistics (`transit.analyze_feed_tables()`) after staging and
+  before the stop_times step, and the importer does again at the end: without them the planner
+  misjudges freshly inserted rows (see `docs/evidence/import.md`).
 - Check each publisher's page for the feed URL, update frequency and licence before the first
   import and record the licence in `feed_sources.license`.
 

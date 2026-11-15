@@ -747,6 +747,7 @@ Indexes:
 | Name | Kind | Description |
 | --- | --- | --- |
 | `activate_feed(IN p_fv integer)` | procedure | Makes a validated feed version the active one and publishes transit.feed.activated.v1. |
+| `analyze_feed_tables()` | function | Refreshes planner statistics of the staging, core GTFS and mart tables; used by promote_feed and the import. |
 | `gtfs_time_to_seconds(p_time text)` | function | '25:10:00' -> 90600. Hours may exceed 23. |
 | `promote_feed(IN p_fv integer)` | procedure | Staging to core for one feed version: type conversion, key assignment, quality gates. All or nothing. |
 | `rebuild_hex_stop_access(IN p_fv integer, IN p_max_m integer, IN p_k integer)` | procedure | For every cell of the feed's city: up to p_k stops within p_max_m metres, with walking time. |

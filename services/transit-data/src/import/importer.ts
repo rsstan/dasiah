@@ -211,8 +211,12 @@ export class Importer {
           await setLocal(client, 'statement_timeout', String(config.IMPORT_STATEMENT_TIMEOUT_MS));
           await setLocal(client, 'work_mem', '128MB');
           await client.query('CALL transit.promote_feed($1)', [feedVersionId]);
+          // Statistics for the rows just added (visible to ANALYZE in this transaction), so the
+          // next steps and the first timetable export get sensible plans.
+          await client.query('SELECT transit.analyze_feed_tables()');
           await client.query('CALL transit.rebuild_transfers($1)', [feedVersionId]);
           await client.query('CALL transit.rebuild_hex_stop_access($1)', [feedVersionId]);
+          await client.query('SELECT transit.analyze_feed_tables()');
           const { rows } = await client.query<Record<string, number>>(
             `SELECT (SELECT count(*) FROM transit.agencies WHERE feed_version_id = $1) AS agencies,
                     (SELECT count(*) FROM transit.routes WHERE feed_version_id = $1) AS routes,

@@ -63,6 +63,7 @@ INSERT INTO transit.hex_cells (h3_index, city_id, centroid) VALUES
   ('891f53c9a47ffff', 1, ST_SetSRID(ST_MakePoint(21.2000, 52.3500), 4326)::geography);  -- far from any stop
 SELECT pg_temp.must_fail(format('CALL transit.activate_feed(%s)', :fv), 'activate without hex_stop_access');
 CALL transit.rebuild_hex_stop_access(:fv);
+SELECT transit.analyze_feed_tables();  -- svc_transit may refresh statistics through the owner's function
 CALL transit.activate_feed(:fv);
 
 DO $$

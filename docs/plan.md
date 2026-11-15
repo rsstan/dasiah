@@ -56,6 +56,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 - [x] 5.3 Activation endpoint and `transit.feed.activated.v1`.
 - [x] 5.4 Internal API: active feed, timetable artifact per date (pattern building, non-overtaking split), hex access.
 - [ ] 5.5 Import of the real Warsaw and Vilnius feeds; record timings and row counts in `docs/evidence/import.md`.
+      Vilnius done (2026-11-15); Warsaw later.
       Done when: testville imports in the integration test with the expected row counts; a second import of the same zip is a no-op; a corrupted feed ends as `failed` with nothing left in core tables.
 
 ## Phase 6 — accessibility service
