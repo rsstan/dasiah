@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint, typecheck, unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  database:
+    name: database (bootstrap, up/down/up, seeds, smoke, dictionary)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.7
+        env:
+          POSTGRES_DB: heatmap
+          POSTGRES_USER: postgres
+          # Throw-away CI database, never reachable from outside the job.
+          POSTGRES_PASSWORD: ci-superuser
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d heatmap"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PG_HOST: localhost
+      PG_PORT: 5432
+      POSTGRES_DB: heatmap
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci-superuser
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Generate role passwords for this run
+        run: |
+          for v in APP_ADMIN SVC_IDENTITY SVC_TRANSIT SVC_ACCESSIBILITY SVC_PLACES REPORTING; do
+            pw="$(openssl rand -hex 16)"
+            echo "::add-mask::$pw"
+            echo "DB_PASSWORD_$v=$pw" >> "$GITHUB_ENV"
+          done
+      - run: pnpm db:bootstrap
+      - name: Migrate up, down, up
+        run: |
+          pnpm db:migrate up
+          pnpm db:migrate down --all
+          pnpm db:migrate up
+      - run: pnpm db:seed
+      - run: pnpm db:smoke | tee smoke.log && grep -q 'SMOKE TEST PASSED' smoke.log
+      - name: Data dictionary is up to date
+        run: |
+          pnpm db:dict
+          git diff --exit-code docs/db/data-dictionary.md
