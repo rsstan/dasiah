@@ -113,7 +113,15 @@ SET ROLE reporting;
 SELECT pg_temp.must_fail('SELECT 1 FROM identity.users', 'reporting reads raw users');
 SELECT pg_temp.must_fail('SELECT 1 FROM places.saved_places', 'reporting reads raw saved places');
 SELECT pg_temp.must_fail($q$INSERT INTO transit.route_types VALUES (99, 'x', 'x')$q$, 'reporting writes');
-SELECT count(*) AS masked_users_visible FROM identity.v_users_masked;
+-- Read every column of the masked views: masking functions run with the caller's rights.
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM identity.v_users_masked
+          WHERE email_masked LIKE '_***@%' AND (display_name_masked IS NULL OR display_name_masked LIKE '_***')) >= 1,
+         'reporting reads masked users';
+  ASSERT (SELECT count(*) FROM (SELECT audit_id, user_id, event_code, occurred_at, ip_masked FROM identity.v_audit_masked) a) >= 1,
+         'reporting reads masked audit log';
+END $$;
 SELECT count(*) AS stops_visible FROM transit.stops;
 RESET ROLE;
 
