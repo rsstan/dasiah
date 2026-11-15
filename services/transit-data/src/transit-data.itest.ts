@@ -366,6 +366,13 @@ describe('internal API', () => {
       }
       expect(built).toEqual(JSON.parse(await readFile(file, 'utf8')));
     }
+    const res = await call('GET', `/internal/feed-versions/${good}/hex-access`, { 'accept-encoding': 'gzip' });
+    const access = { ...JSON.parse(gunzipSync(res.rawPayload).toString()), feedVersionId: 1 };
+    const file = join(dir, 'hex-access.json');
+    if (process.env['UPDATE_FIXTURES'] === '1') {
+      await writeFile(file, `${JSON.stringify(access)}\n`);
+    }
+    expect(access).toEqual(JSON.parse(await readFile(file, 'utf8')));
   });
 
   it('serves the access stops of every cell of the grid', async () => {

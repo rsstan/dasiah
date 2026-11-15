@@ -1,8 +1,6 @@
-// Assembles the accessibility service: database (as svc_*), broker with outbox publisher and consumer,
-// HTTP server with routes. Used by main.ts and by the integration tests (app.inject()).
-//
-// Layout: http/ (routes, request/response mapping) -> usecases/ (business rules, transactions)
-// -> repositories/ (SQL on schema accessibility only); consumers/ (event handlers).
+// Assembles accessibility: database (as svc_accessibility), broker with the outbox publisher and
+// the consumer of transit.feed.activated.v1, timetables from transit-data, HTTP server.
+// Used by main.ts and by the integration tests (app.inject()).
 import {
   assertServiceRole,
   Broker,
@@ -18,6 +16,10 @@ import {
 import type { Config } from './config.ts';
 import type { AppContext } from './context.ts';
 import { registerRoutes } from './http/routes.ts';
+import type { AccessibilityDb } from './repositories/schema.ts';
+import { TimetableLoader } from './timetables/loader.ts';
+import { TimetableStore } from './timetables/store.ts';
+import { TransitClient } from './timetables/transit-client.ts';
 
 export const SERVICE = 'accessibility';
 export const SCHEMA = 'accessibility';
@@ -25,6 +27,7 @@ export const SCHEMA = 'accessibility';
 export interface Service {
   readonly app: FastifyInstance;
   readonly ctx: AppContext;
+  readonly loader: TimetableLoader;
 }
 
 export async function createService(config: Config, logger: Logger): Promise<Service> {
@@ -41,31 +44,55 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
     throw error;
   }
 
+  const transit = new TransitClient(config.TRANSIT_URL, logger, config.TRANSIT_TIMEOUT_MS);
+  const timetables = new TimetableStore(transit, logger, config.TIMETABLE_CACHE_SIZE);
+  const loader = new TimetableLoader(timetables, transit, logger);
+
   const broker = new Broker({ url: config.AMQP_URL, service: SERVICE, logger });
-  const outbox = new OutboxPublisher({ pool, schema: SCHEMA, source: SERVICE, logger });
+  const outbox = new OutboxPublisher({
+    pool,
+    schema: SCHEMA,
+    source: SERVICE,
+    logger,
+    // The event carries the id of a signed-in user: removed from the outbox once sent.
+    deleteAfterPublish: ['accessibility.calculation.completed.v1'],
+  });
+  const consumer = new EventConsumer({
+    pool,
+    schema: SCHEMA,
+    consumer: SERVICE,
+    logger,
+    handlers: loader.handlers(config.CITIES),
+  });
   broker.attach(outbox);
-  // One handler per consumed event type (see consumers/); queues come from the AsyncAPI contract.
-  const consumer = new EventConsumer({ pool, schema: SCHEMA, consumer: SERVICE, logger, handlers: {} });
-  if (consumer.queues().length > 0) {
-    broker.attach(consumer);
-  }
+  broker.attach(consumer);
+
+  // Timetables first, then messages: an activation arriving now is applied after the start-up load.
+  await loader.loadAll(config.CITIES, () => pool.connect());
   await broker.start();
   outbox.start();
 
-  const ctx: AppContext = { config, logger, pool, db: createKysely<unknown>(pool), outbox };
+  const ctx: AppContext = { config, logger, pool, db: createKysely<AccessibilityDb>(pool), outbox, timetables };
   const app = createServer({
     logger,
-    trustProxy: true, // reachable only through the gateway on the internal network
-    readiness: { database: () => pingDatabase(pool), broker: () => broker.check() },
+    trustProxy: config.TRUST_PROXY,
+    readiness: {
+      database: () => pingDatabase(pool),
+      broker: () => broker.check(),
+      timetable: async () => {
+        if (timetables.loadedCities().length === 0) {
+          throw new Error('no timetable loaded');
+        }
+      },
+    },
   });
   await registerRoutes(app, ctx);
 
-  // Shutdown order: stop taking messages, finish the outbox batch, close the broker and pool.
   app.addHook('onClose', async () => {
     await consumer.stop();
     await outbox.stop();
     await broker.close();
     await pool.end();
   });
-  return { app, ctx };
+  return { app, ctx, loader };
 }
