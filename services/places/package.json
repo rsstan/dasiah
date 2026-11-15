@@ -1,0 +1,20 @@
+{
+  "name": "@heatmap/places",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Addresses: geocoding with a cache, saved places, search history",
+  "scripts": {
+    "start": "node --import @heatmap/common/otel src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=.env --watch --import @heatmap/common/otel src/main.ts"
+  },
+  "dependencies": {
+    "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@heatmap/testing": "workspace:*",
+    "amqplib": "2.3.1",
+    "fastify": "5.12.8"
+  }
+}

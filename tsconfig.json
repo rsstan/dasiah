@@ -8,6 +8,7 @@
     "packages/*/src",
     "packages/*/test",
     "packages/*/examples",
+    "tests/*/src",
     "scripts/**/*.ts",
     "db/**/*.ts",
     "contracts/**/*.ts",

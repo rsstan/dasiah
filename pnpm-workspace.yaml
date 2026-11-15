@@ -2,6 +2,7 @@ packages:
   - apps/*
   - services/*
   - packages/*
+  - tests/*
 
 # Dependency build scripts are denied unless listed here, and every package that has one must
 # be listed (pnpm fails a CI install otherwise). None of these are needed:

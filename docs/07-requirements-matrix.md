@@ -36,13 +36,13 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Indexes, justified | Migrations | `docs/03-database.md#indexes`, `docs/db/query-plans.md` (`pnpm db:plans`) | ready |
 | Triggers, procedures, functions with business logic | Feed and calculation status machines, audit, limits, `promote_feed`, `activate_feed`, `anonymize_user`, `purge_expired` | Dictionary "Routines" and "Triggers"; smoke test | ready |
 | Views, materialized views | 7 views, `mv_city_coverage` | Dictionary "Views" | ready |
-| Masking / anonymisation of personal data | Masked views, privilege split, `anonymize_user`, `erase_user`, origin as H3 cell | Smoke test; query as `reporting` | ready |
+| Masking / anonymisation of personal data | Masked views, privilege split, `anonymize_user`, `erase_user`, origin as H3 cell | Smoke test; query as `reporting`; `erasure.itest.ts`: deleting an account removes places and history in places within seconds | ready |
 
 ## Microservices
 
 | Requirement | Where | Evidence | Status |
 | --- | --- | --- | --- |
-| At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services`; `services/identity` (P3) | identity ready; others P5–P7 |
+| At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services`; `services/identity`, `services/transit-data`, `services/accessibility`, `services/places`; `tests/cross-service/src/erasure.itest.ts` (identity and places together) | ready |
 | Architecture diagram | `docs/02-architecture.md#container-diagram` | Diagram | ready |
 | Reasoning for the decomposition | `docs/02-architecture.md#why-this-split` | Section | ready |
 | Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml` (OpenAPI 3.1, gateway generated), `contracts/asyncapi/heatmap-events.yaml` (AsyncAPI 3); overview in `docs/04-contracts.md` | CI job `contracts` (Redocly lint, generated code up to date), `packages/contracts` tests | ready (implementations follow in P3–P7) |
@@ -51,6 +51,6 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Health endpoints | `/health/live`, `/health/ready` from the server factory (`packages/common/src/server.ts`) | `server.test.ts`; curl output; Compose healthchecks in P9 | ready (platform), per service P3–P7 |
 | Logs with correlation ID | `packages/common` logger, request context, HTTP client header | `logger.test.ts`, `server.test.ts`; log excerpt across services in `docs/evidence/` (P9) | ready (platform), evidence P9 |
 | Gateway: routing, authorization, rate limiting | `apps/gateway`; route table generated from the contracts | `gateway.itest.ts`: 401 without token, 403 user on admin route, 429 with `Retry-After`, spoofed `X-User-Id` ignored, 503 when a service is down, breaker opens | ready |
-| Message broker | RabbitMQ, three events, outbox/inbox (`packages/common/src/messaging`) | AsyncAPI; `messaging.itest.ts` (at-least-once, duplicate skipped, poison and failing messages in the DLQ); RabbitMQ UI screenshot in P9 | ready (platform), events wired in P3–P7 |
-| Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ, single flight | `docs/02-architecture.md#resilience-patterns`; tests: `http-client.test.ts`, `messaging.itest.ts`, `gateway.itest.ts`, `osrm.test.ts`, `loader.itest.ts` (previous timetable kept), `calculations.itest.ts` (OSRM down -> 503 and cached maps served, bulkhead 503, identical requests computed once); drills with the running stack in P9 | ready (tests), drills P9 |
+| Message broker | RabbitMQ, three events, outbox/inbox (`packages/common/src/messaging`) | AsyncAPI; `messaging.itest.ts` (at-least-once, duplicate skipped, poison and failing messages in the DLQ); RabbitMQ UI screenshot in P9 | ready; all three events produced and consumed (`places.itest.ts`, `erasure.itest.ts`) |
+| Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ, single flight | `docs/02-architecture.md#resilience-patterns`; tests: `http-client.test.ts`, `messaging.itest.ts`, `gateway.itest.ts`, `osrm.test.ts`, `loader.itest.ts` (previous timetable kept), `calculations.itest.ts` (OSRM down -> 503 and cached maps served, bulkhead 503, identical requests computed once), `places.itest.ts` (geocoder down -> expired cache entry served, 503 without one); drills with the running stack in P9 | ready (tests), drills P9 |
 | Tracing | OpenTelemetry + Jaeger (`packages/common/src/tracing.ts`) | Sample-service trace: server span, pg spans, outgoing fetch, nested inbound span; screenshot in P9 | ready (platform), evidence P9 |

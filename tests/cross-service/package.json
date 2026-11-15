@@ -1,0 +1,14 @@
+{
+  "name": "@heatmap/cross-service-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tests that run several services together against one database and broker",
+  "devDependencies": {
+    "@heatmap/common": "workspace:*",
+    "@heatmap/identity": "workspace:*",
+    "@heatmap/places": "workspace:*",
+    "@heatmap/testing": "workspace:*",
+    "fastify": "5.12.8"
+  }
+}

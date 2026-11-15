@@ -10,7 +10,7 @@ database and broker are not counted as business services.
 | `identity` | Accounts, sign-in, tokens, account deletion | `identity` | publishes `identity.user.deleted.v1` |
 | `transit-data` | Timetable lifecycle: download GTFS, validate, normalise, build the hexagon grid and access stops, activate a version | `transit`, `transit_staging` | publishes `transit.feed.activated.v1` |
 | `accessibility` | The core calculation: transit times (RAPTOR), car times (OSRM), ratio per cell, calculation cache | `accessibility` | calls `transit-data` (internal API), OSRM; consumes `transit.feed.activated.v1`; publishes `accessibility.calculation.completed.v1` |
-| `places` | Addresses: geocoding with cache, saved places, search history | `places` | calls a geocoder; consumes `accessibility.calculation.completed.v1`, `identity.user.deleted.v1` |
+| `places` | Addresses: geocoding with cache, saved places, search history | `places` | calls a geocoder and `transit-data` (`GET /cities`); consumes `accessibility.calculation.completed.v1`, `identity.user.deleted.v1` |
 
 Supporting components: `gateway` (single public entry point), `web` (frontend), PostgreSQL,
 RabbitMQ, Redis, OSRM (one instance per city), Jaeger.
@@ -26,7 +26,8 @@ RabbitMQ, Redis, OSRM (one instance per city), Jaeger.
   bug or leak in the calculation service cannot reach emails or password hashes.
 - **Clear contracts.** `accessibility` needs exactly two things from `transit-data`: a timetable
   for a date and the access stops of each cell. `places` needs nothing from `identity` except
-  the user id in the token. Small interfaces are what makes the split cheap.
+  the user id in the token (and the `user.deleted` event), and from `transit-data` only the public
+  city list with bounding boxes. Small interfaces are what makes the split cheap.
 - **Rejected alternatives.** (a) A monolith with modules: simpler, but an import or a memory
   spike in routing would affect sign-in, and the grading criterion requires services. (b) A
   separate geocoding service and a separate history service: too thin, they would be CRUD
@@ -50,6 +51,7 @@ flowchart LR
   acc -->|internal REST| trn
   acc --> osrm[OSRM car<br/>one per city]
   plc --> geo[Geocoder<br/>Photon / Nominatim]
+  plc -->|GET /cities| trn
   trn -->|download| gtfs[(GTFS publishers)]
 
   idn --- pg[(PostgreSQL<br/>schema per service)]
@@ -159,7 +161,7 @@ A thin Fastify application: no business logic, no database.
 | Retry with backoff and jitter | Idempotent GETs to `transit-data`, OSRM and the geocoder; GTFS download. Never on POST without an idempotency key. |
 | Circuit breaker | `accessibility` -> OSRM, `places` -> geocoder, gateway -> each service. |
 | Bulkhead | `accessibility` runs at most N calculations at once (N = CPU cores); extra requests wait in a bounded queue, then get `503` with `Retry-After`. |
-| Fallback | Geocoder down: answer from `geocode_cache` only. OSRM down: calculation fails with a clear error instead of showing wrong car times; cached maps keep working. New timetable fails to load: keep serving the previous snapshot. |
+| Fallback | Geocoder down: answer from `geocode_cache`, even from an expired entry; `503 /problems/geocoder-unavailable` only when nothing is cached. OSRM down: calculation fails with a clear error instead of showing wrong car times; cached maps keep working. New timetable fails to load: keep serving the previous snapshot. |
 | Transactional outbox | A state change and its event are written in one database transaction (with the request's correlation id and `traceparent`); a publisher loop sends unpublished rows with publisher confirms and marks them in the same transaction; rows that violate the contract are never sent. |
 | Idempotent consumer | `processed_messages` table: message id inserted in the same transaction as the effect; duplicates are acknowledged and skipped. |
 | Dead-letter queue | Malformed or contract-violating messages at once, failing handlers after 5 attempts (counted by the consumer in `x-retry-count`), crashing consumers after the quorum queue's delivery limit: all go through `heatmap.dlx` to `heatmap.dlq`; logged at error level. |

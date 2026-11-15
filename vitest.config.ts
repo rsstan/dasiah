@@ -14,7 +14,7 @@ export default defineConfig({
       {
         test: {
           name: 'integration',
-          include: ['{apps,services,packages}/*/{src,test}/**/*.itest.ts'],
+          include: ['{apps,services,packages,tests}/*/{src,test}/**/*.itest.ts'],
           exclude: ['**/node_modules/**'],
           testTimeout: 120_000,
           hookTimeout: 180_000,

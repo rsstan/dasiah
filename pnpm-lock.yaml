@@ -420,6 +420,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/testing
 
+  services/places:
+    dependencies:
+      '@heatmap/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@heatmap/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+    devDependencies:
+      '@heatmap/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      amqplib:
+        specifier: 2.3.1
+        version: 2.3.1
+      fastify:
+        specifier: 5.12.8
+        version: 5.12.8
+
   services/transit-data:
     dependencies:
       '@heatmap/common':
@@ -471,6 +490,24 @@ importers:
       yazl:
         specifier: 3.3.1
         version: 3.3.1
+
+  tests/cross-service:
+    devDependencies:
+      '@heatmap/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@heatmap/identity':
+        specifier: workspace:*
+        version: link:../../services/identity
+      '@heatmap/places':
+        specifier: workspace:*
+        version: link:../../services/places
+      '@heatmap/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      fastify:
+        specifier: 5.12.8
+        version: 5.12.8
 
 packages:
 
