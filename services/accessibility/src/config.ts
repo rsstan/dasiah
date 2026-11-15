@@ -42,6 +42,8 @@ export const configSchema = baseConfigSchema
       .min(0)
       .default(availableParallelism() * 2),
     PURGE_INTERVAL_MS: z.coerce.number().int().min(1_000).default(600_000),
+    /** How often cities without a timetable are tried again. */
+    TIMETABLE_RETRY_MS: z.coerce.number().int().min(100).default(30_000),
     TRUST_PROXY: z.stringbool().default(true),
   });
 

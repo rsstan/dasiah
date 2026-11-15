@@ -44,7 +44,9 @@ export async function startTransitStub(): Promise<TransitStub> {
     if (broken.has(id)) {
       return reply.status(500).send({ title: 'boom', status: 500 });
     }
-    return { ...read('hex-access.json'), feedVersionId: id };
+    // The testville cells, labelled with the city whose active feed has this id.
+    const city = [...active.values()].find((f) => f.feedVersionId === id)?.cityCode;
+    return { ...read('hex-access.json'), feedVersionId: id, ...(city === undefined ? {} : { cityCode: city }) };
   });
   app.get('/internal/feed-versions/:id/timetable', async (req, reply) => {
     const id = Number((req.params as { id: string }).id);

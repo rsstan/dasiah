@@ -72,6 +72,7 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
 
   // Timetables first, then messages: an activation arriving now is applied after the start-up load.
   await loader.loadAll(config.CITIES, () => pool.connect());
+  const stopRetry = loader.retryMissing(config.CITIES, () => pool.connect(), config.TIMETABLE_RETRY_MS);
   await broker.start();
   outbox.start();
 
@@ -125,6 +126,7 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
 
   app.addHook('onClose', async () => {
     clearInterval(purge);
+    stopRetry();
     await consumer.stop();
     await outbox.stop();
     await broker.close();

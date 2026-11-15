@@ -65,6 +65,7 @@ beforeAll(async () => {
     TRANSIT_URL: transit.url,
     CITIES: 'waw,vno',
     TRANSIT_TIMEOUT_MS: '2000',
+    TIMETABLE_RETRY_MS: '200',
   });
   service = await createService(config, captured.logger);
   await service.app.ready();
@@ -170,5 +171,25 @@ describe('timetable loading', () => {
         .sort(),
     ).toEqual(['duplicate', 'processed']);
     expect(service.ctx.timetables.current('waw')?.feedVersionId).toBe(3);
+  });
+});
+
+describe('cities without a timetable', () => {
+  it('are retried until their timetable loads (transit-data down at start-up, failing artifact)', async () => {
+    expect(service.ctx.timetables.current('vno')).toBeUndefined();
+    transit.broken.add(9);
+    transit.active.set('vno', { ...feed(9), cityCode: 'vno' });
+    await eventually(
+      'failed retries',
+      () =>
+        captured.lines.filter((l) => l['msg'] === 'timetable of the city could not be loaded, will retry').length >= 2,
+    );
+    expect(service.ctx.timetables.current('vno')).toBeUndefined();
+
+    transit.broken.delete(9);
+    await eventually('vno loaded', () => service.ctx.timetables.current('vno')?.feedVersionId === 9);
+    expect(service.ctx.timetables.current('waw')?.feedVersionId).toBe(3);
+    const rows = await snapshotRows();
+    expect(rows.filter((r) => r.is_current).map((r) => r.feed_version_id)).toEqual([3, 9]);
   });
 });
