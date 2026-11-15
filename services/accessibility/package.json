@@ -1,0 +1,23 @@
+{
+  "name": "@heatmap/accessibility",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Accessibility maps: RAPTOR transit times, OSRM car times, ratio per H3 cell",
+  "scripts": {
+    "start": "node --import @heatmap/common/otel src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=.env --watch --import @heatmap/common/otel src/main.ts"
+  },
+  "dependencies": {
+    "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*",
+    "cockatiel": "4.0.0",
+    "h3-js": "4.5.0",
+    "kysely": "0.29.9",
+    "undici": "8.12.4"
+  },
+  "devDependencies": {
+    "@heatmap/testing": "workspace:*",
+    "fastify": "5.12.8"
+  }
+}

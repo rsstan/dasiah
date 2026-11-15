@@ -361,6 +361,34 @@ importers:
         specifier: 12.2.1
         version: 12.2.1(bare-buffer@3.7.2)(supports-color@10.2.2)
 
+  services/accessibility:
+    dependencies:
+      '@heatmap/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@heatmap/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      cockatiel:
+        specifier: 4.0.0
+        version: 4.0.0
+      h3-js:
+        specifier: 4.5.0
+        version: 4.5.0
+      kysely:
+        specifier: 0.29.9
+        version: 0.29.9
+      undici:
+        specifier: 8.12.4
+        version: 8.12.4
+    devDependencies:
+      '@heatmap/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      fastify:
+        specifier: 5.12.8
+        version: 5.12.8
+
   services/identity:
     dependencies:
       '@fastify/cookie':

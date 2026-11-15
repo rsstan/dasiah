@@ -15,3 +15,4 @@ export type { Kysely, Transaction } from 'kysely';
 export type { Pool, PoolClient } from 'pg';
 export type { FastifyInstance, FastifyReply, FastifyRequest, LightMyRequestResponse } from 'fastify';
 export { z } from 'zod';
+export * from './geo.ts';

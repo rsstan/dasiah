@@ -1,6 +1,6 @@
 // transit-data against a real database (bootstrap, migrations, svc_transit) and RabbitMQ, with a
 // stub publisher serving zip archives built from fixtures/gtfs/testville.
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -351,6 +351,21 @@ describe('internal API', () => {
     expect(firstDepartures(holiday.patterns)).toEqual([23 * 3600 + 50 * 60 - 86_400, 9 * 3600, 10 * 3600]);
     const outside = await timetable('2027-06-01');
     expect(outside.res.statusCode).toBe(422);
+  });
+
+  // accessibility tests RAPTOR against these files; they must be exactly what this service builds.
+  // UPDATE_FIXTURES=1 rewrites them.
+  it('builds the timetable artifacts committed in fixtures/gtfs/testville/artifacts', async () => {
+    const dir = join(FIXTURE, 'artifacts');
+    for (const date of ['2026-12-02', '2026-12-05', '2026-12-24']) {
+      const built = { ...(await timetable(date)).body, feedVersionId: 1 };
+      const file = join(dir, `timetable-${date}.json`);
+      if (process.env['UPDATE_FIXTURES'] === '1') {
+        await mkdir(dir, { recursive: true });
+        await writeFile(file, `${JSON.stringify(built)}\n`);
+      }
+      expect(built).toEqual(JSON.parse(await readFile(file, 'utf8')));
+    }
   });
 
   it('serves the access stops of every cell of the grid', async () => {
