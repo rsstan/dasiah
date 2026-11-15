@@ -11,6 +11,54 @@ Owned by identity-service: accounts, sessions, audit trail.
 
 ```mermaid
 erDiagram
+  audit_event_types {
+    int2 event_type_id PK
+    text code UK
+    text description
+  }
+  audit_log {
+    int8 audit_id PK
+    uuid user_id FK
+    int2 event_type_id FK
+    timestamptz occurred_at
+    inet ip
+    name db_actor
+  }
+  outbox {
+    uuid event_id PK
+    text event_type
+    jsonb payload
+    timestamptz occurred_at
+    timestamptz published_at
+  }
+  refresh_tokens {
+    uuid token_id PK
+    uuid user_id FK
+    bytea token_hash UK
+    timestamptz issued_at
+    timestamptz expires_at
+    timestamptz revoked_at
+    uuid replaced_by FK
+    text user_agent
+    inet ip
+  }
+  roles {
+    int2 role_id PK
+    text code UK
+    text name
+  }
+  users {
+    uuid user_id PK
+    citext email UK
+    text password_hash
+    text display_name
+    int2 role_id FK
+    text locale
+    timestamptz email_verified_at
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
   audit_event_types ||--o{ audit_log : "event_type_id"
   refresh_tokens ||--o{ refresh_tokens : "replaced_by"
   roles ||--o{ users : "role_id"
@@ -198,6 +246,116 @@ Owned by transit-data-service: cities, GTFS feed versions, timetable (core layer
 
 ```mermaid
 erDiagram
+  agencies {
+    int4 feed_version_id FK, PK, UK
+    int2 agency_id PK
+    text gtfs_id UK
+    text name
+  }
+  cities {
+    int2 city_id PK
+    text code UK
+    text name
+    bpchar country_code
+    text timezone
+    int2 h3_resolution
+    geometry bounds
+    bool is_enabled
+  }
+  feed_sources {
+    int2 feed_source_id PK
+    int2 city_id FK
+    text code UK
+    text name
+    text url
+    text license
+    bool is_enabled
+  }
+  feed_versions {
+    int4 feed_version_id PK
+    int2 feed_source_id FK, UK
+    bytea sha256 UK
+    text storage_key
+    timestamptz fetched_at
+    date valid_from
+    date valid_to
+    text status
+    timestamptz activated_at
+    timestamptz archived_at
+    text error_message
+  }
+  hex_cells {
+    h3_cell h3_index PK
+    int2 city_id FK
+    geography centroid
+  }
+  hex_stop_access {
+    int4 feed_version_id FK, PK
+    h3_cell h3_index FK, PK
+    int4 stop_id FK, PK
+    int2 walk_s
+  }
+  outbox {
+    uuid event_id PK
+    text event_type
+    jsonb payload
+    timestamptz occurred_at
+    timestamptz published_at
+  }
+  route_types {
+    int2 route_type_id PK
+    text code UK
+    text name
+  }
+  routes {
+    int4 feed_version_id FK, PK, UK
+    int4 route_id PK
+    int2 agency_id FK
+    text gtfs_id UK
+    text short_name
+    text long_name
+    int2 route_type_id FK
+  }
+  service_dates {
+    int4 feed_version_id FK, PK
+    int4 service_id FK, PK
+    date service_date PK
+  }
+  services {
+    int4 feed_version_id FK, PK, UK
+    int4 service_id PK
+    text gtfs_id UK
+  }
+  stop_times {
+    int4 feed_version_id FK, PK
+    int4 trip_id FK, PK
+    int2 stop_sequence PK
+    int4 stop_id FK
+    gtfs_seconds arrival_s
+    gtfs_seconds departure_s
+  }
+  stops {
+    int4 feed_version_id FK, PK, UK
+    int4 stop_id PK
+    text gtfs_id UK
+    text name
+    geography geom
+  }
+  transfers {
+    int4 feed_version_id FK, PK
+    int4 from_stop_id FK, PK
+    int4 to_stop_id FK, PK
+    int2 walk_s
+  }
+  trips {
+    int4 feed_version_id FK, PK, UK
+    int4 trip_id PK
+    int4 route_id FK
+    int4 service_id FK
+    text gtfs_id UK
+    text headsign
+    int2 direction
+  }
   agencies ||--o{ routes : "feed_version_id,agency_id"
   cities ||--o{ feed_sources : "city_id"
   cities ||--o{ hex_cells : "city_id"
@@ -690,6 +848,56 @@ Owned by accessibility-service: calculation requests, per-cell results, legend.
 
 ```mermaid
 erDiagram
+  calculation_results {
+    uuid calculation_id FK, PK
+    h3_cell h3_index PK
+    int4 transit_s
+    int4 car_s
+    bool has_stop
+  }
+  calculations {
+    uuid calculation_id PK
+    int4 feed_version_id FK
+    h3_cell origin_h3
+    date service_date
+    int4 departure_s
+    int2 window_s
+    int2 algo_version
+    text status
+    timestamptz created_at
+    timestamptz completed_at
+    timestamptz expires_at
+    text error_code
+  }
+  feed_snapshots {
+    int4 feed_version_id PK
+    city_code city_code
+    date valid_from
+    date valid_to
+    timestamptz loaded_at
+    bool is_current
+  }
+  outbox {
+    uuid event_id PK
+    text event_type
+    jsonb payload
+    timestamptz occurred_at
+    timestamptz published_at
+  }
+  processed_messages {
+    uuid message_id PK
+    text event_type
+    timestamptz processed_at
+  }
+  ratio_classes {
+    int2 class_id PK
+    text code UK
+    text label
+    numeric min_ratio
+    numeric max_ratio
+    bpchar color
+    int2 sort_order UK
+  }
   calculations ||--o{ calculation_results : "calculation_id"
   feed_snapshots ||--o{ calculations : "feed_version_id"
 ```
@@ -871,6 +1079,45 @@ Owned by places-service: geocoding cache, saved places, search history.
 
 ```mermaid
 erDiagram
+  geocode_cache {
+    int8 geocode_id PK
+    city_code city_code UK
+    text query_norm UK
+    text display_name
+    geography geom
+    text provider
+    timestamptz fetched_at
+    timestamptz expires_at
+  }
+  place_kinds {
+    int2 kind_id PK
+    text code UK
+    text label
+  }
+  processed_messages {
+    uuid message_id PK
+    text event_type
+    timestamptz processed_at
+  }
+  saved_places {
+    uuid place_id PK
+    uuid user_id UK
+    int2 kind_id FK
+    text label UK
+    text address_text
+    city_code city_code
+    geography geom
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  search_history {
+    int8 history_id PK
+    uuid user_id UK
+    uuid calculation_id UK
+    city_code city_code
+    h3_cell origin_h3
+    timestamptz created_at
+  }
   place_kinds ||--o{ saved_places : "kind_id"
 ```
 

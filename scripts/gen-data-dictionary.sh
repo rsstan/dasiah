@@ -19,6 +19,18 @@ for s in $schemas; do
   q "SELECT coalesce(obj_description('$s'::regnamespace), '')"
   if [ "$s" != transit_staging ]; then
     echo; echo '```mermaid'; echo 'erDiagram'
+    # Entities with attributes: type (pg_type name, domains by their own name) and key markers.
+    q "SELECT format(E'  %s {\n%s\n  }', c.relname, string_agg(format('    %s %s%s', t.typname, a.attname,
+              coalesce(' ' || (SELECT string_agg(DISTINCT key, ', ') FROM (
+                                 SELECT CASE k.contype WHEN 'p' THEN 'PK' ELSE 'FK' END AS key
+                                   FROM pg_constraint k WHERE k.conrelid = c.oid AND a.attnum = ANY (k.conkey) AND k.contype IN ('p', 'f')
+                                 UNION ALL  -- unique constraints and full (non-partial) unique indexes
+                                 SELECT 'UK' FROM pg_index i WHERE i.indrelid = c.oid AND i.indisunique AND NOT i.indisprimary
+                                   AND i.indpred IS NULL AND a.attnum = ANY (i.indkey::int2[])) keys), '')), E'\n' ORDER BY a.attnum))
+       FROM pg_class c JOIN pg_attribute a ON a.attrelid = c.oid JOIN pg_type t ON t.oid = a.atttypid
+       WHERE c.relnamespace = '$s'::regnamespace AND c.relkind IN ('r','p') AND c.relname <> 'pgmigrations'
+         AND a.attnum > 0 AND NOT a.attisdropped
+       GROUP BY c.oid, c.relname ORDER BY c.relname"
     q "SELECT format('  %s %s--o{ %s : \"%s\"', pc.relname, '||', cc.relname, string_agg(a.attname, ',' ORDER BY k.ord))
        FROM pg_constraint c
        JOIN pg_class cc ON cc.oid = c.conrelid JOIN pg_class pc ON pc.oid = c.confrelid

@@ -10,7 +10,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | --- | --- | --- | --- |
 | Data dictionary: layers, tables, columns, types, keys, quality expectations | `docs/db/data-dictionary.md`, `docs/03-database.md#data-layers` | Generated file; every table, column and routine has a description (`0002_column_comments.sql`) | ready |
 | How integrity is maintained, how transactions are handled | `docs/03-database.md#integrity-and-transactions` | Section + smoke test output | ready |
-| Logical schema, clear, colour-coded | `docs/03-database.md#logical-schema`, ER per schema in the dictionary | Mermaid diagrams (export PNG for the thesis) | ready |
+| Logical schema, clear, colour-coded | `docs/03-database.md#logical-schema`, ER per schema with attributes and keys in the dictionary | `docs/db/img/*.svg`, `*.png` (`pnpm db:diagrams`), colour per schema | ready |
 | DDL script | `db/bootstrap/`, `services/*/migrations/` | Files in Git | ready |
 | Modern relational DBMS | PostgreSQL 16 + PostGIS | Compose file | ready / P0 |
 | 3NF | `docs/03-database.md#normalisation-3nf` | Section | ready |

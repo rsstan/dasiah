@@ -19,7 +19,8 @@ The executable source of truth is SQL:
 
 `docs/db/data-dictionary.md` is generated from the catalog by `scripts/gen-data-dictionary.sh`
 (tables, columns, types, keys, constraints, indexes, triggers, views, routines, privileges and a
-Mermaid ER diagram per schema).
+Mermaid ER diagram per schema with attributes and keys). `pnpm db:diagrams` renders the logical
+schema and the ER diagrams to SVG and PNG in `docs/db/img/` with a local Chrome.
 
 ## Logical schema
 
@@ -59,10 +60,10 @@ flowchart LR
     search_history
     p_inbox[processed_messages]
   end
-  feed_versions -. feed.activated .-> feed_snapshots
-  users -. user_id .-> saved_places
-  users -. user_id .-> search_history
-  calculations -. calculation.completed .-> search_history
+  feed_versions -.->|feed.activated| feed_snapshots
+  users -.->|user_id| saved_places
+  users -.->|user_id| search_history
+  calculations -.->|calculation.completed| search_history
 
   classDef idn fill:#dbeafe,stroke:#1d4ed8,color:#111;
   classDef trn fill:#dcfce7,stroke:#15803d,color:#111;
