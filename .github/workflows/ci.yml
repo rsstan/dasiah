@@ -27,6 +27,18 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
+  integration:
+    name: integration tests (Testcontainers)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:int
+
   contracts:
     name: contracts (lint, generated code up to date)
     runs-on: ubuntu-24.04

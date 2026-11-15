@@ -20,7 +20,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Enough test data, edge cases | `fixtures/gtfs/testville` (edge cases listed in its README), `db/seed/test/seed.ts` | `pnpm db:seed:test` output: every legend class, expired rows, 20-place user, anonymised user | ready |
 | Scripts for reference tables | `db/seed/reference/*.sql` | Files | ready |
 | Roles `app_read`, `app_write`, admin or better | Bootstrap; `docs/03-database.md#roles-and-access` | Privileges table in the dictionary; smoke test "rejected" lines | ready |
-| Application not under superuser | `svc_*` roles, `DATABASE_URL` rule | Compose env, start-up check that refuses superuser | ready, check in P2 |
+| Application not under superuser | `svc_*` roles, `DATABASE_URL` rule, `assertServiceRole` in `packages/common/src/db.ts` | Start-up refuses superuser, `app_admin` and its members (`db.itest.ts`; sample service log "Refusing to start") | ready |
 | Permissions updated for new objects | Default privileges + `db-change` skill + dictionary diff in CI | PR showing privileges diff | ready |
 | Passwords encrypted, no MD5/SHA-1 | Argon2id in `identity`; `users_password_algo` check | Smoke test "non-argon2id hash rejected" | ready, hashing in P3 |
 | Integrity through constraints and transactions | Migrations, procedures | Smoke test | ready |
@@ -48,9 +48,9 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml` (OpenAPI 3.1, gateway generated), `contracts/asyncapi/heatmap-events.yaml` (AsyncAPI 3); overview in `docs/04-contracts.md` | CI job `contracts` (Redocly lint, generated code up to date), `packages/contracts` tests | ready (implementations follow in P3–P7) |
 | Deployment diagram | `docs/02-architecture.md#deployment` | Diagram | ready |
 | Own database or schema per service | Schema + role per service, no cross-schema access | Smoke test "svc_transit reads identity: rejected" | ready |
-| Health endpoints | `/health/live`, `/health/ready` | curl output, Compose healthchecks | spec, P2 |
-| Logs with correlation ID | `packages/common` logger and propagation | Log excerpt across services in `docs/evidence/` | spec, P2, evidence P9 |
+| Health endpoints | `/health/live`, `/health/ready` from the server factory (`packages/common/src/server.ts`) | `server.test.ts`; curl output; Compose healthchecks in P9 | ready (platform), per service P3–P7 |
+| Logs with correlation ID | `packages/common` logger, request context, HTTP client header | `logger.test.ts`, `server.test.ts`; log excerpt across services in `docs/evidence/` (P9) | ready (platform), evidence P9 |
 | Gateway: routing, authorization, rate limiting | `apps/gateway` | Route table; 401/403/429 integration tests | spec, P4 |
 | Message broker | RabbitMQ, three events, outbox/inbox | AsyncAPI, RabbitMQ UI screenshot | spec, P2–P7 |
 | Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ | `docs/02-architecture.md#resilience-patterns`; test that stops OSRM | spec, P9 |
-| Tracing | OpenTelemetry + Jaeger | Trace screenshot | spec, P2, evidence P9 |
+| Tracing | OpenTelemetry + Jaeger (`packages/common/src/tracing.ts`) | Sample-service trace: server span, pg spans, outgoing fetch, nested inbound span; screenshot in P9 | ready (platform), evidence P9 |

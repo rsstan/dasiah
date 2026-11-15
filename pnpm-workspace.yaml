@@ -3,7 +3,15 @@ packages:
   - services/*
   - packages/*
 
-# Dependency build scripts are denied unless listed here. puppeteer (via mermaid-cli, used by
-# `pnpm db:diagrams`) would download its own Chromium; the diagrams use the installed Chrome.
+# Dependency build scripts are denied unless listed here, and every package that has one must
+# be listed (pnpm fails a CI install otherwise). None of these are needed:
+# - puppeteer (via mermaid-cli, `pnpm db:diagrams`) would download its own Chromium; the
+#   diagrams use the installed Chrome;
+# - protobufjs (via OpenTelemetry) only runs a version check;
+# - ssh2 and cpu-features (via testcontainers -> docker-modem) build optional native SSH
+#   acceleration; the JavaScript fallback is used.
 allowBuilds:
+  cpu-features: false
+  protobufjs: false
   puppeteer: false
+  ssh2: false

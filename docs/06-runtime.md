@@ -43,6 +43,21 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `GEOCODER_PROVIDER`, `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` | places | Geocoder selection and throttling |
 | `STORAGE_DRIVER` (`fs` or `s3`), `STORAGE_PATH` or `S3_BUCKET` | transit-data | Raw GTFS and artifacts |
 
+## Platform package (`packages/common`, `@heatmap/common`)
+
+| Module | Provides |
+| --- | --- |
+| `config` | `loadConfig(schema)` with zod; `baseConfigSchema` (`SERVICE_NAME`, `PORT`, `HOST`, `LOG_LEVEL`, `SHUTDOWN_TIMEOUT_MS`, `OTEL_EXPORTER_OTLP_ENDPOINT`), `databaseConfigSchema` (`DATABASE_URL`, `DB_POOL_MAX`, `DB_STATEMENT_TIMEOUT_MS`); all problems reported at once, values never echoed |
+| `context` | `AsyncLocalStorage` with correlation id and caller; `runWithContext`, `currentCorrelationId` |
+| `logger` | pino JSON with `time`, `level`, `service`, `msg`, `correlation_id`, `trace_id`, `span_id`; redaction by key |
+| `tracing`, `otel-register` | OpenTelemetry SDK (HTTP, fetch, pg), OTLP export, `withSpan`, trace headers for messages |
+| `server` | `createServer` (correlation id, context, request log, problem+json, health, readiness checks, 503 while draining) and `runServer` (SIGTERM/SIGINT shutdown with timeout) |
+| `errors` | `ValidationError` 400, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, `UnprocessableError` 422, `TooManyRequestsError` 429, `ServiceUnavailableError` 503, `UpstreamError` 502 |
+| `db` | `createPool` (statement timeout), `assertServiceRole` (refuses superuser, `app_admin` and its members, CREATEROLE/CREATEDB/BYPASSRLS), `createKysely`, `withTransaction` (sets `app.correlation_id`), `pingDatabase` |
+| `http-client` | `HttpClient`: per-attempt timeout, retry with backoff and jitter for GET/HEAD, circuit breaker, correlation id header |
+
+`packages/common/examples/sample-service.ts` is a minimal service built from it.
+
 ## Observability
 
 - **Logs:** pino JSON to stdout. Base fields `service`, `correlation_id`, `trace_id`. Request
@@ -50,7 +65,8 @@ Environment variables, validated at start with a schema; `.env.example` lists al
   `cookie`, `password`, `email`, `addressText`.
 - **Correlation:** gateway creates the id; `packages/common` propagates it through
   `AsyncLocalStorage`, the HTTP client and the message publisher/consumer.
-- **Tracing:** OpenTelemetry started before any other import (`--import ./otel.js`). One trace
+- **Tracing:** OpenTelemetry started before any other import
+  (`node --import @heatmap/common/otel src/main.ts`; no-op without `OTEL_EXPORTER_OTLP_ENDPOINT`). One trace
   covers browser request -> gateway -> service -> PostgreSQL / OSRM / RabbitMQ -> consumer.
   Manual spans: `raptor.query`, `osrm.table.batch`, `gtfs.copy`, `gtfs.promote`.
 - **Health:** liveness and readiness endpoints; Compose healthchecks use readiness.

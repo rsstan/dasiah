@@ -1,0 +1,33 @@
+{
+  "name": "@heatmap/common",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Platform code shared by every service: config, logging, tracing, HTTP server and client, database.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./otel": "./src/otel-register.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.301.2",
+    "@opentelemetry/instrumentation": "0.301.2",
+    "@opentelemetry/instrumentation-http": "0.301.2",
+    "@opentelemetry/instrumentation-pg": "0.78.0",
+    "@opentelemetry/instrumentation-undici": "0.35.1",
+    "@opentelemetry/resources": "3.1.1",
+    "@opentelemetry/sdk-node": "0.301.2",
+    "@opentelemetry/semantic-conventions": "1.45.0",
+    "cockatiel": "4.0.0",
+    "fastify": "5.12.8",
+    "kysely": "0.29.9",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.2.1",
+    "@types/pg": "8.23.1",
+    "testcontainers": "12.2.1"
+  }
+}
