@@ -8,7 +8,7 @@
 | `db-migrate` | built from repo | – | One-shot: set role passwords, run all service migrations as `app_admin`, load reference data |
 | `rabbitmq` | `rabbitmq:*-management` | 5672, 15672 | Exchanges, queues and DLX are declared by the services from the topology in `contracts/asyncapi` |
 | `redis` | `redis:*-alpine` | 6379 | Gateway rate limits only |
-| `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend` | 5001, 5002 | Data prepared by `infra/osrm/build.sh <city>` into a volume |
+| `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend:v26.4.0` | 5001, 5002 | Profile `osrm`. Data prepared by `infra/osrm/build.sh <city>` (Geofabrik extract, MLD) into `infra/osrm/data/<city>`; without data use the stub `node services/accessibility/src/test-support/osrm-stub.ts` |
 | `jaeger` | `jaegertracing/jaeger` (v2) | 16686, 4318 | OTLP HTTP in, UI out |
 | `identity`, `transit-data`, `accessibility`, `places` | built from repo | 3001–3004 | Not published to the host in the demo profile |
 | `gateway` | built from repo | 8080 | The only published API port |
@@ -42,7 +42,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all | Jaeger OTLP endpoint |
 | `JWT_PRIVATE_KEY` (Ed25519, PKCS#8 PEM, `\n`-escaped), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE`, `ACCESS_TTL_S`, `REFRESH_TTL_S`, `COOKIE_SECURE`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_WINDOW_S`, `TRUST_PROXY` | identity | Token signing (EdDSA), refresh cookie, lockout after repeated failed sign-ins |
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` (comma-separated), `JWT_ISSUER`, `JWT_AUDIENCE`, `UPSTREAM_TIMEOUT_MS`, `ACCESSIBILITY_TIMEOUT_MS`, `BREAKER_THRESHOLD`, `BREAKER_HALF_OPEN_MS`, `RATE_LIMIT_WINDOW_S`, `BODY_LIMIT_BYTES`, `TRUST_PROXY` | gateway | Upstreams, token checks, limits store, CORS, resilience |
-| `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S` | accessibility | Upstreams, timetables in memory, method parameters |
+| `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL` | accessibility | Upstreams, timetables in memory, method parameters |
 | `GEOCODER_PROVIDER`, `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` | places | Geocoder selection and throttling |
 | `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |
 

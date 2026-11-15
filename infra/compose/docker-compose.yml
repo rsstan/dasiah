@@ -70,6 +70,25 @@ services:
       timeout: 5s
       retries: 10
 
+  # Car routing, one instance per city. Data: infra/osrm/build.sh <city> (profile `osrm`).
+  osrm-waw:
+    profiles: [osrm]
+    image: ghcr.io/project-osrm/osrm-backend:v26.4.0
+    command: ['osrm-routed', '--algorithm', 'mld', '--max-table-size', '1001', '/data/mazowieckie.osrm']
+    volumes:
+      - ../osrm/data/waw:/data:ro
+    ports:
+      - '${OSRM_WAW_PORT:-5001}:5000'
+
+  osrm-vno:
+    profiles: [osrm]
+    image: ghcr.io/project-osrm/osrm-backend:v26.4.0
+    command: ['osrm-routed', '--algorithm', 'mld', '--max-table-size', '1001', '/data/lithuania.osrm']
+    volumes:
+      - ../osrm/data/vno:/data:ro
+    ports:
+      - '${OSRM_VNO_PORT:-5002}:5000'
+
 volumes:
   pgdata:
   rabbitmqdata:

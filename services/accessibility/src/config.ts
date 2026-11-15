@@ -22,6 +22,15 @@ export const configSchema = baseConfigSchema
     /** Timetables of single dates kept in memory (per city and feed version), least recently used out. */
     TIMETABLE_CACHE_SIZE: z.coerce.number().int().min(1).default(6),
     TRANSIT_TIMEOUT_MS: z.coerce.number().int().min(100).default(30_000),
+    /** OSRM per city; a city without one cannot compute maps. */
+    OSRM_URL_WAW: httpUrl.optional(),
+    OSRM_URL_VNO: httpUrl.optional(),
+    OSRM_TIMEOUT_MS: z.coerce.number().int().min(100).default(10_000),
+    OSRM_CHUNK_SIZE: z.coerce.number().int().min(1).max(1_000).default(500),
+    OSRM_PARALLEL: z.coerce.number().int().min(1).default(4),
+    /** car_s = round(duration x factor) + overhead (docs/05-algorithms.md#7). */
+    CAR_TIME_FACTOR: z.coerce.number().min(0.1).max(5).default(1),
+    CAR_OVERHEAD_S: z.coerce.number().int().min(0).default(0),
     TRUST_PROXY: z.stringbool().default(true),
   });
 
