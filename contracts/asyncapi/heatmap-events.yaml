@@ -1,0 +1,313 @@
+asyncapi: 3.0.0
+info:
+  title: Heatmap events
+  version: 1.0.0
+  description: |
+    Business events between the services, on RabbitMQ.
+
+    Topology:
+    - one durable topic exchange `heatmap.events`; the routing key is the event type;
+    - one durable quorum queue per consumer and event, named `<consumer>.<event type>`
+      (`x-queue` on each receive operation), bound with the event type, `x-delivery-limit` 5,
+      dead-lettered to the fanout exchange `heatmap.dlx`;
+    - `heatmap.dlx` feeds the queue `heatmap.dlq`, which is only inspected, never consumed
+      automatically.
+
+    Every message body is the same envelope (`id`, `type`, `source`, `time`, `correlationId`,
+    `data`); only `data` differs per event. AMQP properties: `messageId` = `id`, `type` = `type`,
+    `contentType` = `application/json`, `deliveryMode` 2 (persistent); headers `traceparent`
+    (W3C trace context) and `x-correlation-id`.
+
+    Delivery is at least once. Consumers are idempotent by `id` (inbox table
+    `processed_messages`). Events are facts in the past tense, versioned by suffix; a breaking
+    change is a new version published alongside the old one until every consumer has moved.
+defaultContentType: application/json
+
+servers:
+  rabbitmq:
+    host: rabbitmq:5672
+    protocol: amqp
+    protocolVersion: 0.9.1
+    description: Broker on the internal Compose network.
+
+channels:
+  transitFeedActivated:
+    address: transit.feed.activated.v1
+    description: A feed version became the active timetable of its city.
+    messages:
+      transitFeedActivated:
+        $ref: '#/components/messages/TransitFeedActivatedV1'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/HeatmapEvents'
+  accessibilityCalculationCompleted:
+    address: accessibility.calculation.completed.v1
+    description: A calculation finished, or a cached one was served.
+    messages:
+      accessibilityCalculationCompleted:
+        $ref: '#/components/messages/AccessibilityCalculationCompletedV1'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/HeatmapEvents'
+  identityUserDeleted:
+    address: identity.user.deleted.v1
+    description: An account was anonymised; other services must erase what they hold about the user.
+    messages:
+      identityUserDeleted:
+        $ref: '#/components/messages/IdentityUserDeletedV1'
+    bindings:
+      amqp:
+        $ref: '#/components/channelBindings/HeatmapEvents'
+
+operations:
+  publishTransitFeedActivated:
+    action: send
+    summary: transit-data publishes after `transit.activate_feed`.
+    channel:
+      $ref: '#/channels/transitFeedActivated'
+    x-publisher: transit-data
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Persistent'
+  accessibilityReceivesFeedActivated:
+    action: receive
+    summary: accessibility loads the new timetable and switches the current snapshot of the city.
+    channel:
+      $ref: '#/channels/transitFeedActivated'
+    x-consumer: accessibility
+    x-queue: accessibility.transit.feed.activated.v1
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Ack'
+
+  publishAccessibilityCalculationCompleted:
+    action: send
+    summary: |
+      accessibility publishes after storing a calculation or serving a cached one. Carries a
+      user id, so the outbox row is deleted right after publishing.
+    channel:
+      $ref: '#/channels/accessibilityCalculationCompleted'
+    x-publisher: accessibility
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Persistent'
+  placesReceivesCalculationCompleted:
+    action: receive
+    summary: places adds a history row when `userId` is present.
+    channel:
+      $ref: '#/channels/accessibilityCalculationCompleted'
+    x-consumer: places
+    x-queue: places.accessibility.calculation.completed.v1
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Ack'
+
+  publishIdentityUserDeleted:
+    action: send
+    summary: identity publishes from `identity.anonymize_user`.
+    channel:
+      $ref: '#/channels/identityUserDeleted'
+    x-publisher: identity
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Persistent'
+  placesReceivesUserDeleted:
+    action: receive
+    summary: places runs `places.erase_user(userId)`.
+    channel:
+      $ref: '#/channels/identityUserDeleted'
+    x-consumer: places
+    x-queue: places.identity.user.deleted.v1
+    bindings:
+      amqp:
+        $ref: '#/components/operationBindings/Ack'
+
+components:
+  channelBindings:
+    HeatmapEvents:
+      is: routingKey
+      exchange:
+        name: heatmap.events
+        type: topic
+        durable: true
+        autoDelete: false
+        vhost: /
+      bindingVersion: 0.3.0
+
+  operationBindings:
+    Persistent:
+      deliveryMode: 2
+      mandatory: true
+      bindingVersion: 0.3.0
+    Ack:
+      ack: true
+      bindingVersion: 0.3.0
+
+  messages:
+    TransitFeedActivatedV1:
+      name: transit.feed.activated.v1
+      title: Feed activated
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        $ref: '#/components/schemas/TransitFeedActivatedV1'
+      examples:
+        - payload:
+            id: 0b6f3c1e-8a52-4d5e-9b1a-2f0c7d9e4a11
+            type: transit.feed.activated.v1
+            source: transit-data
+            time: '2026-11-15T12:00:00Z'
+            correlationId: 6d1f2a7c-3b4e-4c5d-8e9f-0a1b2c3d4e5f
+            data:
+              cityCode: waw
+              feedVersionId: 12
+              validFrom: '2026-11-01'
+              validTo: '2027-03-31'
+    AccessibilityCalculationCompletedV1:
+      name: accessibility.calculation.completed.v1
+      title: Calculation completed
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        $ref: '#/components/schemas/AccessibilityCalculationCompletedV1'
+    IdentityUserDeletedV1:
+      name: identity.user.deleted.v1
+      title: User deleted
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+      payload:
+        $ref: '#/components/schemas/IdentityUserDeletedV1'
+
+  schemas:
+    MessageHeaders:
+      type: object
+      description: AMQP application headers.
+      properties:
+        traceparent:
+          type: string
+          pattern: '^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$'
+          description: W3C trace context of the publishing span.
+        x-correlation-id:
+          type: string
+          description: Same as `correlationId` in the body.
+    EventId:
+      type: string
+      format: uuid
+      description: Unique per event (the outbox `event_id`); consumers deduplicate by it.
+    EventTime:
+      type: string
+      format: date-time
+      description: When the state change happened (UTC).
+    CorrelationId:
+      type: [string, 'null']
+      maxLength: 128
+      description: Correlation id of the request that caused the event; null for scheduled work.
+    CityCode:
+      type: string
+      pattern: '^[a-z]{3}$'
+    H3Cell:
+      type: string
+      pattern: '^8[0-9a-f]{14}$'
+    Uuid:
+      type: string
+      format: uuid
+
+    TransitFeedActivatedV1:
+      type: object
+      required: [id, type, source, time, correlationId, data]
+      properties:
+        id:
+          $ref: '#/components/schemas/EventId'
+        type:
+          type: string
+          const: transit.feed.activated.v1
+        source:
+          type: string
+          const: transit-data
+        time:
+          $ref: '#/components/schemas/EventTime'
+        correlationId:
+          $ref: '#/components/schemas/CorrelationId'
+        data:
+          $ref: '#/components/schemas/TransitFeedActivatedV1Data'
+      additionalProperties: false
+    TransitFeedActivatedV1Data:
+      type: object
+      required: [cityCode, feedVersionId, validFrom, validTo]
+      properties:
+        cityCode:
+          $ref: '#/components/schemas/CityCode'
+        feedVersionId:
+          type: integer
+          minimum: 1
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+      additionalProperties: false
+
+    AccessibilityCalculationCompletedV1:
+      type: object
+      required: [id, type, source, time, correlationId, data]
+      properties:
+        id:
+          $ref: '#/components/schemas/EventId'
+        type:
+          type: string
+          const: accessibility.calculation.completed.v1
+        source:
+          type: string
+          const: accessibility
+        time:
+          $ref: '#/components/schemas/EventTime'
+        correlationId:
+          $ref: '#/components/schemas/CorrelationId'
+        data:
+          $ref: '#/components/schemas/AccessibilityCalculationCompletedV1Data'
+      additionalProperties: false
+    AccessibilityCalculationCompletedV1Data:
+      type: object
+      required: [calculationId, cityCode, originH3, userId, cacheHit]
+      properties:
+        calculationId:
+          $ref: '#/components/schemas/Uuid'
+        cityCode:
+          $ref: '#/components/schemas/CityCode'
+        originH3:
+          $ref: '#/components/schemas/H3Cell'
+        userId:
+          type: [string, 'null']
+          format: uuid
+          description: Signed-in user who asked; null for anonymous requests.
+        cacheHit:
+          type: boolean
+      additionalProperties: false
+
+    IdentityUserDeletedV1:
+      type: object
+      required: [id, type, source, time, correlationId, data]
+      properties:
+        id:
+          $ref: '#/components/schemas/EventId'
+        type:
+          type: string
+          const: identity.user.deleted.v1
+        source:
+          type: string
+          const: identity
+        time:
+          $ref: '#/components/schemas/EventTime'
+        correlationId:
+          $ref: '#/components/schemas/CorrelationId'
+        data:
+          $ref: '#/components/schemas/IdentityUserDeletedV1Data'
+      additionalProperties: false
+    IdentityUserDeletedV1Data:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+      additionalProperties: false

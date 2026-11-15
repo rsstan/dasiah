@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | `postgres` | `postgis/postgis:16-*` | 5432 | `db/bootstrap` mounted into `/docker-entrypoint-initdb.d`; data volume |
 | `db-migrate` | built from repo | – | One-shot: set role passwords, run all service migrations as `app_admin`, load reference data |
-| `rabbitmq` | `rabbitmq:*-management` | 5672, 15672 | Definitions file declares exchange, queues, DLX |
+| `rabbitmq` | `rabbitmq:*-management` | 5672, 15672 | Exchanges, queues and DLX are declared by the services from the topology in `contracts/asyncapi` |
 | `redis` | `redis:*-alpine` | 6379 | Gateway rate limits only |
 | `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend` | 5001, 5002 | Data prepared by `infra/osrm/build.sh <city>` into a volume |
 | `jaeger` | `jaegertracing/jaeger` (v2) | 16686, 4318 | OTLP HTTP in, UI out |

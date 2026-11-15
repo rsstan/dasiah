@@ -24,11 +24,13 @@ description: Publish a new event, consume an event, or change an event payload o
 
 ## Consuming
 
-1. Declare the queue `<consumer>.<event>` (quorum, delivery limit 5, dead-letter to
-   `heatmap.dlx`) in the RabbitMQ definitions file and bind it to `heatmap.events`.
+1. Add a `receive` operation to `contracts/asyncapi/heatmap-events.yaml` with `x-consumer` and
+   `x-queue: <consumer>.<event>`, then `pnpm contracts:gen`. The messaging package declares the
+   queue (quorum, delivery limit 5, dead-letter to `heatmap.dlx`) and its binding to
+   `heatmap.events` from the generated `topology`.
 2. Handler rules:
-   - validate the envelope and payload against the generated schema; invalid -> reject without
-     requeue (goes to the DLQ);
+   - validate the envelope and payload with `validateEvent()` from `@heatmap/contracts`;
+     invalid -> reject without requeue (goes to the DLQ);
    - in one transaction: `INSERT INTO processed_messages (message_id, event_type) ... ON
      CONFLICT DO NOTHING`; if no row was inserted, acknowledge and return; otherwise apply the
      effect;

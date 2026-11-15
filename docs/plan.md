@@ -28,7 +28,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 
 ## Phase 2 — Shared platform and contracts
 
-- [ ] 2.1 Write `contracts/openapi/*.yaml` and `contracts/asyncapi/heatmap-events.yaml` from `docs/04-contracts.md`; lint job; `contracts:gen` produces types in `packages/contracts`.
+- [x] 2.1 Write `contracts/openapi/*.yaml` and `contracts/asyncapi/heatmap-events.yaml` from `docs/04-contracts.md`; lint job; `contracts:gen` produces types in `packages/contracts`.
 - [ ] 2.2 `packages/common`: config loader, logger with correlation, OpenTelemetry bootstrap, Fastify server factory (health routes, problem+json errors, request logging, graceful shutdown), database pool factory (refuses to start if the role is a superuser), resilient HTTP client.
       Done when: a sample service started from the factory answers health checks, logs a `correlation_id` taken from the header, and shows a trace in Jaeger.
 - [ ] 2.3 `packages/common/messaging`: publisher with outbox loop, consumer with inbox table, envelope validation, correlation and trace propagation, DLQ topology.

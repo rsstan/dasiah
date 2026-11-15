@@ -6,3 +6,4 @@ docs/db/data-dictionary.md
 packages/contracts/src/generated
 *.sql
 *.md
+contracts/openapi/gateway.yaml

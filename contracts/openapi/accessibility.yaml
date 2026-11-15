@@ -1,0 +1,324 @@
+openapi: 3.1.0
+info:
+  title: accessibility service
+  version: 1.0.0
+  description: |
+    The core calculation: transit times (RAPTOR), car times (OSRM), ratio per H3 cell, with a
+    cache keyed by (feed version, origin cell, date, time, window, algorithm version).
+    Owns schema `accessibility`. No personal data: the origin is kept only as an H3
+    resolution-10 cell and the requesting user is not stored.
+
+    `x-access`: access level at the gateway (`internal` = not routed). `x-rate-limit`: per-minute
+    limit at the gateway (`anonymousPerMinute` applies to requests without a token).
+servers:
+  - url: http://accessibility:3003
+tags:
+  - name: calculations
+  - name: legend
+  - name: health
+paths:
+  /legend:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    get:
+      operationId: getLegend
+      summary: Legend classes of the map, best first
+      tags: [legend]
+      x-access: public
+      x-rate-limit: { perMinute: 120 }
+      responses:
+        '200':
+          description: Rows of `accessibility.ratio_classes`.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                examples: [public, max-age=3600]
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LegendClass'
+                additionalProperties: false
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /calculations:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    post:
+      operationId: createCalculation
+      summary: Request an accessibility map for an origin
+      description: |
+        Snaps the origin to its H3 resolution-10 cell and looks up the cache. A cached map is
+        returned with `200`; otherwise the map is computed now (`201`). If the same question is
+        being computed by another request, `202` points to it. Signed-in requests are added to
+        the user's history through `accessibility.calculation.completed.v1`.
+      tags: [calculations]
+      x-access: public
+      x-rate-limit: { perMinute: 20, anonymousPerMinute: 6 }
+      parameters:
+        - $ref: './common.yaml#/components/parameters/UserIdOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Cache hit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        '201':
+          description: Computed now.
+          headers:
+            Location:
+              $ref: './common.yaml#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        '202':
+          description: The same question is being computed; poll `GET /calculations/{id}`.
+          headers:
+            Location:
+              $ref: './common.yaml#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '422':
+          $ref: './common.yaml#/components/responses/Unprocessable'
+        '503':
+          $ref: './common.yaml#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /calculations/{id}:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/CalculationIdPath'
+    get:
+      operationId: getCalculation
+      summary: Status and metadata of a calculation
+      tags: [calculations]
+      x-access: public
+      x-rate-limit: { perMinute: 120 }
+      responses:
+        '200':
+          description: Calculation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calculation'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /calculations/{id}/results:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/CalculationIdPath'
+    get:
+      operationId: getCalculationResults
+      summary: Per-cell travel times, ratio and legend class
+      description: A finished calculation never changes, so the response is cacheable forever (until it expires and is removed).
+      tags: [calculations]
+      x-access: public
+      x-rate-limit: { perMinute: 60 }
+      responses:
+        '200':
+          description: Results; sent gzip-compressed.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                examples: [public, max-age=86400, immutable]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResults'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '409':
+          description: The calculation is still running or has failed; see `GET /calculations/{id}`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Problem'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /health/live:
+    $ref: './common.yaml#/components/pathItems/HealthLive'
+  /health/ready:
+    $ref: './common.yaml#/components/pathItems/HealthReady'
+
+components:
+  parameters:
+    CalculationIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: './common.yaml#/components/schemas/Uuid'
+
+  schemas:
+    LegendClassCode:
+      type: string
+      enum: [excellent, good, fair, poor, very_poor, unreachable, no_transit]
+    LegendClass:
+      type: object
+      required: [code, label, minRatio, maxRatio, color, sortOrder]
+      properties:
+        code:
+          $ref: '#/components/schemas/LegendClassCode'
+        label:
+          type: string
+        minRatio:
+          type: [number, 'null']
+          description: Inclusive lower bound of t_transit / t_car; null for the special classes.
+        maxRatio:
+          type: [number, 'null']
+          description: Exclusive upper bound; null = unbounded or special class.
+        color:
+          type: string
+          pattern: '^#[0-9a-f]{6}$'
+        sortOrder:
+          type: integer
+      additionalProperties: false
+    LocalTime:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+      description: Local time of day in the city's time zone, HH:MM.
+      examples: ['08:00']
+    CalculationRequest:
+      type: object
+      required: [cityCode, origin]
+      properties:
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        origin:
+          $ref: './common.yaml#/components/schemas/Coordinates'
+        date:
+          type: string
+          format: date
+          description: Service date. Default - the next working day inside the feed validity.
+        time:
+          $ref: '#/components/schemas/LocalTime'
+        windowMinutes:
+          type: integer
+          minimum: 0
+          maximum: 120
+          multipleOf: 5
+          default: 0
+          description: 0 = single departure; otherwise departures every 5 minutes in the window, median per cell.
+      additionalProperties: false
+    Calculation:
+      type: object
+      required:
+        - calculationId
+        - status
+        - cityCode
+        - originH3
+        - feedVersionId
+        - date
+        - time
+        - windowMinutes
+        - cellCount
+        - durationMs
+        - createdAt
+        - expiresAt
+        - errorCode
+      properties:
+        calculationId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        status:
+          type: string
+          enum: [running, done, failed]
+        cityCode:
+          $ref: './common.yaml#/components/schemas/CityCode'
+        originH3:
+          $ref: './common.yaml#/components/schemas/H3Cell'
+        feedVersionId:
+          type: integer
+          minimum: 1
+        date:
+          type: string
+          format: date
+        time:
+          $ref: '#/components/schemas/LocalTime'
+        windowMinutes:
+          type: integer
+          minimum: 0
+        cellCount:
+          type: [integer, 'null']
+          minimum: 0
+          description: Number of result cells; null while running or after a failure.
+        durationMs:
+          type: [integer, 'null']
+          minimum: 0
+          description: Computation time; null while running.
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        errorCode:
+          type: [string, 'null']
+          description: Set when `status` is `failed`, e.g. `osrm_unavailable`.
+      additionalProperties: false
+    CellResult:
+      type: object
+      required: [h3, transitS, carS, ratio, class]
+      properties:
+        h3:
+          $ref: './common.yaml#/components/schemas/H3Cell'
+        transitS:
+          type: [integer, 'null']
+          minimum: 0
+          description: Door-to-door seconds by public transport or on foot; null = not reachable.
+        carS:
+          type: [integer, 'null']
+          minimum: 1
+          description: Driving seconds; null = no road route.
+        ratio:
+          type: [number, 'null']
+          description: transitS / carS rounded to 2 decimals; null when either is null.
+        class:
+          $ref: '#/components/schemas/LegendClassCode'
+      additionalProperties: false
+    CalculationResults:
+      type: object
+      required: [calculationId, resolution, cells]
+      properties:
+        calculationId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        resolution:
+          type: integer
+          minimum: 7
+          maximum: 10
+          description: H3 resolution of the cells.
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/CellResult'
+      additionalProperties: false

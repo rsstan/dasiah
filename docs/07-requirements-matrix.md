@@ -45,7 +45,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services` | spec, P3–P7 |
 | Architecture diagram | `docs/02-architecture.md#container-diagram` | Diagram | ready |
 | Reasoning for the decomposition | `docs/02-architecture.md#why-this-split` | Section | ready |
-| Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml`, `contracts/asyncapi/heatmap-events.yaml`; overview in `docs/04-contracts.md` | Lint job, rendered docs | spec, P2 |
+| Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml` (OpenAPI 3.1, gateway generated), `contracts/asyncapi/heatmap-events.yaml` (AsyncAPI 3); overview in `docs/04-contracts.md` | CI job `contracts` (Redocly lint, generated code up to date), `packages/contracts` tests | ready (implementations follow in P3–P7) |
 | Deployment diagram | `docs/02-architecture.md#deployment` | Diagram | ready |
 | Own database or schema per service | Schema + role per service, no cross-schema access | Smoke test "svc_transit reads identity: rejected" | ready |
 | Health endpoints | `/health/live`, `/health/ready` | curl output, Compose healthchecks | spec, P2 |

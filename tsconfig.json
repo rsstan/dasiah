@@ -9,6 +9,7 @@
     "packages/*/test",
     "scripts/**/*.ts",
     "db/**/*.ts",
+    "contracts/**/*.ts",
     "*.config.ts"
   ],
   "exclude": ["**/node_modules", "apps/web"]

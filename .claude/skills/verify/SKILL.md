@@ -11,7 +11,7 @@ Run what applies to the change; all must pass.
 | --- | --- |
 | Anything | `pnpm lint && pnpm typecheck && pnpm test` |
 | Migrations, seeds, bootstrap | fresh database: `pnpm db:bootstrap && pnpm db:migrate && pnpm db:seed && pnpm db:smoke && pnpm db:dict`; `git diff --exit-code docs/db/data-dictionary.md` after committing the regenerated file |
-| Contracts | `pnpm contracts:lint && pnpm contracts:gen`; no uncommitted generated changes |
+| Contracts | `pnpm contracts:gen && pnpm contracts:lint`; no uncommitted generated changes |
 | Service code | `pnpm test:int --filter <service>` |
 | Gateway, cross-service flow, compose | `docker compose --profile full up -d --wait && pnpm e2e` |
 

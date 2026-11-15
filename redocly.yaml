@@ -1,0 +1,87 @@
+# Lint configuration for contracts/ (pnpm contracts:lint).
+extends:
+  - recommended
+
+apis:
+  identity:
+    root: contracts/openapi/identity.yaml
+  transit-data:
+    root: contracts/openapi/transit-data.yaml
+  accessibility:
+    root: contracts/openapi/accessibility.yaml
+  places:
+    root: contracts/openapi/places.yaml
+  gateway:
+    root: contracts/openapi/gateway.yaml
+    rules:
+      # The public API declares how callers authenticate.
+      security-defined: error
+  heatmap-events:
+    root: contracts/asyncapi/heatmap-events.yaml
+    rules:
+      # The OpenAPI rules below do not apply to AsyncAPI operations and AMQP header names.
+      rule/operation-x-access: off
+      rule/operation-id-camel-case: off
+      rule/schema-properties-camel-case: off
+      rule/async-receive-has-queue:
+        subject:
+          type: Operation
+        where:
+          - subject:
+              type: Operation
+              property: action
+            assertions:
+              const: receive
+        assertions:
+          required: [x-consumer, x-queue]
+        message: Every receive operation names its consumer (x-consumer) and queue (x-queue).
+        severity: error
+      rule/async-send-has-publisher:
+        subject:
+          type: Operation
+        where:
+          - subject:
+              type: Operation
+              property: action
+            assertions:
+              const: send
+        assertions:
+          required: [x-publisher]
+        message: Every send operation names its publisher (x-publisher).
+        severity: error
+
+rules:
+  # Services sit behind the gateway and trust X-User-Id / X-User-Role; authentication is
+  # described once, in the generated gateway.yaml (rule re-enabled there).
+  security-defined: off
+  info-license: off
+  tag-description: off
+  # Health and key endpoints have no client errors.
+  operation-4xx-response: off
+  operation-4xx-problem-details-rfc7807: error
+  no-server-example.com: error
+
+  rule/operation-x-access:
+    subject:
+      type: Operation
+      property: x-access
+    assertions:
+      defined: true
+      enum: [public, user, admin, internal]
+    message: Every operation needs x-access (public, user, admin or internal).
+    severity: error
+  rule/operation-id-camel-case:
+    subject:
+      type: Operation
+      property: operationId
+    assertions:
+      defined: true
+      casing: camelCase
+    severity: error
+  rule/schema-properties-camel-case:
+    subject:
+      type: SchemaProperties
+    assertions:
+      casing: camelCase
+    message: JSON properties are camelCase.
+    severity: error

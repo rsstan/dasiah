@@ -1,0 +1,424 @@
+openapi: 3.1.0
+info:
+  title: identity service
+  version: 1.0.0
+  description: |
+    Accounts, sign-in, tokens and account deletion. Owns schema `identity`.
+
+    Access tokens are JWTs signed with the key published at `/.well-known/jwks.json`.
+    Claims: `sub` (user id), `role` (`user` | `admin`), `iss`, `aud`, `iat`, `exp`, `jti`.
+    Refresh tokens are opaque random strings sent only in the `refresh_token` cookie
+    (`HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`); the database stores their SHA-256.
+
+    `x-access` on each operation is the access level at the gateway (`public`, `user`, `admin`;
+    `internal` = not routed). `x-rate-limit` is the per-minute limit at the gateway.
+servers:
+  - url: http://identity:3001
+tags:
+  - name: auth
+  - name: users
+  - name: keys
+  - name: health
+paths:
+  /auth/register:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    post:
+      operationId: register
+      summary: Create an account
+      tags: [auth]
+      x-access: public
+      x-rate-limit: { perMinute: 5 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created. The user signs in with `/auth/login`.
+          headers:
+            Location:
+              $ref: './common.yaml#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '409':
+          $ref: './common.yaml#/components/responses/Conflict'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /auth/login:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    post:
+      operationId: login
+      summary: Sign in with email and password
+      tags: [auth]
+      x-access: public
+      x-rate-limit: { perMinute: 10 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Signed in. The refresh token is set as a cookie.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '429':
+          $ref: './common.yaml#/components/responses/TooManyRequests'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /auth/refresh:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    post:
+      operationId: refresh
+      summary: Exchange the refresh token for a new pair (rotation)
+      description: |
+        The presented token is revoked and replaced. Presenting a token that was already
+        replaced is treated as theft: every session of the user is revoked and `401` is returned.
+      tags: [auth]
+      x-access: public
+      x-rate-limit: { perMinute: 30 }
+      parameters:
+        - $ref: '#/components/parameters/RefreshCookie'
+      responses:
+        '200':
+          description: New access token; the new refresh token is set as a cookie.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetRefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /auth/logout:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+    post:
+      operationId: logout
+      summary: Revoke the current refresh token
+      tags: [auth]
+      x-access: user
+      x-rate-limit: { perMinute: 30 }
+      parameters:
+        - $ref: './common.yaml#/components/parameters/UserId'
+        - $ref: '#/components/parameters/RefreshCookie'
+      responses:
+        '204':
+          description: Signed out; the cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /users/me:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: './common.yaml#/components/parameters/UserId'
+    get:
+      operationId: getMe
+      summary: Profile of the signed-in user
+      tags: [users]
+      x-access: user
+      x-rate-limit: { perMinute: 60 }
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+    patch:
+      operationId: updateMe
+      summary: Change display name or locale
+      tags: [users]
+      x-access: user
+      x-rate-limit: { perMinute: 20 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+    delete:
+      operationId: deleteMe
+      summary: Erase the account
+      description: |
+        Anonymises the account (`identity.anonymize_user`), ends every session and publishes
+        `identity.user.deleted.v1`, after which `places` erases the user's places and history.
+      tags: [users]
+      x-access: user
+      x-rate-limit: { perMinute: 5 }
+      responses:
+        '204':
+          description: Account erased; the refresh cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearRefreshCookie'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: './common.yaml#/components/responses/NotFound'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /users/me/password:
+    parameters:
+      - $ref: './common.yaml#/components/parameters/CorrelationId'
+      - $ref: './common.yaml#/components/parameters/UserId'
+    post:
+      operationId: changePassword
+      summary: Change the password and revoke the other sessions
+      tags: [users]
+      x-access: user
+      x-rate-limit: { perMinute: 5 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed; all refresh tokens except the current one are revoked.
+        '400':
+          $ref: './common.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './common.yaml#/components/responses/Unauthorized'
+        '403':
+          description: The current password does not match.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Problem'
+        '500':
+          $ref: './common.yaml#/components/responses/InternalError'
+
+  /.well-known/jwks.json:
+    get:
+      operationId: getJwks
+      summary: Public keys for access-token verification
+      tags: [keys]
+      x-access: internal
+      responses:
+        '200':
+          description: JSON Web Key Set. Cache for a few minutes; refetch on an unknown `kid`.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                examples: [public, max-age=300]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+
+  /health/live:
+    $ref: './common.yaml#/components/pathItems/HealthLive'
+  /health/ready:
+    $ref: './common.yaml#/components/pathItems/HealthReady'
+
+components:
+  parameters:
+    RefreshCookie:
+      name: refresh_token
+      in: cookie
+      required: true
+      description: Opaque refresh token set by `/auth/login` or `/auth/refresh`.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 128
+
+  headers:
+    SetRefreshCookie:
+      description: '`refresh_token=<token>; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=<REFRESH_TTL_S>`'
+      schema:
+        type: string
+    ClearRefreshCookie:
+      description: '`refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0`'
+      schema:
+        type: string
+
+  schemas:
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+      description: Case-insensitive; stored once per account.
+    Password:
+      type: string
+      minLength: 10
+      maxLength: 128
+      description: Plain password in the request only; hashed with Argon2id, never stored or logged.
+    DisplayName:
+      type: string
+      minLength: 1
+      maxLength: 80
+    Locale:
+      type: string
+      enum: [en, pl, lt, ru]
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          $ref: '#/components/schemas/Password'
+        displayName:
+          $ref: '#/components/schemas/DisplayName'
+        locale:
+          $ref: '#/components/schemas/Locale'
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+      additionalProperties: false
+    UpdateProfileRequest:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          oneOf:
+            - $ref: '#/components/schemas/DisplayName'
+            - type: 'null'
+        locale:
+          $ref: '#/components/schemas/Locale'
+      additionalProperties: false
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 128
+        newPassword:
+          $ref: '#/components/schemas/Password'
+      additionalProperties: false
+    TokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: 'JWT for the `Authorization: Bearer` header.'
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+          description: Lifetime of the access token in seconds.
+      additionalProperties: false
+    UserProfile:
+      type: object
+      required: [userId, email, displayName, role, locale, createdAt]
+      properties:
+        userId:
+          $ref: './common.yaml#/components/schemas/Uuid'
+        email:
+          $ref: '#/components/schemas/Email'
+        displayName:
+          oneOf:
+            - $ref: '#/components/schemas/DisplayName'
+            - type: 'null'
+        role:
+          type: string
+          enum: [user, admin]
+        locale:
+          $ref: '#/components/schemas/Locale'
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Jwk:
+      type: object
+      required: [kty, kid, alg, use]
+      properties:
+        kty:
+          type: string
+        kid:
+          type: string
+        alg:
+          type: string
+        use:
+          type: string
+          const: sig
+        crv:
+          type: string
+        x:
+          type: string
+        y:
+          type: string
+        n:
+          type: string
+        e:
+          type: string
+      additionalProperties: false
+    Jwks:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Jwk'
+      additionalProperties: false
