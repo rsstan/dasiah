@@ -1,14 +1,9 @@
-# Transit Accessibility Heatmap
+# DASIAH (Transit Accessibility Heatmap)
 
 Web service that shows, for an address, where in the city public transport is about as fast as a
 car and where it is not. The city is split into H3 hexagons; each one is coloured by the ratio of
 travel time by public transport to travel time by car. Pilot cities: Warsaw and Vilnius. Data:
 open GTFS timetables and OpenStreetMap.
-
-## Status
-
-Specification and database layer are in place; services are built step by step following
-`docs/plan.md`.
 
 ## Structure
 
