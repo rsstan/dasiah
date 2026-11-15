@@ -33,7 +33,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Several DBMS types if justified | Not used for primary data: data is relational and spatial, volumes are small; Redis holds only rate-limit counters. Reasoning in the thesis text | `docs/02-architecture.md#decisions` D1 | ready (justified absence) |
 | Data layers raw -> staging -> mart, with reasoning | GTFS import | `docs/03-database.md#data-layers`, `promote_feed` | ready, pipeline in P5 |
 | Versioning of the structure | Migrations, `pgmigrations` tables, Git, CI up/down/up | `docs/03-database.md#versioning-of-the-structure` | ready |
-| Indexes, justified | Migrations | `docs/03-database.md#indexes`, `docs/db/query-plans.md` | ready, plans in P1 |
+| Indexes, justified | Migrations | `docs/03-database.md#indexes`, `docs/db/query-plans.md` (`pnpm db:plans`) | ready |
 | Triggers, procedures, functions with business logic | Feed and calculation status machines, audit, limits, `promote_feed`, `activate_feed`, `anonymize_user`, `purge_expired` | Dictionary "Routines" and "Triggers"; smoke test | ready |
 | Views, materialized views | 7 views, `mv_city_coverage` | Dictionary "Views" | ready |
 | Masking / anonymisation of personal data | Masked views, privilege split, `anonymize_user`, `erase_user`, origin as H3 cell | Smoke test; query as `reporting` | ready |

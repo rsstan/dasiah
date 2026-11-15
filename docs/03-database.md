@@ -193,8 +193,10 @@ Erasure: `CALL identity.anonymize_user(id)` scrubs the account, ends sessions an
 | `outbox_unpublished_idx` (partial) | Publisher reads only pending events |
 | `search_history_user_idx (user_id, created_at DESC)` | History page |
 
-Phase 1 adds `EXPLAIN (ANALYZE, BUFFERS)` output for the main queries to
-`docs/db/query-plans.md` as evidence that the indexes are used.
+`docs/db/query-plans.md` (`pnpm db:plans`) holds `EXPLAIN (ANALYZE, BUFFERS)` output of the main
+queries on generated volume data (100k users, 1.2M stop times, 200k calculations, 300k outbox and
+history rows) as evidence that the indexes are used. The one sequential scan, the timetable
+export over `stop_times`, is deliberate and justified there with a forced-index comparison.
 
 ## Views
 

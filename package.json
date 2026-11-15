@@ -23,6 +23,7 @@
     "db:seed:test": "scripts/with-env.sh node db/seed/test/seed.ts",
     "db:smoke": "scripts/with-env.sh scripts/db-as.sh superuser -q -v ON_ERROR_STOP=1 -f db/tests/smoke.sql",
     "db:dict": "DB_TOOL=scripts/gen-data-dictionary.sh scripts/with-env.sh scripts/db-as.sh app_admin",
+    "db:plans": "scripts/with-env.sh scripts/db-as.sh superuser -q -f db/tests/query-plans.sql > docs/db/query-plans.md",
     "db:psql": "scripts/with-env.sh scripts/db-as.sh"
   },
   "devDependencies": {

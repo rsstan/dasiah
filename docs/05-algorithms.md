@@ -66,7 +66,9 @@ A pattern is a group of trips of one route with exactly the same stop sequence. 
 flat array `[arr0, dep0, arr1, dep1, ...]`. Trips inside a pattern are sorted by departure at
 the first stop; if two trips of a pattern overtake each other, split them into separate
 patterns (RAPTOR requires non-overtaking trips). Built with one SQL query per date and cached
-on disk by `(feedVersionId, date)`.
+on disk by `(feedVersionId, date)`. The query reads most of a feed's `stop_times`, so a sequential
+scan is expected; the transaction sets `SET LOCAL work_mem = '64MB'` so the sort stays in memory
+(`docs/db/query-plans.md`).
 
 ## 5. Origin
 
