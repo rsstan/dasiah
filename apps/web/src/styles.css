@@ -605,3 +605,118 @@ button.danger:disabled {
 .form > button {
   align-self: flex-start;
 }
+
+/* ------------------------------------------------------------ admin (8.3) */
+
+.app.wide .panel {
+  width: 560px;
+}
+
+.admin h3 {
+  font-size: 0.95rem;
+  margin: 8px 0 0;
+}
+
+.coverage {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.coverage caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.coverage th,
+.coverage td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+
+.coverage th:first-child,
+.coverage td.hint {
+  text-align: left;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  flex: 1;
+}
+
+.filters select {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  background: #fff;
+}
+
+.version {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  align-items: flex-start;
+}
+
+.version .meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.version .mono {
+  font-family: ui-monospace, monospace;
+}
+
+.version button {
+  margin-top: 6px;
+}
+
+.version-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: var(--muted);
+}
+
+.badge.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.status-validated {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.status-failed {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.badge.status-downloaded,
+.badge.status-staged {
+  background: #fef9c3;
+  color: #854d0e;
+}

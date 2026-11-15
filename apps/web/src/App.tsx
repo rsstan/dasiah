@@ -5,6 +5,7 @@
 import { cellToLatLng } from 'h3-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AccountView } from './account/AccountView.tsx';
+import { AdminView } from './admin/AdminView.tsx';
 import { AuthForm } from './account/AuthForm.tsx';
 import { HistoryList, type HistoryEntry } from './account/HistoryList.tsx';
 import { PlacesList } from './account/PlacesList.tsx';
@@ -49,7 +50,7 @@ export function App() {
   return <MapPage cities={cities.data.items} legend={legend.data.items} />;
 }
 
-type Tab = 'map' | 'places' | 'history' | 'account' | 'sign-in';
+type Tab = 'map' | 'places' | 'history' | 'account' | 'admin' | 'sign-in';
 
 interface Departure {
   date: string;
@@ -169,7 +170,7 @@ function MapPage({ cities, legend }: { cities: City[]; legend: LegendClass[] }) 
   const cityPlaces = places.items.filter((p) => p.cityCode === cityCode);
 
   return (
-    <div className="app">
+    <div className={tab === 'admin' ? 'app wide' : 'app'}>
       <aside className="panel">
         <header className="panel-header">
           <div>
@@ -190,6 +191,7 @@ function MapPage({ cities, legend }: { cities: City[]; legend: LegendClass[] }) 
                 ['map', 'Map'],
                 ['places', 'Places'],
                 ['history', 'History'],
+                ...(auth.user.role === 'admin' ? ([['admin', 'Admin']] as const) : []),
                 ['account', auth.user.displayName ?? 'Account'],
               ] as const
             ).map(([id, label]) => (
@@ -218,6 +220,7 @@ function MapPage({ cities, legend }: { cities: City[]; legend: LegendClass[] }) 
         {tab === 'places' && <PlacesList places={places} cities={cities} onShow={showPlace} />}
         {tab === 'history' && <HistoryList cities={cities} onOpen={openHistory} />}
         {tab === 'account' && signedIn && <AccountView user={auth.user} />}
+        {tab === 'admin' && signedIn && auth.user.role === 'admin' && <AdminView cities={cities} />}
 
         {tab === 'map' && (
           <>

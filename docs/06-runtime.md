@@ -30,7 +30,8 @@ Map page locally (services and gateway running, see the README): `pnpm web:dev`,
 http://localhost:5173. The dev server proxies `/api` to `GATEWAY_URL` (default
 http://localhost:8080), so the browser sees one origin: no CORS preflight, and the refresh cookie
 (path `/api/v1/auth`) works as in production, where Caddy does the same. `pnpm web:build` writes
-static files to `apps/web/dist`.
+static files to `apps/web/dist`. The Admin tab (coverage, import, feed versions, activation) is
+shown to accounts with role `admin`, e.g. `demo.admin@example.com` from `pnpm db:seed:test`.
 
 Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`, `web:dev`, `web:build`,
 `db:bootstrap`, `db:migrate`, `db:seed`, `db:seed:test`, `db:smoke`, `db:dict`,
