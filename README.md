@@ -7,12 +7,26 @@ open GTFS timetables and OpenStreetMap.
 
 ## Structure
 
+- `specs/microservices.md` — the services in one page: what each does, stack, where the code is,
+  a simple diagram, how to run (Docker, development, tests, a VPS with Terraform).
+- `specs/database.md` — the database in one page: schemas, design, integrity, roles, masking,
+  layers, migrations, test data, and commands to check it.
 - `docs/` — product scope, architecture, database design, contracts, algorithms, runtime, plan.
 - `db/` — bootstrap (roles and schemas), reference and test data, SQL smoke test.
 - `services/*/migrations/` — schema of each service.
 - `AGENTS.md`, `.claude/skills/` — instructions for a coding agent.
 
-## Quick start
+## Try it (Docker only)
+
+```bash
+docker compose -f compose.setup.yaml run --rm setup   # once: creates .env with random secrets
+docker compose up -d --build --wait                    # then open http://localhost:8000
+```
+
+Works on Windows, macOS and Linux with nothing but Docker; what to open and check is listed in
+[specs/microservices.md](specs/microservices.md#a-docker-compose-recommended).
+
+## Quick start (development)
 
 Needs Node.js 24 (pnpm through `corepack enable`), Docker with Compose, and `psql` on the host.
 

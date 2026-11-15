@@ -182,9 +182,12 @@ Library: `cockatiel` (timeout, retry, breaker, bulkhead policies) wrapped in `pa
 
 ## Deployment
 
-Local development and the demo run on Docker Compose. Target cloud deployment (phase 10) is one
-AWS EC2 instance running the same images with Compose, which fits the free-tier budget; the
-images are built and pushed by CI.
+Local development and the demo run on Docker Compose. Any single VPS can run the same stack
+today: [infra/terraform/vps/](../infra/terraform/vps/) connects over SSH, installs Docker,
+generates the secrets, builds the images on the server and starts the profile `full` with only
+80/443 open (steps in [specs/microservices.md](../specs/microservices.md#d-a-vps-with-terraform)).
+Target cloud deployment (phase 10) is one AWS EC2 instance running the same images with Compose,
+which fits the free-tier budget; the images are built and pushed by CI.
 
 ```mermaid
 flowchart TB
