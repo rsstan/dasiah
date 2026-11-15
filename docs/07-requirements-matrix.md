@@ -17,7 +17,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Enough tables, different relationship types | 32 tables in 4 schemas plus 7 staging tables; 1:N, M:N, self-reference, composite | Dictionary | ready |
 | PK, FK, constraints, meaningful types | Migrations | Dictionary "Constraints" lists | ready |
 | Structure created by script or migrations, in Git | node-pg-migrate + SQL | CI database job | ready, wiring in P0–P1 |
-| Enough test data, edge cases | `fixtures/gtfs/testville`, `db/seed/test/` | Seed scripts, e2e run | spec, P1 |
+| Enough test data, edge cases | `fixtures/gtfs/testville` (edge cases listed in its README), `db/seed/test/seed.ts` | `pnpm db:seed:test` output: every legend class, expired rows, 20-place user, anonymised user | ready |
 | Scripts for reference tables | `db/seed/reference/*.sql` | Files | ready |
 | Roles `app_read`, `app_write`, admin or better | Bootstrap; `docs/03-database.md#roles-and-access` | Privileges table in the dictionary; smoke test "rejected" lines | ready |
 | Application not under superuser | `svc_*` roles, `DATABASE_URL` rule | Compose env, start-up check that refuses superuser | ready, check in P2 |

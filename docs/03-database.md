@@ -14,7 +14,7 @@ The executable source of truth is SQL:
 | `services/accessibility/migrations/` | schema `accessibility` | `app_admin` |
 | `services/places/migrations/` | schema `places` | `app_admin` |
 | `db/seed/reference/*.sql` | reference tables (idempotent upserts) | `app_admin` |
-| `db/seed/test/` | demo and edge-case data (phase 1) | `app_admin` |
+| `db/seed/test/seed.ts` | testville feed through staging and procedures, demo and edge-case data (`pnpm db:seed:test`) | `app_admin` |
 | `db/tests/smoke.sql` | constraints, triggers, procedures, masking, privileges | superuser on a scratch DB |
 
 `docs/db/data-dictionary.md` is generated from the catalog by `scripts/gen-data-dictionary.sh`
