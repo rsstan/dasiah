@@ -1,0 +1,56 @@
+# 7. Requirements matrix
+
+Each grading requirement, where it is satisfied, and what to show as evidence. Status:
+`ready` = present in the repository now, `spec` = specified, built in the named phase of
+`docs/plan.md`. Update the status when a phase is finished.
+
+## Database: minimum
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| Data dictionary: layers, tables, columns, types, keys, quality expectations | `docs/db/data-dictionary.md`, `docs/03-database.md#data-layers` | Generated file; column comments completed in phase 1 | ready, comments in P1 |
+| How integrity is maintained, how transactions are handled | `docs/03-database.md#integrity-and-transactions` | Section + smoke test output | ready |
+| Logical schema, clear, colour-coded | `docs/03-database.md#logical-schema`, ER per schema in the dictionary | Mermaid diagrams (export PNG for the thesis) | ready |
+| DDL script | `db/bootstrap/`, `services/*/migrations/` | Files in Git | ready |
+| Modern relational DBMS | PostgreSQL 16 + PostGIS | Compose file | ready / P0 |
+| 3NF | `docs/03-database.md#normalisation-3nf` | Section | ready |
+| Enough tables, different relationship types | 32 tables in 4 schemas plus 7 staging tables; 1:N, M:N, self-reference, composite | Dictionary | ready |
+| PK, FK, constraints, meaningful types | Migrations | Dictionary "Constraints" lists | ready |
+| Structure created by script or migrations, in Git | node-pg-migrate + SQL | CI database job | ready, wiring in P0–P1 |
+| Enough test data, edge cases | `fixtures/gtfs/testville`, `db/seed/test/` | Seed scripts, e2e run | spec, P1 |
+| Scripts for reference tables | `db/seed/reference/*.sql` | Files | ready |
+| Roles `app_read`, `app_write`, admin or better | Bootstrap; `docs/03-database.md#roles-and-access` | Privileges table in the dictionary; smoke test "rejected" lines | ready |
+| Application not under superuser | `svc_*` roles, `DATABASE_URL` rule | Compose env, start-up check that refuses superuser | ready, check in P2 |
+| Permissions updated for new objects | Default privileges + `db-change` skill + dictionary diff in CI | PR showing privileges diff | ready |
+| Passwords encrypted, no MD5/SHA-1 | Argon2id in `identity`; `users_password_algo` check | Smoke test "non-argon2id hash rejected" | ready, hashing in P3 |
+| Integrity through constraints and transactions | Migrations, procedures | Smoke test | ready |
+| No plain-text passwords, no CSV-only storage, no unmodelled JSON, no ignored integrity | Design; JSON only in `outbox.payload`, justified | `docs/03-database.md#normalisation-3nf` | ready |
+
+## Database: maximum
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| Several DBMS types if justified | Not used for primary data: data is relational and spatial, volumes are small; Redis holds only rate-limit counters. Reasoning in the thesis text | `docs/02-architecture.md#decisions` D1 | ready (justified absence) |
+| Data layers raw -> staging -> mart, with reasoning | GTFS import | `docs/03-database.md#data-layers`, `promote_feed` | ready, pipeline in P5 |
+| Versioning of the structure | Migrations, `pgmigrations` tables, Git, CI up/down/up | `docs/03-database.md#versioning-of-the-structure` | ready |
+| Indexes, justified | Migrations | `docs/03-database.md#indexes`, `docs/db/query-plans.md` | ready, plans in P1 |
+| Triggers, procedures, functions with business logic | Feed and calculation status machines, audit, limits, `promote_feed`, `activate_feed`, `anonymize_user`, `purge_expired` | Dictionary "Routines" and "Triggers"; smoke test | ready |
+| Views, materialized views | 7 views, `mv_city_coverage` | Dictionary "Views" | ready |
+| Masking / anonymisation of personal data | Masked views, privilege split, `anonymize_user`, `erase_user`, origin as H3 cell | Smoke test; query as `reporting` | ready |
+
+## Microservices
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| At least 3 business services | identity, transit-data, accessibility, places | `docs/02-architecture.md#services` | spec, P3–P7 |
+| Architecture diagram | `docs/02-architecture.md#container-diagram` | Diagram | ready |
+| Reasoning for the decomposition | `docs/02-architecture.md#why-this-split` | Section | ready |
+| Contracts (OpenAPI / AsyncAPI) | `contracts/openapi/*.yaml`, `contracts/asyncapi/heatmap-events.yaml`; overview in `docs/04-contracts.md` | Lint job, rendered docs | spec, P2 |
+| Deployment diagram | `docs/02-architecture.md#deployment` | Diagram | ready |
+| Own database or schema per service | Schema + role per service, no cross-schema access | Smoke test "svc_transit reads identity: rejected" | ready |
+| Health endpoints | `/health/live`, `/health/ready` | curl output, Compose healthchecks | spec, P2 |
+| Logs with correlation ID | `packages/common` logger and propagation | Log excerpt across services in `docs/evidence/` | spec, P2, evidence P9 |
+| Gateway: routing, authorization, rate limiting | `apps/gateway` | Route table; 401/403/429 integration tests | spec, P4 |
+| Message broker | RabbitMQ, three events, outbox/inbox | AsyncAPI, RabbitMQ UI screenshot | spec, P2–P7 |
+| Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ | `docs/02-architecture.md#resilience-patterns`; test that stops OSRM | spec, P9 |
+| Tracing | OpenTelemetry + Jaeger | Trace screenshot | spec, P2, evidence P9 |
