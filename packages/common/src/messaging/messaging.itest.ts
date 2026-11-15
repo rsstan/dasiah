@@ -260,10 +260,15 @@ describe('messaging', () => {
     // identity may not publish accessibility events, and the malformed row is refused by everyone.
     expect(await publisher.publishBatch()).toBe(0);
     expect(await accessibilityPublisher.publishBatch()).toBe(1);
-    const left = await pool.query<{ event_type: string }>(
-      `SELECT event_type FROM demo.outbox WHERE published_at IS NULL`,
+    // A refused row is reported once and then left out, so it cannot block later events.
+    const userId = randomUUID();
+    await writeUserDeleted(userId, 'it-corr-5');
+    expect(await publisher.publishBatch()).toBe(1);
+    await waitFor('the later event', async () => (await erasedCount(userId)) === 1);
+    const left = await pool.query<{ event_type: string; payload: unknown }>(
+      `SELECT event_type, payload FROM demo.outbox WHERE published_at IS NULL`,
     );
-    expect(left.rows.map((r) => r.event_type)).toEqual(['identity.user.deleted.v1']);
+    expect(left.rows).toEqual([{ event_type: 'identity.user.deleted.v1', payload: { userId: 'not-a-uuid' } }]);
     const completed = await pool.query(
       `SELECT 1 FROM demo.outbox WHERE event_type = 'accessibility.calculation.completed.v1'`,
     );

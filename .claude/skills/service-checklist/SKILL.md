@@ -7,8 +7,11 @@ description: Create a new service or review an existing one against the platform
 
 A service is complete when every line holds.
 
+Create a service with `pnpm new:service <name> --schema <schema>` (copies `templates/service`),
+then `pnpm install`. The template already satisfies most lines below; check the rest.
+
 Structure
-- [ ] `services/<name>/src/{main.ts, config.ts, http/, usecases/, repositories/, consumers/}`
+- [ ] `services/<name>/src/{main.ts, config.ts, context.ts, http/, usecases/, repositories/, consumers/}`
 - [ ] Built from the `packages/common` server factory; no copy of platform code
 - [ ] `contracts/openapi/<name>.yaml` exists and routes validate against it
 
@@ -28,7 +31,9 @@ Data
 - [ ] Commands are transactional; events go through the outbox; consumers use the inbox
 
 Delivery
-- [ ] Multi-stage Dockerfile, runs as non-root, `HEALTHCHECK` on readiness
+- [ ] Image from `infra/docker/service.Dockerfile` with `--build-arg SERVICE=services/<name>`
+      (multi-stage, production dependencies only, runs as `node`, sources read-only,
+      `HEALTHCHECK` on `/health/ready`); `docker stop` ends with "stopped" and exit code 0
 - [ ] Compose entry in both profiles, no host port in `full`
 - [ ] Unit and integration tests; contract tests for every endpoint
 - [ ] Row in `docs/02-architecture.md#services` and in `docs/07-requirements-matrix.md`

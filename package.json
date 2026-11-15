@@ -14,6 +14,7 @@
     "test:int": "vitest run --project integration",
     "contracts:lint": "redocly lint",
     "contracts:gen": "node contracts/tools/generate.ts",
+    "new:service": "node scripts/new-service.ts",
     "compose": "scripts/with-env.sh docker compose --env-file .env -f infra/compose/docker-compose.yml",
     "infra:up": "pnpm -s compose --profile infra up -d --wait",
     "infra:down": "pnpm -s compose --profile infra down",

@@ -33,7 +33,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
       Done when: a sample service started from the factory answers health checks, logs a `correlation_id` taken from the header, and shows a trace in Jaeger.
 - [x] 2.3 `packages/common/messaging`: publisher with outbox loop, consumer with inbox table, envelope validation, correlation and trace propagation, DLQ topology.
       Done when: an integration test proves at-least-once delivery, that a duplicate is skipped, and that a poison message lands in the DLQ.
-- [ ] 2.4 Service template (`service-checklist` skill) including Dockerfile (multi-stage, non-root user).
+- [x] 2.4 Service template (`service-checklist` skill) including Dockerfile (multi-stage, non-root user).
 
 ## Phase 3 — identity service
 

@@ -49,6 +49,8 @@ export class OutboxPublisher implements BrokerAttachment {
   private stopped = true;
   private wakeRequested = false;
   private lastCleanup = 0;
+  /** Rows that violate the contract: reported once, then left out of later batches. */
+  private readonly rejected = new Set<string>();
 
   constructor(options: OutboxPublisherOptions) {
     if (!IDENTIFIER.test(options.schema)) {
@@ -137,9 +139,9 @@ export class OutboxPublisher implements BrokerAttachment {
     return withTransaction(pool, async (tx) => {
       const { rows } = await tx.query<OutboxRow>(
         `SELECT event_id, event_type, payload, occurred_at, correlation_id, traceparent
-           FROM ${this.table} WHERE published_at IS NULL
+           FROM ${this.table} WHERE published_at IS NULL AND NOT (event_id = ANY ($2::uuid[]))
           ORDER BY occurred_at LIMIT $1 FOR UPDATE SKIP LOCKED`,
-        [batchSize],
+        [batchSize, [...this.rejected]],
       );
       const sent: OutboxRow[] = [];
       for (const row of rows) {
@@ -153,7 +155,9 @@ export class OutboxPublisher implements BrokerAttachment {
         };
         const check = validateEvent(envelope);
         if (!check.ok) {
-          // Never send what consumers would reject; the row stays and is reported every batch.
+          // Never send what consumers would reject. The row stays in the table for an operator,
+          // is reported once and skipped by later batches so it cannot block valid rows.
+          this.rejected.add(row.event_id);
           logger.error(
             { event_id: row.event_id, event_type: row.event_type, errors: check.errors },
             'outbox row violates the contract',

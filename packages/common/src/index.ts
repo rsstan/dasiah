@@ -9,3 +9,7 @@ export { injectTraceHeaders, startTracing, stopTracing, withExtractedContext, wi
 export * from './messaging/broker.ts';
 export * from './messaging/consumer.ts';
 export * from './messaging/outbox-publisher.ts';
+// Types services need from the platform's own dependencies (pnpm keeps dependencies strict).
+export type { Kysely, Transaction } from 'kysely';
+export type { Pool, PoolClient } from 'pg';
+export type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';

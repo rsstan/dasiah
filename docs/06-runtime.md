@@ -59,6 +59,19 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 
 `packages/common/examples/sample-service.ts` is a minimal service built from it.
 
+New services start from `templates/service` (`pnpm new:service <name> --schema <schema>`): config
+with database and broker, `assertServiceRole`, broker with outbox publisher and consumer,
+readiness checks for database and broker, shutdown order (consumer, outbox, broker, pool).
+
+## Images
+
+One Dockerfile for every Node service: `infra/docker/service.Dockerfile`, build argument
+`SERVICE` (e.g. `services/identity`). Stage 1 installs production dependencies of that service
+and its workspace packages only (`pnpm install --prod --filter "{./$SERVICE}..."`); stage 2 copies
+them with the sources, runs as user `node` with root-owned read-only files, and checks
+`/health/ready`. There is no build step: Node strips the types at run time, so the workspace
+layout is kept (Node does not strip types under `node_modules`).
+
 ## Observability
 
 - **Logs:** pino JSON to stdout. Base fields `service`, `correlation_id`, `trace_id`. Request

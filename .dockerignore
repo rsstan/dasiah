@@ -1,0 +1,19 @@
+# Only sources and manifests go into images; never secrets or local state.
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+.env
+.env.*
+!.env.example
+backups
+data
+docs
+fixtures
+db
+infra/osrm/data
+**/*.test.ts
+**/*.itest.ts
+playwright-report
+test-results
