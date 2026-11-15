@@ -11,7 +11,11 @@
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --project unit",
-    "test:int": "vitest run --project integration"
+    "test:int": "vitest run --project integration",
+    "compose": "scripts/with-env.sh docker compose --env-file .env -f infra/compose/docker-compose.yml",
+    "infra:up": "pnpm -s compose --profile infra up -d --wait",
+    "infra:down": "pnpm -s compose --profile infra down",
+    "db:passwords": "DB_TOOL=scripts/db-set-passwords.sh scripts/with-env.sh scripts/db-as.sh superuser"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

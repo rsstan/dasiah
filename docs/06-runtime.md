@@ -9,13 +9,19 @@
 | `rabbitmq` | `rabbitmq:*-management` | 5672, 15672 | Definitions file declares exchange, queues, DLX |
 | `redis` | `redis:*-alpine` | 6379 | Gateway rate limits only |
 | `osrm-waw`, `osrm-vno` | `ghcr.io/project-osrm/osrm-backend` | 5001, 5002 | Data prepared by `infra/osrm/build.sh <city>` into a volume |
-| `jaeger` | `jaegertracing/all-in-one` | 16686, 4318 | OTLP HTTP in, UI out |
+| `jaeger` | `jaegertracing/jaeger` (v2) | 16686, 4318 | OTLP HTTP in, UI out |
 | `identity`, `transit-data`, `accessibility`, `places` | built from repo | 3001–3004 | Not published to the host in the demo profile |
 | `gateway` | built from repo | 8080 | The only published API port |
 | `web` | built from repo | 5173 | Vite dev server locally, static files in production |
 
 Profiles: `infra` (databases, broker, tracing, OSRM) for running services with `pnpm dev`;
 `full` for everything in containers.
+
+Host ports come from `.env` (`PG_PORT`, `AMQP_PORT`, `REDIS_PORT`, ...), so the stack can run next to
+another local PostgreSQL. `scripts/with-env.sh` exports `.env` and the matching `PG*` variables;
+`scripts/db-as.sh <role>` runs `psql` as a role with its password from the environment.
+
+First start: `pnpm infra:up` (bootstrap SQL runs on an empty volume), then `pnpm db:passwords`.
 
 Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`,
 `db:bootstrap`, `db:migrate`, `db:seed`, `db:seed:test`, `db:smoke`, `db:dict`,

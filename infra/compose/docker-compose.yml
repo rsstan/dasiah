@@ -1,0 +1,75 @@
+# Local stack. Profiles:
+#   infra - databases, broker, tracing (run services on the host with `pnpm dev`)
+#   full  - everything in containers (added in phase 9)
+# Usage from the repository root:
+#   pnpm infra:up      (= docker compose --env-file .env -f infra/compose/docker-compose.yml --profile infra up -d --wait)
+name: heatmap
+
+services:
+  postgres:
+    profiles: [infra, full]
+    image: postgis/postgis:16-3.7
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-heatmap}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once, on an empty data directory, as the superuser.
+      - ../../db/bootstrap:/docker-entrypoint-initdb.d:ro
+    ports:
+      - '${PG_PORT:-5432}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  rabbitmq:
+    profiles: [infra, full]
+    image: rabbitmq:4.3.7-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-heatmap}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    ports:
+      - '${AMQP_PORT:-5672}:5672'
+      - '${RABBITMQ_UI_PORT:-15672}:15672'
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  redis:
+    profiles: [infra, full]
+    image: redis:8.8.4-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  jaeger:
+    profiles: [infra, full]
+    image: jaegertracing/jaeger:2.22.0
+    ports:
+      - '${JAEGER_UI_PORT:-16686}:16686'
+      - '${OTLP_HTTP_PORT:-4318}:4318'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O-', 'http://localhost:13133/status']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  rabbitmqdata:
