@@ -1,4 +1,4 @@
-// Everything handlers, use cases and consumers need; created once in main.ts.
+// Everything handlers, use cases and consumers need; created once in app.ts.
 import type { Kysely, Logger, OutboxPublisher, Pool } from '@heatmap/common';
 import type { Config } from './config.ts';
 

@@ -30,6 +30,11 @@ export interface ServerOptions {
   readonly readiness?: Record<string, ReadinessCheck>;
   readonly readinessTimeoutMs?: number;
   readonly bodyLimit?: number;
+  /**
+   * Take the client address from X-Forwarded-For. Only for services reachable solely through
+   * the gateway on the internal network.
+   */
+  readonly trustProxy?: boolean;
 }
 
 export interface Problem {
@@ -112,6 +117,7 @@ export function createServer({
   readiness = {},
   readinessTimeoutMs = 2_000,
   bodyLimit = 1_048_576,
+  trustProxy = false,
 }: ServerOptions): FastifyInstance {
   let shuttingDown = false;
   const app = Fastify({
@@ -119,6 +125,7 @@ export function createServer({
     // Fastify's own per-request lines are off; the onResponse hook writes one line per request.
     logController: new LogController({ disableRequestLogging: true }),
     bodyLimit,
+    trustProxy,
     // The request logger is the service logger: the correlation id comes from the context mixin.
     childLoggerFactory: (parent) => parent,
     genReqId: (req) => correlationIdFrom(headerValue(req.headers[CORRELATION_HEADER])),

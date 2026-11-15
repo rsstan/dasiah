@@ -11,7 +11,9 @@ Create a service with `pnpm new:service <name> --schema <schema>` (copies `templ
 then `pnpm install`. The template already satisfies most lines below; check the rest.
 
 Structure
-- [ ] `services/<name>/src/{main.ts, config.ts, context.ts, http/, usecases/, repositories/, consumers/}`
+- [ ] `services/<name>/src/{main.ts, app.ts, config.ts, context.ts, http/, usecases/, repositories/, consumers/}`;
+      `app.ts` builds the service, `main.ts` only runs it
+- [ ] Routes use `routeSchema(openApiDocuments.<name>, method, path)` from the contract
 - [ ] Built from the `packages/common` server factory; no copy of platform code
 - [ ] `contracts/openapi/<name>.yaml` exists and routes validate against it
 
@@ -35,5 +37,5 @@ Delivery
       (multi-stage, production dependencies only, runs as `node`, sources read-only,
       `HEALTHCHECK` on `/health/ready`); `docker stop` ends with "stopped" and exit code 0
 - [ ] Compose entry in both profiles, no host port in `full`
-- [ ] Unit and integration tests; contract tests for every endpoint
+- [ ] Unit and integration tests (`@heatmap/testing`: real bootstrap, connect as `svc_<name>`); contract tests for every endpoint
 - [ ] Row in `docs/02-architecture.md#services` and in `docs/07-requirements-matrix.md`

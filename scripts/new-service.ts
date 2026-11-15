@@ -1,6 +1,6 @@
 // Creates services/<name> from templates/service.
 //
-//   pnpm new:service <name> --schema <schema> [--description "..."]
+//   pnpm new:service <name> --schema <schema> [--port 3000] [--description "..."]
 //
 // Afterwards: pnpm install, write contracts/openapi/<name>.yaml, add the Compose entry
 // (infra/docker/service.Dockerfile with SERVICE=services/<name>), and go through
@@ -22,7 +22,7 @@ function files(dir: string): string[] {
 function main(): void {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
-    options: { schema: { type: 'string' }, description: { type: 'string' } },
+    options: { schema: { type: 'string' }, port: { type: 'string' }, description: { type: 'string' } },
   });
   const name = positionals[0];
   if (name === undefined || !/^[a-z][a-z0-9-]*$/.test(name)) {
@@ -33,17 +33,19 @@ function main(): void {
     throw new Error(`invalid schema name ${schema}`);
   }
   const target = join(ROOT, 'services', name);
-  if (existsSync(join(target, 'package.json')) || existsSync(join(target, 'src'))) {
-    throw new Error(`services/${name} already has code`);
+  if (existsSync(join(target, 'package.json'))) {
+    throw new Error(`services/${name} is already a package`);
   }
-  // A service may already exist with only its migrations; those are kept.
+  // A service may already have migrations or a few source files; existing files are kept.
   cpSync(TEMPLATE, target, { recursive: true, errorOnExist: false, force: false });
   const replacements: Record<string, string> = {
     __NAME__: name,
     __SCHEMA__: schema,
     __DESCRIPTION__: values.description ?? `${name} service`,
+    __PORT__: values.port ?? '3000',
   };
-  for (const file of files(target).filter((f) => !f.includes('/migrations/'))) {
+  const created = new Set(files(TEMPLATE).map((f) => f.slice(TEMPLATE.length)));
+  for (const file of files(target).filter((f) => created.has(f.slice(target.length)))) {
     const text = readFileSync(file, 'utf8');
     const replaced = Object.entries(replacements).reduce((acc, [token, value]) => acc.replaceAll(token, value), text);
     if (replaced !== text) {

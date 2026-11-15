@@ -1,7 +1,7 @@
 // PostgreSQL access for services: one pool per service, a statement timeout on every
 // connection, a start-up guard against privileged roles, Kysely on top, and a transaction
 // helper that records the correlation id for the outbox.
-import { Kysely, PostgresDialect } from 'kysely';
+import { Kysely, PostgresDialect, sql, type Transaction } from 'kysely';
 import pg from 'pg';
 import { currentCorrelationId } from './context.ts';
 import { injectTraceHeaders } from './tracing.ts';
@@ -89,6 +89,26 @@ export function createKysely<DB>(pool: pg.Pool): Kysely<DB> {
   return new Kysely<DB>({ dialect: new PostgresDialect({ pool }) });
 }
 
+function traceSettings(): { correlationId: string; traceparent: string } {
+  return { correlationId: currentCorrelationId() ?? '', traceparent: injectTraceHeaders()['traceparent'] ?? '' };
+}
+
+/**
+ * Kysely transaction that, like withTransaction, records the correlation id and trace context
+ * in `app.correlation_id` / `app.traceparent` for the outbox.
+ */
+export async function transaction<DB, T>(db: Kysely<DB>, fn: (trx: Transaction<DB>) => Promise<T>): Promise<T> {
+  return db.transaction().execute(async (trx) => {
+    const { correlationId, traceparent } = traceSettings();
+    if (correlationId !== '' || traceparent !== '') {
+      await sql`SELECT set_config('app.correlation_id', ${correlationId}, true), set_config('app.traceparent', ${traceparent}, true)`.execute(
+        trx,
+      );
+    }
+    return fn(trx);
+  });
+}
+
 /**
  * Runs `fn` in one transaction on one connection. The current correlation id and trace context
  * are stored in the transaction-local settings `app.correlation_id` and `app.traceparent`; the
@@ -98,8 +118,7 @@ export async function withTransaction<T>(pool: pg.Pool, fn: (client: pg.PoolClie
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const correlationId = currentCorrelationId() ?? '';
-    const traceparent = injectTraceHeaders()['traceparent'] ?? '';
+    const { correlationId, traceparent } = traceSettings();
     if (correlationId !== '' || traceparent !== '') {
       await client.query(`SELECT set_config('app.correlation_id', $1, true), set_config('app.traceparent', $2, true)`, [
         correlationId,
