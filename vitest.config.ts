@@ -8,7 +8,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['{apps,services,packages}/*/{src,test}/**/*.test.ts', 'scripts/**/*.test.ts', 'db/**/*.test.ts'],
-          exclude: ['**/node_modules/**', 'apps/web/**'],
+          exclude: ['**/node_modules/**'],
         },
       },
       {

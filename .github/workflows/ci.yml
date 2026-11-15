@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   check:
-    name: lint, typecheck, unit tests
+    name: lint, typecheck, unit tests, web build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -26,6 +26,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm web:build
 
   integration:
     name: integration tests (Testcontainers)

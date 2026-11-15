@@ -36,5 +36,10 @@ Demo accounts (`demo.user@example.com`, `demo.admin@example.com`, ...) get the p
 Each service reads the root `.env` and its own `services/<name>/.env` (copy its `.env.example`;
 `DATABASE_URL` uses the service's `svc_*` role).
 
+To see the map: start the services and the gateway (`pnpm --filter @heatmap/<name> dev` for
+`identity`, `transit-data`, `accessibility`, `places` and `gateway`; without OSRM data, start the
+car-time stub first with `PORT=5000 node services/accessibility/src/test-support/osrm-stub.ts` and
+set `OSRM_URL_VNO`/`OSRM_URL_WAW` to it), then `pnpm web:dev` and open http://localhost:5173.
+
 `pnpm db:reset` drops and recreates the database (fresh start). `pnpm db:migrate down --all`,
 `pnpm db:migrate redo --service places` and `pnpm db:psql <role>` are available for development.

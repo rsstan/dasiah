@@ -182,10 +182,19 @@ thresholds, the walking model, K, the horizon or the car factors requires bumpin
 
 ## 10. Map rendering (`web`)
 
-- Cells arrive as H3 indexes; polygons are built in the browser with `cellsToMultiPolygon` /
-  `cellToBoundary` and drawn as one MapLibre `fill` layer coloured by class.
+- Cells arrive as H3 indexes; polygons are built in the browser with `cellToBoundary` and drawn
+  as one MapLibre `fill` layer coloured by class, placed below the basemap's first label layer so
+  street and place names stay readable (`apps/web/src/map/`).
 - Zoom levels: below zoom 10 aggregate to resolution 7, 10 to 12 resolution 8, above 12
-  resolution 9 (`cellToParent`, median ratio of children).
-- Smoothed look: low fill outline, slight blur by opacity interpolation; a canvas-interpolated
-  layer is an optional later improvement.
-- Basemap: a free vector tile source with OSM attribution visible.
+  resolution 9 (`cellToParent`). A merged cell takes the median ratio, transit and car time of
+  its children that have a value and is classified with the legend (`minRatio` inclusive,
+  `maxRatio` exclusive); if no child has a ratio it takes the most frequent special class
+  (`unreachable` or `no_transit`), ties broken by legend order.
+- Smoothed look: faint white outline, opacity falling from 0.72 at zoom 9 to 0.5 at zoom 15; a
+  canvas-interpolated layer is an optional later improvement.
+- Clicking a cell opens a popup with both times, the ratio and, for merged cells, how many cells
+  the median covers; clicking outside the cells (or "Start here") picks a new start point.
+- City, start point (rounded to 4 decimals, about 10 m; never the address text) and departure
+  are kept in the query string, so a map can be shared and reloaded.
+- Basemap: OpenFreeMap Positron vector tiles (no key); its sources carry the OpenFreeMap,
+  OpenMapTiles and OpenStreetMap attribution, which the map shows.

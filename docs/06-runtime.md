@@ -12,7 +12,7 @@
 | `jaeger` | `jaegertracing/jaeger` (v2) | 16686, 4318 | OTLP HTTP in, UI out |
 | `identity`, `transit-data`, `accessibility`, `places` | built from repo | 3001–3004 | Not published to the host in the demo profile |
 | `gateway` | built from repo | 8080 | The only published API port |
-| `web` | built from repo | 5173 | Vite dev server locally, static files in production |
+| `web` | built from repo | 5173 | Vite dev server locally (proxies `/api` to the gateway), static files in production |
 
 Profiles: `infra` (databases, broker, tracing, OSRM) for running services with `pnpm dev`;
 `full` for everything in containers.
@@ -26,7 +26,13 @@ First start: `pnpm infra:up` (bootstrap SQL runs on an empty volume), then `pnpm
 City grids: `pnpm transit:grid --city waw` (and `vno`) after the first migration. GTFS by hand:
 `pnpm transit:import --source waw_ztm --file data/gtfs/<file>.zip --activate` (`data/` is ignored by Git).
 
-Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`,
+Map page locally (services and gateway running, see the README): `pnpm web:dev`, then
+http://localhost:5173. The dev server proxies `/api` to `GATEWAY_URL` (default
+http://localhost:8080), so the browser sees one origin: no CORS preflight, and the refresh cookie
+(path `/api/v1/auth`) works as in production, where Caddy does the same. `pnpm web:build` writes
+static files to `apps/web/dist`.
+
+Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`, `web:dev`, `web:build`,
 `db:bootstrap`, `db:migrate`, `db:seed`, `db:seed:test`, `db:smoke`, `db:dict`,
 `contracts:lint`, `contracts:gen`, `e2e`.
 
@@ -44,6 +50,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` (comma-separated), `JWT_ISSUER`, `JWT_AUDIENCE`, `UPSTREAM_TIMEOUT_MS`, `ACCESSIBILITY_TIMEOUT_MS`, `BREAKER_THRESHOLD`, `BREAKER_HALF_OPEN_MS`, `RATE_LIMIT_WINDOW_S`, `BODY_LIMIT_BYTES`, `TRUST_PROXY` | gateway | Upstreams, token checks, limits store, CORS, resilience |
 | `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL`, `MAX_QUEUED_CALCS`, `PURGE_INTERVAL_MS`, `TIMETABLE_RETRY_MS` (default 30 s) | accessibility | Upstreams, timetables in memory, method parameters |
 | `TRANSIT_URL`, `GEOCODER_PROVIDER` (`photon` default, `nominatim`), `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` (default 1000), `GEOCODER_TIMEOUT_MS`, `GEOCODE_CACHE_TTL_S` (default 30 days), `TRUST_PROXY` | places | City bounding boxes, geocoder selection, throttling and cache lifetime |
+| `GATEWAY_URL` (dev server only), `VITE_MAP_STYLE_URL` (basemap style; default OpenFreeMap Positron, must credit OpenStreetMap) | web | API target and basemap |
 | `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |
 
 ## Platform package (`packages/common`, `@heatmap/common`)
@@ -100,9 +107,9 @@ layout is kept (Node does not strip types under `node_modules`).
 
 | Level | Tool | Scope |
 | --- | --- | --- |
-| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies |
+| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, URL state |
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
-| Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service |
+| Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
 | End to end | Playwright against the `full` profile with `testville` and a stub OSRM | Register, geocode, map, save place, history, delete account |
 | Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |

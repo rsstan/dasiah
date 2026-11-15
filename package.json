@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0 && prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "test": "vitest run --project unit",
     "test:int": "vitest run --project integration",
     "contracts:lint": "redocly lint",
@@ -32,7 +32,9 @@
     "db:restore": "scripts/with-env.sh scripts/db-restore.sh",
     "db:plans": "scripts/with-env.sh scripts/db-as.sh superuser -q -f db/tests/query-plans.sql > docs/db/query-plans.md",
     "db:diagrams": "node db/tools/export-diagrams.ts",
-    "db:psql": "scripts/with-env.sh scripts/db-as.sh"
+    "db:psql": "scripts/with-env.sh scripts/db-as.sh",
+    "web:dev": "pnpm --filter @heatmap/web run dev",
+    "web:build": "pnpm --filter @heatmap/web run build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -42,6 +44,7 @@
     "@types/pg": "8.23.1",
     "eslint": "10.15.0",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.14.0",
     "h3-js": "4.5.0",
     "json-schema-to-typescript": "16.0.0",
