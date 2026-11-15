@@ -8,7 +8,7 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 
 | Requirement | Where | Evidence | Status |
 | --- | --- | --- | --- |
-| Data dictionary: layers, tables, columns, types, keys, quality expectations | `docs/db/data-dictionary.md`, `docs/03-database.md#data-layers` | Generated file; column comments completed in phase 1 | ready, comments in P1 |
+| Data dictionary: layers, tables, columns, types, keys, quality expectations | `docs/db/data-dictionary.md`, `docs/03-database.md#data-layers` | Generated file; every table, column and routine has a description (`0002_column_comments.sql`) | ready |
 | How integrity is maintained, how transactions are handled | `docs/03-database.md#integrity-and-transactions` | Section + smoke test output | ready |
 | Logical schema, clear, colour-coded | `docs/03-database.md#logical-schema`, ER per schema in the dictionary | Mermaid diagrams (export PNG for the thesis) | ready |
 | DDL script | `db/bootstrap/`, `services/*/migrations/` | Files in Git | ready |

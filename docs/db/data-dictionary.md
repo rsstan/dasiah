@@ -24,9 +24,9 @@ Reference: kinds of security-relevant events.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| event_type_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| description | text | no |  |  |  |
+| event_type_id | smallint | no |  | PK | Stable numeric id referenced by audit_log.event_type_id. |
+| code | text | no |  | UQ | Machine name of the event, e.g. login_failed. |
+| description | text | no |  |  | What the event means. |
 
 Constraints:
 
@@ -43,12 +43,12 @@ Append-only security log. Service role can INSERT and SELECT only.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| audit_id | bigint | no | identity | PK |  |
-| user_id | uuid | yes |  | FK |  |
-| event_type_id | smallint | no |  | FK |  |
-| occurred_at | timestamp with time zone | no | now() |  |  |
-| ip | inet | yes |  |  |  |
-| db_actor | name | no | SESSION_USER |  |  |
+| audit_id | bigint | no | identity | PK | Sequential id of the entry. |
+| user_id | uuid | yes |  | FK | Account the event is about; NULL when unknown (e.g. failed login for an unknown email). |
+| event_type_id | smallint | no |  | FK | Kind of event. |
+| occurred_at | timestamp with time zone | no | now() |  | When the event happened. |
+| ip | inet | yes |  |  | PII. Client address; masked in v_audit_masked, cleared by anonymize_user(). |
+| db_actor | name | no | SESSION_USER |  | Database role that wrote the entry (session_user). |
 
 Constraints:
 
@@ -66,11 +66,11 @@ Transactional outbox: events written in the same transaction as the state change
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| event_id | uuid | no | gen_random_uuid() | PK |  |
-| event_type | text | no |  |  |  |
+| event_id | uuid | no | gen_random_uuid() | PK | Message id; consumers use it for deduplication. |
+| event_type | text | no |  |  | Routing key, e.g. identity.user.deleted.v1. |
 | payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
-| occurred_at | timestamp with time zone | no | now() |  |  |
-| published_at | timestamp with time zone | yes |  |  |  |
+| occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
+| published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
 
 Constraints:
 
@@ -83,13 +83,13 @@ Indexes:
 
 ### `identity.pgmigrations`
 
-_no description_
+Migration history of the identity schema, maintained by node-pg-migrate.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| id | integer | no | nextval('identity.pgmigrations_id_seq'::regclass) | PK |  |
-| name | character varying(255) | no |  |  |  |
-| run_on | timestamp without time zone | no |  |  |  |
+| id | integer | no | nextval('identity.pgmigrations_id_seq'::regclass) | PK | Surrogate key in the order migrations were applied. |
+| name | character varying(255) | no |  |  | Migration file name without extension, e.g. 0001_init. |
+| run_on | timestamp without time zone | no |  |  | When the migration was applied (server local time). |
 
 ### `identity.refresh_tokens`
 
@@ -97,14 +97,14 @@ Rotating refresh tokens (one row per issued token).
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| token_id | uuid | no | gen_random_uuid() | PK |  |
-| user_id | uuid | no |  | FK |  |
+| token_id | uuid | no | gen_random_uuid() | PK | Token row id (also the jti of the refresh token). |
+| user_id | uuid | no |  | FK | Owner of the session. |
 | token_hash | bytea | no |  | UQ | SHA-256 of a random 256-bit token. The token itself is never stored. |
-| issued_at | timestamp with time zone | no | now() |  |  |
-| expires_at | timestamp with time zone | no |  |  |  |
-| revoked_at | timestamp with time zone | yes |  |  |  |
-| replaced_by | uuid | yes |  | FK |  |
-| user_agent | text | yes |  |  |  |
+| issued_at | timestamp with time zone | no | now() |  | When the token was issued. |
+| expires_at | timestamp with time zone | no |  |  | After this moment the token is rejected. |
+| revoked_at | timestamp with time zone | yes |  |  | Set on rotation, logout or reuse detection; NULL = live. |
+| replaced_by | uuid | yes |  | FK | Token issued in exchange for this one on rotation; using a replaced token is reuse. |
+| user_agent | text | yes |  |  | Client User-Agent at issue time, for the session list. |
 | ip | inet | yes |  |  | PII. Cleared by anonymize_user(). |
 
 Constraints:
@@ -127,9 +127,9 @@ Reference: application roles (seeded from db/seed/reference).
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| role_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| name | text | no |  |  |  |
+| role_id | smallint | no |  | PK | Stable numeric id referenced by users.role_id (1 = user, 2 = admin). |
+| code | text | no |  | UQ | Machine name used in tokens and access checks (user, admin). |
+| name | text | no |  |  | Human-readable name. |
 
 Constraints:
 
@@ -146,15 +146,15 @@ User accounts. Contains personal data: email, display_name.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| user_id | uuid | no | gen_random_uuid() | PK |  |
+| user_id | uuid | no | gen_random_uuid() | PK | Account id; exposed in tokens and used by other services as a logical reference. |
 | email | citext | no |  |  | PII. Case-insensitive, unique. Masked in v_users_masked. |
 | password_hash | text | no |  |  | Argon2id PHC string. Plain passwords never reach the database. |
 | display_name | text | yes |  |  | PII. Optional name shown in the UI. |
-| role_id | smallint | no | 1 | FK |  |
-| locale | text | no | 'en'::text |  |  |
-| email_verified_at | timestamp with time zone | yes |  |  |  |
-| created_at | timestamp with time zone | no | now() |  |  |
-| updated_at | timestamp with time zone | no | now() |  |  |
+| role_id | smallint | no | 1 | FK | Access level of the account. |
+| locale | text | no | 'en'::text |  | Preferred UI language (en, pl, lt, ru). |
+| email_verified_at | timestamp with time zone | yes |  |  | When the email address was confirmed; NULL = not confirmed. |
+| created_at | timestamp with time zone | no | now() |  | Registration time. |
+| updated_at | timestamp with time zone | no | now() |  | Last change of the row; maintained by trigger users_set_updated_at. |
 | deleted_at | timestamp with time zone | yes |  |  | Set by anonymize_user(); the row stays as a tombstone without personal data. |
 
 Constraints:
@@ -188,9 +188,9 @@ Triggers:
 | --- | --- | --- |
 | `anonymize_user(IN p_user_id uuid)` | procedure | Removes personal data of one user and publishes identity.user.deleted.v1 via the outbox. |
 | `mask_email(p_email citext)` | function | jan.kowalski@example.com -> j***@example.com |
-| `mask_name(p_name text)` | function |  |
-| `tg_set_updated_at()` | trigger function |  |
-| `tg_users_audit()` | trigger function |  |
+| `mask_name(p_name text)` | function | Masks a display name: Jan -> J***. |
+| `tg_set_updated_at()` | trigger function | Trigger: sets updated_at to now() on every update. |
+| `tg_users_audit()` | trigger function | Trigger: writes one audit_log row for registration, password, role, profile change or anonymisation. |
 
 ## Schema `transit`
 
@@ -219,14 +219,14 @@ erDiagram
 
 ### `transit.agencies`
 
-_no description_
+Core: GTFS agency.txt of one feed version.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK, UQ |  |
-| agency_id | smallint | no |  | PK |  |
-| gtfs_id | text | no |  | UQ |  |
-| name | text | no |  |  |  |
+| feed_version_id | integer | no |  | FK, PK, UQ | Feed version the row belongs to. |
+| agency_id | smallint | no |  | PK | Compact id assigned by promote_feed(). |
+| gtfs_id | text | no |  | UQ | agency_id from the feed ('default' when the feed leaves it empty). |
+| name | text | no |  |  | agency_name from the feed. |
 
 Constraints:
 
@@ -243,14 +243,14 @@ Reference: supported cities.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| city_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| name | text | no |  |  |  |
-| country_code | character(2) | no |  |  |  |
-| timezone | text | no |  |  |  |
-| h3_resolution | smallint | no | 9 |  |  |
+| city_id | smallint | no |  | PK | Stable numeric id. |
+| code | text | no |  | UQ | Three-letter city code used in the API and events (waw, vno). |
+| name | text | no |  |  | City name in English. |
+| country_code | character(2) | no |  |  | ISO 3166-1 alpha-2 country code. |
+| timezone | text | no |  |  | IANA time zone of the timetable, e.g. Europe/Warsaw. |
+| h3_resolution | smallint | no | 9 |  | H3 resolution of the destination grid (9 = about 0.1 km2 per cell). |
 | bounds | geometry(Polygon,4326) | no |  |  | Area covered by the hexagon grid (WGS 84). |
-| is_enabled | boolean | no | true |  |  |
+| is_enabled | boolean | no | true |  | false = hidden from the city list. |
 
 Constraints:
 
@@ -270,13 +270,13 @@ Reference: where GTFS feeds are downloaded from.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_source_id | smallint | no |  | PK |  |
-| city_id | smallint | no |  | FK |  |
-| code | text | no |  | UQ |  |
-| name | text | no |  |  |  |
-| url | text | no |  |  |  |
-| license | text | no |  |  |  |
-| is_enabled | boolean | no | true |  |  |
+| feed_source_id | smallint | no |  | PK | Stable numeric id. |
+| city_id | smallint | no |  | FK | City served by the feed. |
+| code | text | no |  | UQ | Machine name used in admin URLs, e.g. waw_ztm. |
+| name | text | no |  |  | Publisher or feed name. |
+| url | text | no |  |  | Download URL of the GTFS zip. |
+| license | text | no |  |  | Licence or terms of use of the data. |
+| is_enabled | boolean | no | true |  | false = excluded from scheduled imports. |
 
 Constraints:
 
@@ -296,17 +296,17 @@ One row per downloaded GTFS archive. At most one active version per source.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no | identity | PK |  |
-| feed_source_id | smallint | no |  | FK, UQ |  |
+| feed_version_id | integer | no | identity | PK | Surrogate key; part of the key of every core GTFS row. |
+| feed_source_id | smallint | no |  | FK, UQ | Source the archive was downloaded from. |
 | sha256 | bytea | no |  | UQ | Hash of the zip; the same archive is never imported twice. |
 | storage_key | text | no |  |  | Object-storage key of the original zip (raw layer). |
-| fetched_at | timestamp with time zone | no | now() |  |  |
-| valid_from | date | yes |  |  |  |
-| valid_to | date | yes |  |  |  |
-| status | text | no | 'downloaded'::text |  |  |
-| activated_at | timestamp with time zone | yes |  |  |  |
-| archived_at | timestamp with time zone | yes |  |  |  |
-| error_message | text | yes |  |  |  |
+| fetched_at | timestamp with time zone | no | now() |  | When the archive was downloaded. |
+| valid_from | date | yes |  |  | First service date; set by promote_feed(). |
+| valid_to | date | yes |  |  | Last service date; set by promote_feed(). |
+| status | text | no | 'downloaded'::text |  | downloaded -> staged -> validated -> active -> archived, or failed; enforced by trigger feed_versions_status. |
+| activated_at | timestamp with time zone | yes |  |  | When the version became active; set by trigger. |
+| archived_at | timestamp with time zone | yes |  |  | When the version was archived; set by trigger. |
+| error_message | text | yes |  |  | Why the import failed; present exactly when status = failed. |
 
 Constraints:
 
@@ -332,9 +332,9 @@ H3 cells covering each city at cities.h3_resolution. Generated by the service wi
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| h3_index | transit.h3_cell | no |  | PK |  |
-| city_id | smallint | no |  | FK |  |
-| centroid | geography(Point,4326) | no |  |  |  |
+| h3_index | transit.h3_cell | no |  | PK | H3 cell index. |
+| city_id | smallint | no |  | FK | City whose grid the cell belongs to. |
+| centroid | geography(Point,4326) | no |  |  | Cell centre (WGS 84); start and end point of walking and driving legs. |
 
 Constraints:
 
@@ -351,10 +351,10 @@ Mart: nearest stops of every cell with walking time. Recomputed for each feed ve
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK |  |
-| h3_index | transit.h3_cell | no |  | FK, PK |  |
-| stop_id | integer | no |  | FK, PK |  |
-| walk_s | smallint | no |  |  |  |
+| feed_version_id | integer | no |  | FK, PK | Feed version whose stops were used. |
+| h3_index | transit.h3_cell | no |  | FK, PK | Cell. |
+| stop_id | integer | no |  | FK, PK | One of the nearest stops of the cell. |
+| walk_s | smallint | no |  |  | Walking time from the cell centre to the stop, seconds. |
 
 Constraints:
 
@@ -364,15 +364,15 @@ Constraints:
 
 ### `transit.outbox`
 
-_no description_
+Transactional outbox: events written in the same transaction as the state change.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| event_id | uuid | no | gen_random_uuid() | PK |  |
-| event_type | text | no |  |  |  |
-| payload | jsonb | no |  |  |  |
-| occurred_at | timestamp with time zone | no | now() |  |  |
-| published_at | timestamp with time zone | yes |  |  |  |
+| event_id | uuid | no | gen_random_uuid() | PK | Message id; consumers use it for deduplication. |
+| event_type | text | no |  |  | Routing key, e.g. transit.feed.activated.v1. |
+| payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
+| occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
+| published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
 
 Constraints:
 
@@ -385,13 +385,13 @@ Indexes:
 
 ### `transit.pgmigrations`
 
-_no description_
+Migration history of the transit and transit_staging schemas, maintained by node-pg-migrate.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| id | integer | no | nextval('transit.pgmigrations_id_seq'::regclass) | PK |  |
-| name | character varying(255) | no |  |  |  |
-| run_on | timestamp without time zone | no |  |  |  |
+| id | integer | no | nextval('transit.pgmigrations_id_seq'::regclass) | PK | Surrogate key in the order migrations were applied. |
+| name | character varying(255) | no |  |  | Migration file name without extension, e.g. 0001_init. |
+| run_on | timestamp without time zone | no |  |  | When the migration was applied (server local time). |
 
 ### `transit.route_types`
 
@@ -399,9 +399,9 @@ Reference: GTFS route_type codes (0 tram, 1 metro, 2 rail, 3 bus, ...).
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| route_type_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| name | text | no |  |  |  |
+| route_type_id | smallint | no |  | PK | GTFS route_type value. |
+| code | text | no |  | UQ | Machine name of the mode, e.g. tram. |
+| name | text | no |  |  | Human-readable name of the mode. |
 
 Constraints:
 
@@ -414,17 +414,17 @@ Indexes:
 
 ### `transit.routes`
 
-_no description_
+Core: GTFS routes.txt of one feed version.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK, UQ |  |
-| route_id | integer | no |  | PK |  |
-| agency_id | smallint | no |  | FK |  |
-| gtfs_id | text | no |  | UQ |  |
-| short_name | text | yes |  |  |  |
-| long_name | text | yes |  |  |  |
-| route_type_id | smallint | no |  | FK |  |
+| feed_version_id | integer | no |  | FK, PK, UQ | Feed version the row belongs to. |
+| route_id | integer | no |  | PK | Compact id assigned by promote_feed(). |
+| agency_id | smallint | no |  | FK | Operating agency. |
+| gtfs_id | text | no |  | UQ | route_id from the feed. |
+| short_name | text | yes |  |  | Line number shown to riders, e.g. 175. |
+| long_name | text | yes |  |  | Descriptive line name; at least one of the two names is present. |
+| route_type_id | smallint | no |  | FK | Mode of transport. |
 
 Constraints:
 
@@ -443,9 +443,9 @@ Days on which a service runs: calendar.txt expanded, calendar_dates.txt applied.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK |  |
-| service_id | integer | no |  | FK, PK |  |
-| service_date | date | no |  | PK |  |
+| feed_version_id | integer | no |  | FK, PK | Feed version the row belongs to. |
+| service_id | integer | no |  | FK, PK | Service that runs on the date. |
+| service_date | date | no |  | PK | Local service date (trips may run past midnight of it). |
 
 Constraints:
 
@@ -457,13 +457,13 @@ Indexes:
 
 ### `transit.services`
 
-_no description_
+Core: service ids from calendar.txt and calendar_dates.txt.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK, UQ |  |
-| service_id | integer | no |  | PK |  |
-| gtfs_id | text | no |  | UQ |  |
+| feed_version_id | integer | no |  | FK, PK, UQ | Feed version the row belongs to. |
+| service_id | integer | no |  | PK | Compact id assigned by promote_feed(). |
+| gtfs_id | text | no |  | UQ | service_id from the feed. |
 
 Constraints:
 
@@ -476,16 +476,16 @@ Indexes:
 
 ### `transit.stop_times`
 
-_no description_
+Core: GTFS stop_times.txt, times converted to seconds of the service day.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK |  |
-| trip_id | integer | no |  | FK, PK |  |
-| stop_sequence | smallint | no |  | PK |  |
-| stop_id | integer | no |  | FK |  |
-| arrival_s | transit.gtfs_seconds | no |  |  |  |
-| departure_s | transit.gtfs_seconds | no |  |  |  |
+| feed_version_id | integer | no |  | FK, PK | Feed version the row belongs to. |
+| trip_id | integer | no |  | FK, PK | Trip the call belongs to. |
+| stop_sequence | smallint | no |  | PK | Order of the call within the trip (increasing, not necessarily consecutive). |
+| stop_id | integer | no |  | FK | Stop served. |
+| arrival_s | transit.gtfs_seconds | no |  |  | Arrival, seconds of the service day; may exceed 86400 after midnight. |
+| departure_s | transit.gtfs_seconds | no |  |  | Departure, seconds of the service day; not earlier than arrival_s. |
 
 Constraints:
 
@@ -500,15 +500,15 @@ Indexes:
 
 ### `transit.stops`
 
-_no description_
+Core: boarding locations from GTFS stops.txt (stations and entrances are skipped).
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK, UQ |  |
-| stop_id | integer | no |  | PK |  |
-| gtfs_id | text | no |  | UQ |  |
-| name | text | no |  |  |  |
-| geom | geography(Point,4326) | no |  |  |  |
+| feed_version_id | integer | no |  | FK, PK, UQ | Feed version the row belongs to. |
+| stop_id | integer | no |  | PK | Compact id assigned by promote_feed(); RAPTOR uses it as an array index. |
+| gtfs_id | text | no |  | UQ | stop_id from the feed. |
+| name | text | no |  |  | stop_name from the feed. |
+| geom | geography(Point,4326) | no |  |  | Stop position (WGS 84). |
 
 Constraints:
 
@@ -526,10 +526,10 @@ Walking links between nearby stops (RAPTOR footpaths). Built by rebuild_transfer
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK |  |
-| from_stop_id | integer | no |  | FK, PK |  |
-| to_stop_id | integer | no |  | FK, PK |  |
-| walk_s | smallint | no |  |  |  |
+| feed_version_id | integer | no |  | FK, PK | Feed version the row belongs to. |
+| from_stop_id | integer | no |  | FK, PK | Stop the walk starts at. |
+| to_stop_id | integer | no |  | FK, PK | Stop the walk ends at. |
+| walk_s | smallint | no |  |  | Walking time in seconds (walk_seconds() of the straight-line distance). |
 
 Constraints:
 
@@ -540,17 +540,17 @@ Constraints:
 
 ### `transit.trips`
 
-_no description_
+Core: GTFS trips.txt of one feed version.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | FK, PK, UQ |  |
-| trip_id | integer | no |  | PK |  |
-| route_id | integer | no |  | FK |  |
-| service_id | integer | no |  | FK |  |
-| gtfs_id | text | no |  | UQ |  |
-| headsign | text | yes |  |  |  |
-| direction | smallint | yes |  |  |  |
+| feed_version_id | integer | no |  | FK, PK, UQ | Feed version the row belongs to. |
+| trip_id | integer | no |  | PK | Compact id assigned by promote_feed(). |
+| route_id | integer | no |  | FK | Route the trip runs on. |
+| service_id | integer | no |  | FK | Service that decides on which dates the trip runs. |
+| gtfs_id | text | no |  | UQ | trip_id from the feed. |
+| headsign | text | yes |  |  | Destination shown on the vehicle. |
+| direction | smallint | yes |  |  | GTFS direction_id (0 or 1); NULL when the feed omits it. |
 
 Constraints:
 
@@ -580,8 +580,8 @@ Indexes:
 | `gtfs_time_to_seconds(p_time text)` | function | '25:10:00' -> 90600. Hours may exceed 23. |
 | `promote_feed(IN p_fv integer)` | procedure | Staging to core for one feed version: type conversion, key assignment, quality gates. All or nothing. |
 | `rebuild_hex_stop_access(IN p_fv integer, IN p_max_m integer, IN p_k integer)` | procedure | For every cell of the feed's city: up to p_k stops within p_max_m metres, with walking time. |
-| `rebuild_transfers(IN p_fv integer, IN p_max_m integer)` | procedure |  |
-| `tg_feed_version_status()` | trigger function |  |
+| `rebuild_transfers(IN p_fv integer, IN p_max_m integer)` | procedure | Rebuilds walking transfers between stops of one feed version that are at most p_max_m metres apart. |
+| `tg_feed_version_status()` | trigger function | Trigger: allows only legal feed status transitions and stamps activated_at / archived_at. |
 | `walk_seconds(p_meters double precision)` | function | Straight-line metres to walking seconds. Single place where the walking model lives in SQL. |
 
 ## Schema `transit_staging`
@@ -590,69 +590,69 @@ Owned by transit-data-service: GTFS files as loaded, text columns, no constraint
 
 ### `transit_staging.agency`
 
-_no description_
+Staging: agency.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| agency_id | text | yes |  |  |  |
-| agency_name | text | yes |  |  |  |
-| agency_timezone | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| agency_id | text | yes |  |  | GTFS agency_id (may be empty when the feed has one agency). |
+| agency_name | text | yes |  |  | GTFS agency_name. |
+| agency_timezone | text | yes |  |  | GTFS agency_timezone. |
 
 ### `transit_staging.calendar`
 
-_no description_
+Staging: calendar.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| service_id | text | yes |  |  |  |
-| monday | text | yes |  |  |  |
-| tuesday | text | yes |  |  |  |
-| wednesday | text | yes |  |  |  |
-| thursday | text | yes |  |  |  |
-| friday | text | yes |  |  |  |
-| saturday | text | yes |  |  |  |
-| sunday | text | yes |  |  |  |
-| start_date | text | yes |  |  |  |
-| end_date | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| service_id | text | yes |  |  | GTFS service_id. |
+| monday | text | yes |  |  | 1 = service runs on Mondays in the date range. |
+| tuesday | text | yes |  |  | 1 = service runs on Tuesdays in the date range. |
+| wednesday | text | yes |  |  | 1 = service runs on Wednesdays in the date range. |
+| thursday | text | yes |  |  | 1 = service runs on Thursdays in the date range. |
+| friday | text | yes |  |  | 1 = service runs on Fridays in the date range. |
+| saturday | text | yes |  |  | 1 = service runs on Saturdays in the date range. |
+| sunday | text | yes |  |  | 1 = service runs on Sundays in the date range. |
+| start_date | text | yes |  |  | GTFS start_date, YYYYMMDD. |
+| end_date | text | yes |  |  | GTFS end_date, YYYYMMDD (inclusive). |
 
 ### `transit_staging.calendar_dates`
 
-_no description_
+Staging: calendar_dates.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| service_id | text | yes |  |  |  |
-| date | text | yes |  |  |  |
-| exception_type | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| service_id | text | yes |  |  | GTFS service_id. |
+| date | text | yes |  |  | GTFS date, YYYYMMDD. |
+| exception_type | text | yes |  |  | 1 = service added on the date, 2 = removed. |
 
 ### `transit_staging.routes`
 
-_no description_
+Staging: routes.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| route_id | text | yes |  |  |  |
-| agency_id | text | yes |  |  |  |
-| route_short_name | text | yes |  |  |  |
-| route_long_name | text | yes |  |  |  |
-| route_type | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| route_id | text | yes |  |  | GTFS route_id. |
+| agency_id | text | yes |  |  | GTFS agency_id (optional). |
+| route_short_name | text | yes |  |  | GTFS route_short_name. |
+| route_long_name | text | yes |  |  | GTFS route_long_name. |
+| route_type | text | yes |  |  | GTFS route_type as text. |
 
 ### `transit_staging.stop_times`
 
-_no description_
+Staging: stop_times.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| trip_id | text | yes |  |  |  |
-| stop_sequence | text | yes |  |  |  |
-| stop_id | text | yes |  |  |  |
-| arrival_time | text | yes |  |  |  |
-| departure_time | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| trip_id | text | yes |  |  | GTFS trip_id. |
+| stop_sequence | text | yes |  |  | GTFS stop_sequence as text. |
+| stop_id | text | yes |  |  | GTFS stop_id. |
+| arrival_time | text | yes |  |  | GTFS arrival_time, HH:MM:SS (hours may exceed 23). |
+| departure_time | text | yes |  |  | GTFS departure_time, HH:MM:SS (hours may exceed 23). |
 
 Indexes:
 
@@ -660,29 +660,29 @@ Indexes:
 
 ### `transit_staging.stops`
 
-_no description_
+Staging: stops.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| stop_id | text | yes |  |  |  |
-| stop_name | text | yes |  |  |  |
-| stop_lat | text | yes |  |  |  |
-| stop_lon | text | yes |  |  |  |
-| location_type | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| stop_id | text | yes |  |  | GTFS stop_id. |
+| stop_name | text | yes |  |  | GTFS stop_name. |
+| stop_lat | text | yes |  |  | GTFS stop_lat as text. |
+| stop_lon | text | yes |  |  | GTFS stop_lon as text. |
+| location_type | text | yes |  |  | GTFS location_type; only empty or 0 (boarding stop) is promoted. |
 
 ### `transit_staging.trips`
 
-_no description_
+Staging: trips.txt as loaded by COPY.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  |  |  |
-| trip_id | text | yes |  |  |  |
-| route_id | text | yes |  |  |  |
-| service_id | text | yes |  |  |  |
-| trip_headsign | text | yes |  |  |  |
-| direction_id | text | yes |  |  |  |
+| feed_version_id | integer | no |  |  | Feed version being imported. |
+| trip_id | text | yes |  |  | GTFS trip_id. |
+| route_id | text | yes |  |  | GTFS route_id. |
+| service_id | text | yes |  |  | GTFS service_id. |
+| trip_headsign | text | yes |  |  | GTFS trip_headsign. |
+| direction_id | text | yes |  |  | GTFS direction_id. |
 
 ## Schema `accessibility`
 
@@ -700,8 +700,8 @@ Travel times from the origin to one destination cell. Ratio and class are derive
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| calculation_id | uuid | no |  | FK, PK |  |
-| h3_index | accessibility.h3_cell | no |  | PK |  |
+| calculation_id | uuid | no |  | FK, PK | Calculation the row belongs to. |
+| h3_index | accessibility.h3_cell | no |  | PK | Destination cell (resolution of the city grid). |
 | transit_s | integer | yes |  |  | Door-to-door seconds by public transport (or on foot if faster); NULL = not reachable within the limit. |
 | car_s | integer | yes |  |  | Free-flow driving seconds; NULL = no road route. |
 | has_stop | boolean | no |  |  | false = no stop within walking distance of the cell. |
@@ -719,18 +719,18 @@ One accessibility map request. City follows from feed_version_id.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| calculation_id | uuid | no | gen_random_uuid() | PK |  |
-| feed_version_id | integer | no |  | FK |  |
+| calculation_id | uuid | no | gen_random_uuid() | PK | Id returned to the client and used in result URLs. |
+| feed_version_id | integer | no |  | FK | Timetable snapshot used; determines the city. |
 | origin_h3 | accessibility.h3_cell | no |  |  | Origin snapped to an H3 resolution-10 cell (about 66 m edge): cache key and data minimisation. |
-| service_date | date | no |  |  |  |
+| service_date | date | no |  |  | Local service date of the departure. |
 | departure_s | integer | no |  |  | Departure time, seconds after local midnight. |
 | window_s | smallint | no | 0 |  | 0 = single departure; otherwise departures are sampled over this window and the median is stored. |
 | algo_version | smallint | no |  |  | Bumped when the method changes, so old cached maps are not reused. |
-| status | text | no | 'running'::text |  |  |
-| created_at | timestamp with time zone | no | now() |  |  |
-| completed_at | timestamp with time zone | yes |  |  |  |
-| expires_at | timestamp with time zone | no |  |  |  |
-| error_code | text | yes |  |  |  |
+| status | text | no | 'running'::text |  | running -> done \| failed; enforced by trigger calculations_status. |
+| created_at | timestamp with time zone | no | now() |  | When the request was accepted. |
+| completed_at | timestamp with time zone | yes |  |  | When the status left running; set by trigger. |
+| expires_at | timestamp with time zone | no |  |  | After this moment the row is removed by purge_expired(). |
+| error_code | text | yes |  |  | Machine-readable failure reason when status = failed, e.g. osrm_unavailable. |
 
 Constraints:
 
@@ -760,12 +760,12 @@ Timetable versions this service has loaded. feed_version_id is a logical referen
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| feed_version_id | integer | no |  | PK |  |
-| city_code | accessibility.city_code | no |  |  |  |
-| valid_from | date | no |  |  |  |
-| valid_to | date | no |  |  |  |
-| loaded_at | timestamp with time zone | no | now() |  |  |
-| is_current | boolean | no | false |  |  |
+| feed_version_id | integer | no |  | PK | Logical reference to transit.feed_versions.feed_version_id. |
+| city_code | accessibility.city_code | no |  |  | City the timetable belongs to (waw, vno). |
+| valid_from | date | no |  |  | First service date covered by the timetable. |
+| valid_to | date | no |  |  | Last service date covered by the timetable. |
+| loaded_at | timestamp with time zone | no | now() |  | When this service finished loading the timetable into memory. |
+| is_current | boolean | no | false |  | true = the snapshot used for new calculations in its city (one per city). |
 
 Constraints:
 
@@ -781,15 +781,15 @@ Triggers:
 
 ### `accessibility.outbox`
 
-_no description_
+Transactional outbox: events written in the same transaction as the state change.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| event_id | uuid | no | gen_random_uuid() | PK |  |
-| event_type | text | no |  |  |  |
-| payload | jsonb | no |  |  |  |
-| occurred_at | timestamp with time zone | no | now() |  |  |
-| published_at | timestamp with time zone | yes |  |  |  |
+| event_id | uuid | no | gen_random_uuid() | PK | Message id; consumers use it for deduplication. |
+| event_type | text | no |  |  | Routing key, e.g. accessibility.calculation.completed.v1. |
+| payload | jsonb | no |  |  | Event body. JSON is justified: structure is defined per event_type in contracts/asyncapi. |
+| occurred_at | timestamp with time zone | no | now() |  | When the state change happened. |
+| published_at | timestamp with time zone | yes |  |  | When the broker confirmed the message; NULL = pending. |
 
 Constraints:
 
@@ -802,13 +802,13 @@ Indexes:
 
 ### `accessibility.pgmigrations`
 
-_no description_
+Migration history of the accessibility schema, maintained by node-pg-migrate.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| id | integer | no | nextval('accessibility.pgmigrations_id_seq'::regclass) | PK |  |
-| name | character varying(255) | no |  |  |  |
-| run_on | timestamp without time zone | no |  |  |  |
+| id | integer | no | nextval('accessibility.pgmigrations_id_seq'::regclass) | PK | Surrogate key in the order migrations were applied. |
+| name | character varying(255) | no |  |  | Migration file name without extension, e.g. 0001_init. |
+| run_on | timestamp without time zone | no |  |  | When the migration was applied (server local time). |
 
 ### `accessibility.processed_messages`
 
@@ -816,9 +816,9 @@ Inbox for idempotent consumers: a message id is handled at most once.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| message_id | uuid | no |  | PK |  |
-| event_type | text | no |  |  |  |
-| processed_at | timestamp with time zone | no | now() |  |  |
+| message_id | uuid | no |  | PK | Envelope id of a consumed message. |
+| event_type | text | no |  |  | Routing key of the consumed message. |
+| processed_at | timestamp with time zone | no | now() |  | When the effect was committed. |
 
 ### `accessibility.ratio_classes`
 
@@ -826,13 +826,13 @@ Reference: legend of the map. Ranged classes cover t_transit/t_car in [min, max)
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| class_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| label | text | no |  |  |  |
+| class_id | smallint | no |  | PK | Stable numeric id of the legend class. |
+| code | text | no |  | UQ | Machine name returned by the API, e.g. good, no_transit. |
+| label | text | no |  |  | Legend text shown to the user. |
 | min_ratio | numeric(5,2) | yes |  |  | Inclusive lower bound; NULL for special classes (no_transit, unreachable). |
 | max_ratio | numeric(5,2) | yes |  |  | Exclusive upper bound; NULL = unbounded. |
-| color | character(7) | no |  |  |  |
-| sort_order | smallint | no |  | UQ |  |
+| color | character(7) | no |  |  | Fill colour as #rrggbb (lower case). |
+| sort_order | smallint | no |  | UQ | Position in the legend, best class first. |
 
 Constraints:
 
@@ -862,8 +862,8 @@ Indexes:
 | Name | Kind | Description |
 | --- | --- | --- |
 | `purge_expired(p_limit integer)` | function | Deletes expired calculations with their results (cascade), oldest first. Returns the number removed. Called on a timer by the service. |
-| `tg_calculation_status()` | trigger function |  |
-| `tg_snapshot_current()` | trigger function |  |
+| `tg_calculation_status()` | trigger function | Trigger: a calculation leaves running exactly once; stamps completed_at. |
+| `tg_snapshot_current()` | trigger function | Trigger: marking a snapshot current clears the flag on the previous one of the same city. |
 
 ## Schema `places`
 
@@ -880,14 +880,14 @@ Best geocoder answer per normalized query. Not linked to users, so not personal 
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| geocode_id | bigint | no | identity | PK |  |
-| city_code | places.city_code | no |  | UQ |  |
-| query_norm | text | no |  | UQ |  |
-| display_name | text | no |  |  |  |
-| geom | geography(Point,4326) | no |  |  |  |
-| provider | text | no |  |  |  |
-| fetched_at | timestamp with time zone | no | now() |  |  |
-| expires_at | timestamp with time zone | no |  |  |  |
+| geocode_id | bigint | no | identity | PK | Surrogate key. |
+| city_code | places.city_code | no |  | UQ | City the search was limited to. |
+| query_norm | text | no |  | UQ | Search text lower-cased and trimmed; cache key together with city_code. |
+| display_name | text | no |  |  | Address label returned by the geocoder. |
+| geom | geography(Point,4326) | no |  |  | Position of the best candidate (WGS 84). |
+| provider | text | no |  |  | Geocoder that produced the answer. |
+| fetched_at | timestamp with time zone | no | now() |  | When the geocoder was asked. |
+| expires_at | timestamp with time zone | no |  |  | After this moment the entry is refreshed or purged. |
 
 Constraints:
 
@@ -903,13 +903,13 @@ Indexes:
 
 ### `places.pgmigrations`
 
-_no description_
+Migration history of the places schema, maintained by node-pg-migrate.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| id | integer | no | nextval('places.pgmigrations_id_seq'::regclass) | PK |  |
-| name | character varying(255) | no |  |  |  |
-| run_on | timestamp without time zone | no |  |  |  |
+| id | integer | no | nextval('places.pgmigrations_id_seq'::regclass) | PK | Surrogate key in the order migrations were applied. |
+| name | character varying(255) | no |  |  | Migration file name without extension, e.g. 0001_init. |
+| run_on | timestamp without time zone | no |  |  | When the migration was applied (server local time). |
 
 ### `places.place_kinds`
 
@@ -917,9 +917,9 @@ Reference: home, work, study, other.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| kind_id | smallint | no |  | PK |  |
-| code | text | no |  | UQ |  |
-| label | text | no |  |  |  |
+| kind_id | smallint | no |  | PK | Stable numeric id referenced by saved_places.kind_id. |
+| code | text | no |  | UQ | Machine name used in the API (home, work, study, other). |
+| label | text | no |  |  | Human-readable name. |
 
 Constraints:
 
@@ -932,13 +932,13 @@ Indexes:
 
 ### `places.processed_messages`
 
-_no description_
+Inbox for idempotent consumers: a message id is handled at most once.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| message_id | uuid | no |  | PK |  |
-| event_type | text | no |  |  |  |
-| processed_at | timestamp with time zone | no | now() |  |  |
+| message_id | uuid | no |  | PK | Envelope id of a consumed message. |
+| event_type | text | no |  |  | Routing key of the consumed message. |
+| processed_at | timestamp with time zone | no | now() |  | When the effect was committed. |
 
 ### `places.saved_places`
 
@@ -946,15 +946,15 @@ Addresses a user keeps. PII: label, address_text, geom.
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| place_id | uuid | no | gen_random_uuid() | PK |  |
+| place_id | uuid | no | gen_random_uuid() | PK | Id exposed in the API. |
 | user_id | uuid | no |  | UQ | Logical reference to identity.users (no cross-schema FK); rows are removed on identity.user.deleted.v1. |
-| kind_id | smallint | no |  | FK |  |
-| label | text | no |  | UQ |  |
-| address_text | text | no |  |  |  |
-| city_code | places.city_code | no |  |  |  |
-| geom | geography(Point,4326) | no |  |  |  |
-| created_at | timestamp with time zone | no | now() |  |  |
-| updated_at | timestamp with time zone | no | now() |  |  |
+| kind_id | smallint | no |  | FK | Kind of place (home, work, ...). |
+| label | text | no |  | UQ | PII. Name the user gave the place; unique per user. |
+| address_text | text | no |  |  | PII. Address as shown to the user. |
+| city_code | places.city_code | no |  |  | City of the place (waw, vno). |
+| geom | geography(Point,4326) | no |  |  | PII. Position (WGS 84); rounded to about 1 km in v_saved_places_masked. |
+| created_at | timestamp with time zone | no | now() |  | When the place was saved. |
+| updated_at | timestamp with time zone | no | now() |  | Last change of the row; maintained by trigger saved_places_set_updated_at. |
 
 Constraints:
 
@@ -978,12 +978,12 @@ Maps a signed-in user asked for. Filled from accessibility.calculation.completed
 
 | Column | Type | Null | Default | Key | Description |
 | --- | --- | --- | --- | --- | --- |
-| history_id | bigint | no | identity | PK |  |
-| user_id | uuid | no |  | UQ |  |
-| calculation_id | uuid | no |  | UQ |  |
-| city_code | places.city_code | no |  |  |  |
-| origin_h3 | places.h3_cell | no |  |  |  |
-| created_at | timestamp with time zone | no | now() |  |  |
+| history_id | bigint | no | identity | PK | Surrogate key; also the tie-breaker when trimming to 50 rows. |
+| user_id | uuid | no |  | UQ | PII. Logical reference to identity.users; rows are removed on identity.user.deleted.v1. |
+| calculation_id | uuid | no |  | UQ | Logical reference to accessibility.calculations; opens the same map again while it is cached. |
+| city_code | places.city_code | no |  |  | City of the calculation. |
+| origin_h3 | places.h3_cell | no |  |  | PII. Origin cell of the calculation (H3 resolution 10). |
+| created_at | timestamp with time zone | no | now() |  | When the calculation completed. |
 
 Constraints:
 
@@ -1010,9 +1010,9 @@ Triggers:
 | Name | Kind | Description |
 | --- | --- | --- |
 | `erase_user(p_user_id uuid)` | function | Removes everything stored about a user. Called by the consumer of identity.user.deleted.v1. |
-| `tg_saved_places_limit()` | trigger function |  |
-| `tg_search_history_trim()` | trigger function |  |
-| `tg_set_updated_at()` | trigger function |  |
+| `tg_saved_places_limit()` | trigger function | Trigger: rejects the 21st saved place of a user (advisory lock per user against races). |
+| `tg_search_history_trim()` | trigger function | Trigger: keeps only the latest 50 history rows of a user. |
+| `tg_set_updated_at()` | trigger function | Trigger: sets updated_at to now() on every update. |
 
 ## Privileges
 
