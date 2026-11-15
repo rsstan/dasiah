@@ -65,6 +65,8 @@ function MapPage({ cities, legend }: { cities: City[]; legend: LegendClass[] }) 
   const [origin, setOrigin] = useState<Origin | undefined>(initial.origin);
   const [departure, setDeparture] = useState<Departure>({ date: initial.date ?? '', time: initial.time ?? '08:00' });
   const [tab, setTab] = useState<Tab>('map');
+  /** Phones only: the panel folded down to its header and status, the map takes the screen. */
+  const [mapOnly, setMapOnly] = useState(false);
   const { state, run, reset } = useCalculation();
   const auth = useSession();
   const signedIn = auth.kind === 'signed-in';
@@ -170,18 +172,33 @@ function MapPage({ cities, legend }: { cities: City[]; legend: LegendClass[] }) 
   const cityPlaces = places.items.filter((p) => p.cityCode === cityCode);
 
   return (
-    <div className={tab === 'admin' ? 'app wide' : 'app'}>
+    <div className={['app', tab === 'admin' ? 'wide' : '', mapOnly ? 'map-only' : ''].filter(Boolean).join(' ')}>
       <aside className="panel">
         <header className="panel-header">
           <div>
             <h1>Transit Heatmap</h1>
             <p className="tagline">How much slower is public transport than a car?</p>
           </div>
-          {auth.kind === 'signed-out' && tab !== 'sign-in' && (
-            <button type="button" className="sign-in" onClick={() => setTab('sign-in')}>
-              Sign in
+          <div className="header-actions">
+            {auth.kind === 'signed-out' && tab !== 'sign-in' && !mapOnly && (
+              <button type="button" className="sign-in" onClick={() => setTab('sign-in')}>
+                Sign in
+              </button>
+            )}
+            <button
+              type="button"
+              className="sheet-toggle"
+              aria-expanded={!mapOnly}
+              onClick={() => {
+                setMapOnly(!mapOnly);
+                if (!mapOnly) {
+                  setTab('map');
+                }
+              }}
+            >
+              {mapOnly ? 'Controls' : 'Full map'}
             </button>
-          )}
+          </div>
         </header>
 
         {signedIn && (

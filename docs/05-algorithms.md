@@ -196,5 +196,8 @@ thresholds, the walking model, K, the horizon or the car factors requires bumpin
   the median covers; clicking outside the cells (or "Start here") picks a new start point.
 - City, start point (rounded to 4 decimals, about 10 m; never the address text) and departure
   are kept in the query string, so a map can be shared and reloaded.
+- Layout: side panel and map on screens 768 px and wider; below that the map takes the top half
+  and the panel scrolls underneath, with "Full map" folding the panel down to its header and the
+  status line. Inputs use 16 px text (no zoom on focus in iOS), buttons are at least 40 px high.
 - Basemap: OpenFreeMap Positron vector tiles (no key); its sources carry the OpenFreeMap,
   OpenMapTiles and OpenStreetMap attribution, which the map shows.

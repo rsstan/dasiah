@@ -53,7 +53,8 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
       style: MAP_STYLE_URL,
       bounds: [bounds.west, bounds.south, bounds.east, bounds.north],
       // The style's sources credit OpenFreeMap, OpenMapTiles and OpenStreetMap (ODbL).
-      attributionControl: { compact: false },
+      // Compact (an ⓘ button) automatically when the map is narrow, e.g. on phones.
+      attributionControl: {},
       maxPitch: 0,
       dragRotate: false,
     });
