@@ -219,6 +219,7 @@ export over `stop_times`, is deliberate and justified there with a forced-index 
 - CI on every pull request: bootstrap a clean database, migrate up, down, up again, load
   reference data, run `db/tests/smoke.sql`, regenerate the data dictionary and fail on a diff.
 - Releases are tagged in Git; the tag identifies the schema version deployed.
+- Backup and restore (per-schema dumps, restore order, role recreation): `docs/db/operations.md`.
 
 ## Test data (phase 1)
 

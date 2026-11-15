@@ -24,7 +24,7 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
       Done when: `pnpm db:seed:test` is repeatable on a fresh database and leaves an active feed for city `waw`.
 - [x] 1.4 `docs/db/query-plans.md`: `EXPLAIN (ANALYZE, BUFFERS)` for sign-in by email, nearest stops of a cell, timetable export for a date, cache lookup, history page, outbox poll. Adjust indexes if a plan shows a sequential scan on a large table.
 - [x] 1.5 Export the logical schema and ER diagrams to PNG/SVG in `docs/db/img/` for the thesis text.
-- [ ] 1.6 Backup and restore note in `docs/db/operations.md` (`pg_dump` per schema, restore order, role recreation).
+- [x] 1.6 Backup and restore note in `docs/db/operations.md` (`pg_dump` per schema, restore order, role recreation).
 
 ## Phase 2 — Shared platform and contracts
 

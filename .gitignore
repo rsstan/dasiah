@@ -13,3 +13,4 @@ test-results/
 data/
 infra/osrm/data/
 .claude/settings.local.json
+backups/
