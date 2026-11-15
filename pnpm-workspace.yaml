@@ -2,3 +2,8 @@ packages:
   - apps/*
   - services/*
   - packages/*
+
+# Dependency build scripts are denied unless listed here. puppeteer (via mermaid-cli, used by
+# `pnpm db:diagrams`) would download its own Chromium; the diagrams use the installed Chrome.
+allowBuilds:
+  puppeteer: false
