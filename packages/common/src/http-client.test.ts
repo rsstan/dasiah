@@ -51,7 +51,8 @@ const client = (overrides: Partial<ConstructorParameters<typeof HttpClient>[0]> 
     name: 'upstream',
     baseUrl,
     logger: captureLogger().logger,
-    timeoutMs: 100,
+    // Generous, so a cold first request on a busy CI runner does not count as a timeout.
+    timeoutMs: 1_000,
     retries: 2,
     retryInitialDelayMs: 5,
     breakerThreshold: 3,
@@ -72,7 +73,7 @@ describe('HttpClient', () => {
   });
 
   it('times out each attempt and reports the upstream as unavailable', async () => {
-    const error = await client({ retries: 0 })
+    const error = await client({ retries: 0, timeoutMs: 100 })
       .getJson('/slow')
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ServiceUnavailableError);
