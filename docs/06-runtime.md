@@ -142,11 +142,11 @@ root's development tools; it is never deployed.
 
 | Level | Tool | Scope |
 | --- | --- | --- |
-| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter, error policy and toasts, logger; component tests in jsdom (`*.test.tsx`, Testing Library): error boundaries |
+| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter, error policy and toasts, logger; component tests in jsdom (`*.test.tsx`, Testing Library, helpers in `apps/web/src/shared/test/render.tsx`: memory router, fresh query client, fetch answered from a table): sign-in form, places list, route guards, home page, error boundaries |
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
-| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; routes (cities on the home page and their routes, unknown city, old links, 404, sign-in and return, back/forward, 403 on `/admin`); register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
+| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; routes (cities on the home page and their routes, unknown city, old links, 404, sign-in and return, back/forward, 403 on `/admin`, a saved place opening its city); register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
 | Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |
 
 ## CI (GitHub Actions)

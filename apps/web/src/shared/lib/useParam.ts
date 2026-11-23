@@ -7,6 +7,11 @@ import { useLocation, useSearchParams } from 'react-router';
  */
 const remembered = new Map<string, string>();
 
+/** Forgets the remembered settings (tests start from a clean tab). */
+export function forgetParams(): void {
+  remembered.clear();
+}
+
 /**
  * A view setting kept in the query string (filter, sort order), so it survives navigation,
  * reload and sharing. The default value is not written to the URL.

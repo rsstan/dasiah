@@ -60,4 +60,22 @@ test.describe('routes', () => {
     await expect(page).toHaveURL(/\/account$/);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
   });
+
+  test('a saved place opens its city with the point, and the menu leads back', async ({ page }) => {
+    await page.goto('/sign-in?next=%2Fplaces');
+    await page.getByLabel('Email').fill('demo.user@example.com');
+    await page.getByLabel('Password').fill(e2eEnv('SEED_DEMO_PASSWORD'));
+    await page.locator('form.auth-form').getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/places$/);
+
+    const first = page.locator('.items .item-main').first();
+    const label = (await first.locator('strong').textContent()) ?? '';
+    await first.click();
+    await expect(page).toHaveURL(/\/cities\/waw\?lat=-?\d+\.\d+&lon=-?\d+\.\d+/);
+    await expect(page.getByLabel('Start address')).toHaveValue(label);
+    await expect(page.locator('.status.done')).toContainText('cells', { timeout: 60_000 });
+
+    await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Places' }).click();
+    await expect(page).toHaveURL(/\/places$/);
+  });
 });

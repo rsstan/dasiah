@@ -104,7 +104,7 @@ Testing Library.
       Done when: a thrown render error shows the fallback instead of a blank page; each of 401/403/404/500 has a test; no async view without a loading state.
 - [x] 8A.5 Forms and lists: field-level validation with messages (sign-in and registration, save and rename place, profile, feed import); sorting and filtering of saved places (name, date, city) and sorting of feed versions.
       Done when: invalid input shows a message at the field and is not sent; sort and filter state survive navigation.
-- [ ] 8A.6 Component tests: Vitest + Testing Library (jsdom) for the auth form (validation, server error), the places list (sort, filter, delete), the error boundary, the router guards (404, admin-only); one e2e scenario for navigation between routes.
+- [x] 8A.6 Component tests: Vitest + Testing Library (jsdom) for the auth form (validation, server error), the places list (sort, filter, delete), the error boundary, the router guards (404, admin-only); one e2e scenario for navigation between routes.
       Done when: at least 4 component test files pass in CI next to the existing unit and e2e tests.
 - [ ] 8A.7 Documentation `specs/frontend.md`: architecture diagram (modules, components, routes, state), approach (component-based, feature modules, server state vs client state), API used by the client (schemas, methods, request/response examples, from the contracts), user flows / navigation diagram, tech stack justification (React, Vite, React Router, TanStack Query, Zustand, own kit, MapLibre), justified exceptions (inline styles).
       Done when: every required documentation section exists and links to the code; the requirements matrix front-end rows point to it.

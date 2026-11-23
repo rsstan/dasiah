@@ -14,7 +14,8 @@ export interface AppData {
   legend: readonly LegendClass[];
 }
 
-const AppDataContext = createContext<AppData | undefined>(undefined);
+/** Exported for tests that render a page without the root loader. */
+export const AppDataContext = createContext<AppData | undefined>(undefined);
 
 export function useAppData(): AppData {
   const data = use(AppDataContext);
