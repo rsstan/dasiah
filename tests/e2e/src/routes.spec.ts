@@ -53,10 +53,9 @@ test.describe('routes', () => {
     await expect(nav.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
 
     // Reloading a page keeps it (session restored from the cookie).
+    // A reload right after loading may cut the token refresh short; identity's grace period keeps
+    // the session (the just-rotated token is accepted once).
     await page.goto('/account');
-    // Wait until the session is restored (its token refresh finished) before reloading: a reload in
-    // the middle of a refresh presents the just-rotated token again (see the note in docs/plan.md).
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     await page.reload();
     await expect(page).toHaveURL(/\/account$/);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();

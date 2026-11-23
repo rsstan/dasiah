@@ -57,4 +57,5 @@ export interface IdentityDb {
   'identity.audit_log': AuditLogTable;
 }
 
-export type AuditCode = 'login_succeeded' | 'login_failed' | 'login_locked' | 'refresh_token_reused';
+export type AuditCode =
+  'login_succeeded' | 'login_failed' | 'login_locked' | 'refresh_token_reused' | 'refresh_token_grace';

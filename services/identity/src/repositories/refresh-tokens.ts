@@ -46,6 +46,22 @@ export async function findRefreshTokenForUpdate(db: Db, hash: Buffer): Promise<S
     .executeTakeFirst();
 }
 
+/** The same as findRefreshTokenForUpdate, by id (the successor of a rotated token). */
+export async function findRefreshTokenByIdForUpdate(db: Db, tokenId: string): Promise<StoredRefreshToken | undefined> {
+  return db
+    .selectFrom('identity.refresh_tokens')
+    .select([
+      'token_id as tokenId',
+      'user_id as userId',
+      'expires_at as expiresAt',
+      'revoked_at as revokedAt',
+      'replaced_by as replacedBy',
+    ])
+    .where('token_id', '=', tokenId)
+    .forUpdate()
+    .executeTakeFirst();
+}
+
 export async function markReplaced(db: Db, tokenId: string, replacedBy: string): Promise<void> {
   await db
     .updateTable('identity.refresh_tokens')

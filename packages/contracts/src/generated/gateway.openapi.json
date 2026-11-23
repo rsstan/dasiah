@@ -1102,7 +1102,7 @@
       "post": {
         "operationId": "refresh",
         "summary": "Exchange the refresh token for a new pair (rotation)",
-        "description": "The presented token is revoked and replaced. Presenting a token that was already\nreplaced is treated as theft: every session of the user is revoked and `401` is returned.\n",
+        "description": "The presented token is revoked and replaced. Presenting a token that was already\nreplaced is treated as theft: every session of the user is revoked and `401` is returned.\nException: within `REFRESH_REUSE_GRACE_S` (30 s) of the rotation, while its successor has\nnever been used (the client did not receive it, e.g. the page was reloaded during the\nrefresh), the previous token is accepted once: the successor is revoked and a new pair is\nreturned.\n",
         "tags": [
           "auth"
         ],

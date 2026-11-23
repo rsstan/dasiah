@@ -122,6 +122,10 @@ paths:
       description: |
         The presented token is revoked and replaced. Presenting a token that was already
         replaced is treated as theft: every session of the user is revoked and `401` is returned.
+        Exception: within `REFRESH_REUSE_GRACE_S` (30 s) of the rotation, while its successor has
+        never been used (the client did not receive it, e.g. the page was reloaded during the
+        refresh), the previous token is accepted once: the successor is revoked and a new pair is
+        returned.
       tags:
         - auth
       x-access: public

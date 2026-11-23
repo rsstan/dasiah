@@ -190,25 +190,64 @@ describe('sign-in and tokens', () => {
     }
   });
 
-  it('rotates the refresh token and treats a replayed one as theft', async () => {
+  const liveTokens = async (userId: string) =>
+    (
+      await db.admin.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM identity.refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL`,
+        [userId],
+      )
+    ).rows[0]?.n;
+
+  it('accepts the previous token once within the grace period when its successor was never used', async () => {
+    // As after a reload during the refresh: the browser never received the second cookie.
+    const { userId, cookie: first } = await registerAndLogin('grace.reload@example.com');
+    const rotated = await call('POST', '/auth/refresh', { cookie: first });
+    expect(rotated.statusCode).toBe(200);
+    const lost = refreshCookie(rotated);
+
+    const again = await call('POST', '/auth/refresh', { cookie: first });
+    expect(again.statusCode).toBe(200);
+    const third = refreshCookie(again);
+    expect(third).not.toBe(lost);
+    expect(await auditCodes(userId)).toContain('refresh_token_grace');
+    expect(await liveTokens(userId)).toBe(1);
+    // The successor that never arrived is no longer valid; the new one works.
+    expect((await call('POST', '/auth/refresh', { cookie: third })).statusCode).toBe(200);
+
+    // Only once: the same old token again is a replay.
+    const replay = await call('POST', '/auth/refresh', { cookie: first });
+    expect(replay.statusCode).toBe(401);
+    expect(await auditCodes(userId)).toContain('refresh_token_reused');
+    expect(await liveTokens(userId)).toBe(0);
+  });
+
+  it('treats a replayed token as theft once its successor was used', async () => {
     const { userId, cookie: first } = await registerAndLogin('carol@example.com');
     const rotated = await call('POST', '/auth/refresh', { cookie: first });
     expect(rotated.statusCode).toBe(200);
     const second = refreshCookie(rotated);
     expect(second).not.toBe(first);
+    const third = refreshCookie(await call('POST', '/auth/refresh', { cookie: second }));
 
     const replay = await call('POST', '/auth/refresh', { cookie: first });
     expect(replay.statusCode).toBe(401);
     expect(replay.json()).toMatchObject({ type: '/problems/invalid-refresh-token' });
     expect(replay.cookies.find((c) => c.name === 'refresh_token')?.value).toBe('');
-    // The legitimate holder of the newer token is signed out too.
-    expect((await call('POST', '/auth/refresh', { cookie: second })).statusCode).toBe(401);
+    // The legitimate holder of the newest token is signed out too.
+    expect((await call('POST', '/auth/refresh', { cookie: third })).statusCode).toBe(401);
     expect(await auditCodes(userId)).toContain('refresh_token_reused');
-    const live = await db.admin.query(
-      `SELECT count(*)::int AS n FROM identity.refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL`,
+    expect(await liveTokens(userId)).toBe(0);
+  });
+
+  it('treats a replayed token as theft after the grace period', async () => {
+    const { userId, cookie: first } = await registerAndLogin('late.replay@example.com');
+    expect((await call('POST', '/auth/refresh', { cookie: first })).statusCode).toBe(200);
+    await db.admin.query(
+      `UPDATE identity.refresh_tokens SET revoked_at = now() - interval '1 minute' WHERE user_id = $1 AND replaced_by IS NOT NULL`,
       [userId],
     );
-    expect(live.rows[0]).toEqual({ n: 0 });
+    expect((await call('POST', '/auth/refresh', { cookie: first })).statusCode).toBe(401);
+    expect(await liveTokens(userId)).toBe(0);
   });
 
   it('refuses an expired refresh token and a missing one', async () => {
