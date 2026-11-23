@@ -11,6 +11,8 @@ open GTFS timetables and OpenStreetMap.
   a simple diagram, how to run (Docker, development, tests, a VPS with Terraform).
 - `specs/database.md` — the database in one page: schemas, design, integrity, roles, masking,
   layers, migrations, test data, and commands to check it.
+- `specs/frontend.md` — the web client in one page: layers, routes, state, navigation, the API it
+  uses, error handling, component kit, tests, why this stack.
 - `docs/` — product scope, architecture, database design, contracts, algorithms, runtime, plan.
 - `db/` — bootstrap (roles and schemas), reference and test data, SQL smoke test.
 - `services/*/migrations/` — schema of each service.
