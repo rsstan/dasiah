@@ -4,7 +4,10 @@ import type { City } from '../../models/types.ts';
 import { CityFilter } from '../cities/CityFilter.tsx';
 import { PLACE_LIMIT, type Places, type SavedPlace } from './api.ts';
 import { KIND_LABEL } from './SavePlaceForm.tsx';
-import { Button, Card, Dialog, Skeleton, TextField } from '../../shared/ui/index.ts';
+import { Button, Card, Dialog, Select, Skeleton, TextField } from '../../shared/ui/index.ts';
+import { LABEL_MAX, labelConflict, validateLabel } from './validation.ts';
+import { useParam } from '../../shared/lib/useParam.ts';
+import { arrangePlaces, PLACE_SORT_LABEL, PLACE_SORTS, type PlaceSort } from './sort.ts';
 
 interface Props {
   places: Places;
@@ -13,12 +16,13 @@ interface Props {
 }
 
 export function PlacesList({ places, cities, onShow }: Props) {
-  const [editing, setEditing] = useState<{ id: string; label: string } | undefined>(undefined);
+  const [editing, setEditing] = useState<{ id: string; label: string; error?: string } | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [deleting, setDeleting] = useState<SavedPlace | undefined>(undefined);
-  const [cityFilter, setCityFilter] = useState('');
-  const shown = places.items.filter((p) => cityFilter === '' || p.cityCode === cityFilter);
   const cityName = (code: string) => cities.find((c) => c.code === code)?.name ?? code;
+  const [cityFilter, setCityFilter] = useParam<string>('city', '');
+  const [sort, setSort] = useParam<PlaceSort>('sort', 'recent', PLACE_SORTS);
+  const shown = arrangePlaces(places.items, cityFilter, sort, cityName);
 
   const act = async (fn: () => Promise<void>) => {
     setError(undefined);
@@ -52,31 +56,56 @@ export function PlacesList({ places, cities, onShow }: Props) {
       {!places.loading && places.error === undefined && places.items.length === 0 && (
         <p className="hint">No saved places yet. Pick a start point on the map and save it.</p>
       )}
-      <CityFilter
-        cities={cities}
-        present={places.items.map((p) => p.cityCode)}
-        value={cityFilter}
-        onChange={setCityFilter}
-      />
+      {places.items.length > 1 && (
+        <div className="list-tools">
+          <CityFilter
+            cities={cities}
+            present={places.items.map((p) => p.cityCode)}
+            value={cityFilter}
+            onChange={setCityFilter}
+          />
+          <Select inline label="Sort" value={sort} onChange={(e) => setSort(e.target.value as PlaceSort)}>
+            {PLACE_SORTS.map((s) => (
+              <option key={s} value={s}>
+                {PLACE_SORT_LABEL[s]}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <ul className="items">
         {shown.map((p) => (
           <li key={p.placeId}>
             {editing?.id === p.placeId ? (
               <form
                 className="inline-edit"
+                noValidate
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void act(async () => {
-                    await places.update(p.placeId, { label: editing.label.trim() });
-                    setEditing(undefined);
-                  });
+                  const invalid = validateLabel(editing.label, 'rename');
+                  if (invalid !== undefined) {
+                    setEditing({ ...editing, error: invalid });
+                    return;
+                  }
+                  setError(undefined);
+                  places.update(p.placeId, { label: editing.label.trim() }).then(
+                    () => setEditing(undefined),
+                    (err: unknown) => {
+                      const conflict = labelConflict(err);
+                      if (conflict !== undefined) {
+                        setEditing({ ...editing, error: conflict });
+                      } else {
+                        setError(describeError(err));
+                      }
+                    },
+                  );
                 }}
               >
                 <TextField
                   label={<span className="visually-hidden">New name</span>}
-                  maxLength={60}
-                  required
+                  maxLength={LABEL_MAX}
                   value={editing.label}
+                  error={editing.error}
                   onChange={(e) => setEditing({ id: p.placeId, label: e.target.value })}
                 />
                 <Button type="submit" variant="primary" size="sm">

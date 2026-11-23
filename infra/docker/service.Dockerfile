@@ -32,6 +32,6 @@ COPY --chown=root:root ${SERVICE}/src ${SERVICE}/src
 USER node
 WORKDIR /app/${SERVICE}
 ENV HOST=0.0.0.0
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=5 \
   CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/health/ready" || exit 1
 CMD ["node", "--import", "@heatmap/common/otel", "src/main.ts"]

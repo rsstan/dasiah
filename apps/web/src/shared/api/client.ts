@@ -10,6 +10,8 @@ export class ApiError extends Error {
   readonly type: string;
   readonly retryAfterS: number | undefined;
   readonly correlationId: string;
+  /** Field errors of a validation problem (400), e.g. { path: '/body/email', message }. */
+  readonly fieldErrors: readonly { path: string; message: string }[];
 
   constructor(status: number, problem: Partial<Problem>, correlationId: string, retryAfterS?: number) {
     super(problem.detail ?? problem.title ?? `Request failed with ${status}`);
@@ -18,6 +20,7 @@ export class ApiError extends Error {
     this.type = problem.type ?? 'about:blank';
     this.retryAfterS = retryAfterS;
     this.correlationId = correlationId;
+    this.fieldErrors = Array.isArray(problem.errors) ? problem.errors : [];
   }
 }
 

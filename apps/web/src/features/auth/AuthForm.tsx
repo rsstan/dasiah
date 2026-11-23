@@ -1,15 +1,17 @@
 // Sign in / create account. The password is sent once to identity and never kept in the page.
 import { useState, type FormEvent } from 'react';
 import { describeError } from '../../shared/api/client.ts';
-import { session } from './session.ts';
+import { hasErrors, serverFieldErrors, type FieldErrors } from '../../shared/lib/validation.ts';
 import { Button, Tabs, TextField, type TabItem } from '../../shared/ui/index.ts';
+import { session } from './session.ts';
+import { AUTH_SERVER_FIELDS, MIN_PASSWORD, validateAuth, type AuthField } from './validation.ts';
 
 const MODES: readonly TabItem<'sign-in' | 'register'>[] = [
   { id: 'sign-in', label: 'Sign in' },
   { id: 'register', label: 'Create account' },
 ];
 
-export const MIN_PASSWORD = 10;
+export { MIN_PASSWORD } from './validation.ts';
 
 export function AuthForm({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<'sign-in' | 'register'>('sign-in');
@@ -18,12 +20,18 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  /** After the first submit, fields are checked as the user types. */
+  const [submitted, setSubmitted] = useState(false);
+  const [serverErrors, setServerErrors] = useState<FieldErrors<AuthField>>({});
+  const values = { email, password, displayName };
+  const errors = submitted ? { ...validateAuth(values, mode), ...serverErrors } : serverErrors;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(undefined);
-    if (mode === 'register' && password.length < MIN_PASSWORD) {
-      setError(`The password needs at least ${MIN_PASSWORD} characters.`);
+    setServerErrors({});
+    setSubmitted(true);
+    if (hasErrors(validateAuth(values, mode))) {
       return;
     }
     setBusy(true);
@@ -36,7 +44,11 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
       setPassword('');
       onDone();
     } catch (err) {
-      setError(describeError(err));
+      const fields = serverFieldErrors(err, AUTH_SERVER_FIELDS);
+      setServerErrors(fields);
+      if (!hasErrors(fields)) {
+        setError(describeError(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -44,7 +56,7 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
 
   const register = mode === 'register';
   return (
-    <form className="auth-form" onSubmit={(e) => void submit(e)}>
+    <form className="auth-form" noValidate onSubmit={(e) => void submit(e)}>
       <h2>{register ? 'Create an account' : 'Sign in'}</h2>
       <p className="hint">Save home and work addresses and see the maps you looked at.</p>
       <Tabs
@@ -54,6 +66,8 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
         onChange={(next) => {
           setMode(next);
           setError(undefined);
+          setServerErrors({});
+          setSubmitted(false);
         }}
       />
       <TextField
@@ -62,7 +76,11 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
         autoComplete={register ? 'email' : 'username'}
         required
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        error={errors.email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          setServerErrors({});
+        }}
       />
       {register && (
         <TextField
@@ -71,6 +89,7 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
           maxLength={80}
           autoComplete="nickname"
           value={displayName}
+          error={errors.displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
       )}
@@ -83,7 +102,11 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
         maxLength={128}
         hint={register ? `At least ${MIN_PASSWORD} characters.` : undefined}
         value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        error={errors.password}
+        onChange={(e) => {
+          setPassword(e.target.value);
+          setServerErrors({});
+        }}
       />
       {error !== undefined && (
         <p className="form-error" role="alert">

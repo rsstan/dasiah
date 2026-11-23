@@ -25,6 +25,9 @@ import {
   type FeedVersion,
   type VersionFilter,
 } from './api.ts';
+import { validateSourceCode } from './validation.ts';
+import { useParam } from '../../shared/lib/useParam.ts';
+import { sortVersions, VERSION_SORT_LABEL, VERSION_SORTS, type VersionSort } from './sort.ts';
 
 export type { FeedVersion } from './api.ts';
 
@@ -35,9 +38,12 @@ export function sourcesOf(versions: readonly FeedVersion[]): string[] {
 }
 
 export function AdminView({ cities }: { cities: readonly City[] }) {
-  const [filter, setFilter] = useState<VersionFilter>({ status: '', source: '' });
+  const [status, setStatus] = useParam<FeedStatus | ''>('status', '', ['', ...STATUSES]);
+  const [source, setSource] = useParam<string>('source', '');
+  const [sort, setSort] = useParam<VersionSort>('sort', 'newest', VERSION_SORTS);
+  const filter: VersionFilter = { status, source };
   const query = useFeedVersions(filter);
-  const versions = query.data ?? [];
+  const versions = sortVersions(query.data ?? [], sort);
   const listError = query.isError ? describeError(query.error) : undefined;
   const running = versions.some((v) => IN_PROGRESS.includes(v.status));
 
@@ -47,11 +53,7 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
       <ImportForm sources={sourcesOf(versions)} />
       <h3>Feed versions</h3>
       <div className="filters">
-        <Select
-          label="Status"
-          value={filter.status}
-          onChange={(e) => setFilter({ ...filter, status: e.target.value as FeedStatus | '' })}
-        >
+        <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value as FeedStatus | '')}>
           <option value="">all</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -59,11 +61,18 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
             </option>
           ))}
         </Select>
-        <Select label="Source" value={filter.source} onChange={(e) => setFilter({ ...filter, source: e.target.value })}>
+        <Select label="Source" value={source} onChange={(e) => setSource(e.target.value)}>
           <option value="">all</option>
           {sourcesOf(versions).map((s) => (
             <option key={s} value={s}>
               {s}
+            </option>
+          ))}
+        </Select>
+        <Select label="Sort" value={sort} onChange={(e) => setSort(e.target.value as VersionSort)}>
+          {VERSION_SORTS.map((s) => (
+            <option key={s} value={s}>
+              {VERSION_SORT_LABEL[s]}
             </option>
           ))}
         </Select>
@@ -141,6 +150,7 @@ function Coverage({ cities }: { cities: readonly City[] }) {
 
 function ImportForm({ sources }: { sources: readonly string[] }) {
   const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState<string | undefined>(undefined);
   const importFeed = useImportFeed();
   const busy = importFeed.isPending;
   const [message, setMessage] = useState<{ error: boolean; text: string } | undefined>(undefined);
@@ -148,6 +158,11 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setMessage(undefined);
+    const invalid = validateSourceCode(code);
+    setCodeError(invalid);
+    if (invalid !== undefined) {
+      return;
+    }
     try {
       const accepted = await importFeed.mutateAsync(code.trim());
       setMessage({
@@ -162,16 +177,18 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
   };
 
   return (
-    <form className="form import" onSubmit={(e) => void submit(e)}>
+    <form className="form import" noValidate onSubmit={(e) => void submit(e)}>
       <h3>Import</h3>
       <TextField
         label="Feed source"
         type="text"
         list="feed-sources"
-        required
-        pattern="[a-z0-9_]+"
         value={code}
-        onChange={(e) => setCode(e.target.value)}
+        error={codeError}
+        onChange={(e) => {
+          setCode(e.target.value);
+          setCodeError(undefined);
+        }}
         placeholder="e.g. vno_vvt"
       />
       <datalist id="feed-sources">
@@ -180,7 +197,7 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
         ))}
       </datalist>
       <div>
-        <Button type="submit" variant="primary" loading={busy} disabled={code.trim() === ''}>
+        <Button type="submit" variant="primary" loading={busy}>
           Download and import
         </Button>
       </div>

@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import { session, type UserProfile } from '../auth/session.ts';
 import { Button, Card, Checkbox, TextField } from '../../shared/ui/index.ts';
+import { check, maxLength } from '../../shared/lib/validation.ts';
 
 export function AccountView({ user }: { user: UserProfile }) {
   const [name, setName] = useState(user.displayName ?? '');
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
   const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,12 +37,27 @@ export function AccountView({ user }: { user: UserProfile }) {
       </dl>
       <form
         className="form"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => session.updateDisplayName(name.trim() === '' ? null : name.trim()), 'Saved.');
+          const invalid = check({ name }, { name: [maxLength(80, 'The name')] }).name;
+          setNameError(invalid);
+          if (invalid === undefined) {
+            void run(() => session.updateDisplayName(name.trim() === '' ? null : name.trim()), 'Saved.');
+          }
         }}
       >
-        <TextField label="Name" type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField
+          label="Name"
+          type="text"
+          maxLength={80}
+          value={name}
+          error={nameError}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameError(undefined);
+          }}
+        />
         <Button type="submit" loading={busy}>
           Save name
         </Button>

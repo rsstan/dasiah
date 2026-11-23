@@ -1,10 +1,10 @@
 // The maps the user looked at (newest first, 50 kept), with a city filter and "show older".
-import { useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import { CityFilter } from '../cities/CityFilter.tsx';
 import type { City } from '../../models/types.ts';
 import { useHistory, type HistoryEntry } from './api.ts';
 import { Button, Card, Skeleton } from '../../shared/ui/index.ts';
+import { useParam } from '../../shared/lib/useParam.ts';
 
 export type { HistoryEntry } from './api.ts';
 
@@ -14,7 +14,7 @@ export function HistoryList({ cities, onOpen }: { cities: readonly City[]; onOpe
   const error = history.isError ? describeError(history.error) : undefined;
   const loading = history.isPending || history.isFetchingNextPage;
 
-  const [cityFilter, setCityFilter] = useState('');
+  const [cityFilter, setCityFilter] = useParam<string>('city', '');
   const loaded = history.data?.pages.flatMap((p) => p.items) ?? [];
   const items = loaded.filter((h) => cityFilter === '' || h.cityCode === cityFilter);
   return (

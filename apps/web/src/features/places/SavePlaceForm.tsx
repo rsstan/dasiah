@@ -3,6 +3,7 @@ import { describeError } from '../../shared/api/client.ts';
 import type { Origin } from '../map/urlState.ts';
 import type { PlaceKind, Places } from './api.ts';
 import { Button, Select, TextField } from '../../shared/ui/index.ts';
+import { labelConflict, validateLabel } from './validation.ts';
 
 export const KIND_LABEL: Record<PlaceKind, string> = { home: 'Home', work: 'Work', study: 'Study', other: 'Other' };
 
@@ -17,6 +18,7 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
   const [label, setLabel] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | undefined>(undefined);
+  const [labelError, setLabelError] = useState<string | undefined>(undefined);
 
   if (!open) {
     return (
@@ -33,6 +35,11 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    const invalid = validateLabel(label, 'save');
+    setLabelError(invalid);
+    if (invalid !== undefined) {
+      return;
+    }
     setBusy(true);
     const name = label.trim() === '' ? KIND_LABEL[kind] : label.trim();
     try {
@@ -47,14 +54,19 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
       setOpen(false);
       setLabel('');
     } catch (err) {
-      setMessage({ error: true, text: describeError(err) });
+      const conflict = labelConflict(err);
+      if (conflict !== undefined) {
+        setLabelError(conflict);
+      } else {
+        setMessage({ error: true, text: describeError(err) });
+      }
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <form className="save-place form" onSubmit={(e) => void submit(e)}>
+    <form className="save-place form" noValidate onSubmit={(e) => void submit(e)}>
       <Select label="Kind" value={kind} onChange={(e) => setKind(e.target.value as PlaceKind)}>
         {Object.entries(KIND_LABEL).map(([k, v]) => (
           <option key={k} value={k}>
@@ -68,7 +80,12 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
         maxLength={60}
         placeholder={KIND_LABEL[kind]}
         value={label}
-        onChange={(e) => setLabel(e.target.value)}
+        hint="Empty: the kind's name."
+        error={labelError}
+        onChange={(e) => {
+          setLabel(e.target.value);
+          setLabelError(undefined);
+        }}
       />
       {message?.error === true && (
         <p className="form-error" role="alert">

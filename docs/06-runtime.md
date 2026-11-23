@@ -111,7 +111,8 @@ One Dockerfile for every Node service: `infra/docker/service.Dockerfile`, build 
 `SERVICE` (e.g. `services/identity`). Stage 1 installs production dependencies of that service
 and its workspace packages only (`pnpm install --prod --filter "{./$SERVICE}..."`); stage 2 copies
 them with the sources, runs as user `node` with root-owned read-only files, and checks
-`/health/ready`. There is no build step: Node strips the types at run time, so the workspace
+`/health/ready` (start period 60 s and 5 retries, so a slow start on a busy machine or CI runner
+is not taken for a failure). There is no build step: Node strips the types at run time, so the workspace
 layout is kept (Node does not strip types under `node_modules`).
 
 `infra/docker/web.Dockerfile`: Vite build, then `caddy` serving the files (hashed assets cached
