@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { describeError } from '../api/client.ts';
 import type { City } from '../api/types.ts';
+import { CityFilter } from '../components/CityFilter.tsx';
 import { PLACE_LIMIT, type Places, type SavedPlace } from '../session/usePlaces.ts';
 import { KIND_LABEL } from './SavePlaceForm.tsx';
 
@@ -13,6 +14,8 @@ interface Props {
 export function PlacesList({ places, cities, onShow }: Props) {
   const [editing, setEditing] = useState<{ id: string; label: string } | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [cityFilter, setCityFilter] = useState('');
+  const shown = places.items.filter((p) => cityFilter === '' || p.cityCode === cityFilter);
   const cityName = (code: string) => cities.find((c) => c.code === code)?.name ?? code;
 
   const act = async (fn: () => Promise<void>) => {
@@ -42,8 +45,14 @@ export function PlacesList({ places, cities, onShow }: Props) {
       {!places.loading && places.items.length === 0 && (
         <p className="hint">No saved places yet. Pick a start point on the map and save it.</p>
       )}
+      <CityFilter
+        cities={cities}
+        present={places.items.map((p) => p.cityCode)}
+        value={cityFilter}
+        onChange={setCityFilter}
+      />
       <ul className="items">
-        {places.items.map((p) => (
+        {shown.map((p) => (
           <li key={p.placeId}>
             {editing?.id === p.placeId ? (
               <form

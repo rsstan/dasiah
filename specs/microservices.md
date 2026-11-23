@@ -169,7 +169,7 @@ healthy and returns only when the whole stack works (or names the container that
 
 | What | Where |
 | --- | --- |
-| The map | <http://localhost:8000>: choose **Warsaw** (the small synthetic timetable "testville"), type `Central Station`, pick the suggestion |
+| The map | <http://localhost:8000>: the home page lists the cities; open **Warsaw** (<http://localhost:8000/cities/waw>, the small synthetic timetable "testville"), type `Central Station`, pick the suggestion |
 | Health of the gateway and every service | <http://localhost:8000/health> (JSON: Redis and each service `ok` or not) |
 | Containers and their state | `docker compose ps` |
 | Logs of a service (JSON, with `correlation_id`) | `docker compose logs -f accessibility` |

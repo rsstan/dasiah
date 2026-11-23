@@ -10,7 +10,7 @@ export function NotFoundPage() {
       <p className="hint">
         There is nothing at <code>{location.pathname}</code>.
       </p>
-      <Link to="/">Go to the map</Link>
+      <Link to="/">See all cities</Link>
     </section>
   );
 }

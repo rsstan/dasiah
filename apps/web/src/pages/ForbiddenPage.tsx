@@ -7,7 +7,7 @@ export function ForbiddenPage() {
       <p className="status-code">403</p>
       <h2 id="forbidden-title">No access</h2>
       <p className="hint">This page is for administrators.</p>
-      <Link to="/">Go to the map</Link>
+      <Link to="/">See all cities</Link>
     </section>
   );
 }

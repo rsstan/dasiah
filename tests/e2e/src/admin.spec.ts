@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { e2eEnv } from './support.ts';
 
 test('admin: coverage and feed versions; unknown source refused', async ({ page }) => {
-  await page.goto('/?city=waw');
+  await page.goto('/');
   await page.getByRole('link', { name: 'Sign in' }).click();
   await page.getByLabel('Email').fill('demo.admin@example.com');
   await page.getByLabel('Password').fill(e2eEnv('SEED_DEMO_PASSWORD'));

@@ -3,6 +3,7 @@
 import type { GatewayApi } from '@heatmap/contracts';
 import { useEffect, useState } from 'react';
 import { describeError, request } from '../api/client.ts';
+import { CityFilter } from '../components/CityFilter.tsx';
 import type { City } from '../api/types.ts';
 
 export type HistoryEntry = GatewayApi.components['schemas']['HistoryEntry'];
@@ -36,11 +37,14 @@ export function HistoryList({ cities, onOpen }: { cities: readonly City[]; onOpe
     return () => controller.abort();
   }, [cursor]);
 
-  const items = pages.flatMap((p) => p.items);
+  const [cityFilter, setCityFilter] = useState('');
+  const loaded = pages.flatMap((p) => p.items);
+  const items = loaded.filter((h) => cityFilter === '' || h.cityCode === cityFilter);
   const next = pages.at(-1)?.nextCursor ?? null;
   return (
     <section className="list-view" aria-label="History">
       <h2>History</h2>
+      <CityFilter cities={cities} present={loaded.map((h) => h.cityCode)} value={cityFilter} onChange={setCityFilter} />
       {state.error !== undefined && <p className="form-error">{state.error}</p>}
       {!state.loading && items.length === 0 && state.error === undefined && (
         <p className="hint">Maps you compute while signed in appear here.</p>

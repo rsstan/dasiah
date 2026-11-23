@@ -22,10 +22,10 @@ export const PASSWORD = 'correct horse battery staple';
 
 export const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 
-/** Opens the map page on Warsaw (testville is its active feed). */
+/** Opens the city route of Warsaw (testville is its active feed). */
 export async function openWarsaw(page: Page): Promise<void> {
-  await page.goto('/?city=waw');
-  await expect(page.getByRole('radio', { name: 'Warsaw' })).toHaveAttribute('aria-checked', 'true');
+  await page.goto('/cities/waw');
+  await expect(page.getByRole('heading', { name: /Warsaw/ })).toBeVisible();
 }
 
 /** Types an address, picks the first suggestion and waits for the map. */

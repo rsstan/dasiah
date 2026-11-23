@@ -2,11 +2,29 @@ import { expect, test } from '@playwright/test';
 import { e2eEnv } from './support.ts';
 
 test.describe('routes', () => {
+  test('home lists the cities; each opens its own route; unknown code and old links', async ({ page }) => {
+    await page.goto('/');
+    const cities = page.getByRole('list', { name: 'Cities' });
+    await expect(cities.getByRole('link')).toHaveCount(2);
+    await cities.getByRole('link', { name: /Warsaw/ }).click();
+    await expect(page).toHaveURL(/\/cities\/waw$/);
+    await expect(page.getByRole('heading', { name: /Warsaw/ })).toBeVisible();
+    await page.getByRole('link', { name: '← All cities' }).click();
+    await expect(page).toHaveURL(/\/$/);
+
+    await page.goto('/cities/xyz');
+    await expect(page.getByRole('heading', { name: 'City not found' })).toBeVisible();
+
+    // A link in the format before city routes still opens the same map.
+    await page.goto('/?city=waw&lat=52.2002&lon=21.0302');
+    await expect(page).toHaveURL(/\/cities\/waw\?lat=52\.2002&lon=21\.0302/);
+  });
+
   test('an unknown address shows the not-found page', async ({ page }) => {
     await page.goto('/no/such/page');
     await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
-    await page.getByRole('link', { name: 'Go to the map' }).click();
-    await expect(page).toHaveURL(/\/(\?.*)?$/);
+    await page.getByRole('link', { name: 'See all cities' }).click();
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('a protected page sends to sign-in and back; navigation, back and forward; admin page forbidden', async ({
@@ -36,6 +54,9 @@ test.describe('routes', () => {
 
     // Reloading a page keeps it (session restored from the cookie).
     await page.goto('/account');
+    // Wait until the session is restored (its token refresh finished) before reloading: a reload in
+    // the middle of a refresh presents the just-rotated token again (see the note in docs/plan.md).
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     await page.reload();
     await expect(page).toHaveURL(/\/account$/);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();

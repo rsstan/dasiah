@@ -19,6 +19,8 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 800 },
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
+    // The app honours "reduce motion" (the floating city buttons stop); clicks need still targets.
+    contextOptions: { reducedMotion: 'reduce' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

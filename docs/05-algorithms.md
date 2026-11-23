@@ -194,8 +194,10 @@ thresholds, the walking model, K, the horizon or the car factors requires bumpin
   canvas-interpolated layer is an optional later improvement.
 - Clicking a cell opens a popup with both times, the ratio and, for merged cells, how many cells
   the median covers; clicking outside the cells (or "Start here") picks a new start point.
-- City, start point (rounded to 4 decimals, about 10 m; never the address text) and departure
-  are kept in the query string, so a map can be shared and reloaded.
+- Every city has its route `/cities/<code>` (the home page `/` lists the cities of the instance,
+  from `GET /cities`); the start point (rounded to 4 decimals, about 10 m; never the address
+  text) and the departure are kept in its query string, so a map can be shared and reloaded.
+  Links of the earlier format `/?city=<code>&lat=..` are forwarded to the city route.
 - Layout: side panel and map on screens 768 px and wider; below that the map takes the top half
   and the panel scrolls underneath, with "Full map" folding the panel down to its header and the
   status line. Inputs use 16 px text (no zoom on focus in iOS), buttons are at least 40 px high.

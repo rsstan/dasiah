@@ -1,12 +1,13 @@
-// State of the map shared by every route: the map stays on screen while the user moves between
-// pages, and the places and history pages open a start point on it. A map is computed when the
-// user picks a start point (search, map click, saved place) or changes the departure; history
-// opens an earlier map by its id. Initial values come from a shared link (/?city=&lat=&lon=...).
+// State of the map of one city (/cities/:code). A map is computed when the user picks a start
+// point (search, map click, saved place) or changes the departure. The first map comes from the
+// address (/cities/vno?lat=..&lon=..&date=..&time=..) or from the page that navigated here: a
+// saved place (state.origin) or a history entry (state.history, opened by its calculation id).
 import { cellToLatLng } from 'h3-js';
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
+import type { HistoryEntry } from '../account/HistoryList.tsx';
 import type { City, LegendClass } from '../api/types.ts';
 import { useCalculation, type CalculationState } from '../calculation/useCalculation.ts';
-import type { HistoryEntry } from '../account/HistoryList.tsx';
 import { readUrlState, type Origin } from '../urlState.ts';
 
 export interface Departure {
@@ -14,19 +15,21 @@ export interface Departure {
   time: string;
 }
 
+/** What another page may hand over when it opens a city (react-router location state). */
+export interface CityNavigationState {
+  origin?: Origin;
+  history?: HistoryEntry;
+}
+
 export interface MapState {
-  cities: readonly City[];
-  legend: readonly LegendClass[];
   city: City;
+  legend: readonly LegendClass[];
   origin: Origin | undefined;
   departure: Departure;
   calculation: CalculationState;
-  /** New start point (possibly in another city); computes the map. */
-  pick(cityCode: string, point: Origin): void;
-  switchCity(cityCode: string): void;
+  /** New start point in this city; computes the map. */
+  pick(point: Origin): void;
   changeDeparture(departure: Departure): void;
-  /** Opens an earlier map; computes it again if it has expired. */
-  openHistory(entry: HistoryEntry): void;
   retry(): void;
 }
 
@@ -41,31 +44,35 @@ export function useMapState(): MapState {
 }
 
 interface Props {
-  cities: readonly City[];
+  city: City;
   legend: readonly LegendClass[];
   children: ReactNode;
 }
 
-export function MapStateProvider({ cities, legend, children }: Props) {
-  // A shared link only counts on the map route.
-  const initial = useMemo(() => (window.location.pathname === '/' ? readUrlState(window.location.search) : {}), []);
-  const [cityCode, setCityCode] = useState(
-    cities.some((c) => c.code === initial.city) ? (initial.city as string) : (cities[0] as City).code,
-  );
+export function MapStateProvider({ city, legend, children }: Props) {
+  const location = useLocation();
+  // Read once: the provider is created per city (keyed by its code).
+  const [initial] = useState<{ origin?: Origin; date?: string; time?: string; open?: string }>(() => {
+    const handed = (location.state ?? {}) as CityNavigationState;
+    if (handed.history !== undefined) {
+      const [lat, lon] = cellToLatLng(handed.history.originH3);
+      return { origin: { lat, lon, label: 'Start point from history' }, open: handed.history.calculationId };
+    }
+    const fromUrl = readUrlState(location.search);
+    return { origin: handed.origin ?? fromUrl.origin, date: fromUrl.date, time: fromUrl.time };
+  });
   const [origin, setOrigin] = useState<Origin | undefined>(initial.origin);
   const [departure, setDeparture] = useState<Departure>({ date: initial.date ?? '', time: initial.time ?? '08:00' });
-  const { state: calculation, run, reset } = useCalculation();
-  const city = cities.find((c) => c.code === cityCode) ?? (cities[0] as City);
+  const { state: calculation, run } = useCalculation();
 
   const compute = useCallback(
-    (code: string, point: Origin | undefined, dep: Departure, open?: string) => {
-      const target = cities.find((c) => c.code === code);
-      if (point === undefined || target?.activeFeed == null) {
+    (point: Origin | undefined, dep: Departure, open?: string) => {
+      if (point === undefined || city.activeFeed === null) {
         return;
       }
       void run(
         {
-          cityCode: code,
+          cityCode: city.code,
           origin: { lat: point.lat, lon: point.lon },
           windowMinutes: 0,
           ...(dep.date === '' ? {} : { date: dep.date }),
@@ -78,77 +85,38 @@ export function MapStateProvider({ cities, legend, children }: Props) {
         }
       });
     },
-    [cities, run],
+    [city, run],
   );
 
-  // A shared link: compute its map on mount. (In development StrictMode mounts twice; the first
-  // request is cancelled by the unmount and the second one replaces it.)
+  // The first map, on mount. (In development StrictMode mounts twice; the first request is
+  // cancelled by the unmount and the second one replaces it.)
   useEffect(() => {
-    if (initial.origin !== undefined) {
-      compute(cityCode, initial.origin, departure);
-    }
+    compute(initial.origin, departure, initial.open);
     // Only on the first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pick = useCallback(
-    (code: string, point: Origin) => {
-      setCityCode(code);
+    (point: Origin) => {
       setOrigin(point);
-      compute(code, point, departure);
+      compute(point, departure);
     },
     [compute, departure],
-  );
-
-  const switchCity = useCallback(
-    (code: string) => {
-      if (code === cityCode) {
-        return;
-      }
-      reset();
-      setOrigin(undefined);
-      setDeparture((d) => ({ ...d, date: '' }));
-      setCityCode(code);
-    },
-    [cityCode, reset],
   );
 
   const changeDeparture = useCallback(
     (dep: Departure) => {
       setDeparture(dep);
-      compute(cityCode, origin, dep);
+      compute(origin, dep);
     },
-    [compute, cityCode, origin],
+    [compute, origin],
   );
 
-  const openHistory = useCallback(
-    (h: HistoryEntry) => {
-      const [lat, lon] = cellToLatLng(h.originH3);
-      const point = { lat, lon, label: 'Start point from history' };
-      setCityCode(h.cityCode);
-      setOrigin(point);
-      compute(h.cityCode, point, { date: '', time: '08:00' }, h.calculationId);
-    },
-    [compute],
-  );
-
-  const retry = useCallback(() => compute(cityCode, origin, departure), [compute, cityCode, origin, departure]);
+  const retry = useCallback(() => compute(origin, departure), [compute, origin, departure]);
 
   const value = useMemo<MapState>(
-    () => ({
-      cities,
-      legend,
-      city,
-      origin,
-      departure,
-      calculation,
-      pick,
-      switchCity,
-      changeDeparture,
-      openHistory,
-      retry,
-    }),
-    [cities, legend, city, origin, departure, calculation, pick, switchCity, changeDeparture, openHistory, retry],
+    () => ({ city, legend, origin, departure, calculation, pick, changeDeparture, retry }),
+    [city, legend, origin, departure, calculation, pick, changeDeparture, retry],
   );
   return <MapStateContext value={value}>{children}</MapStateContext>;
 }

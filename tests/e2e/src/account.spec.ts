@@ -26,7 +26,7 @@ test('account: register, save a place, history, session after reload, delete acc
 
   // History is filled from accessibility.calculation.completed.v1, asynchronously.
   await expect(async () => {
-    await tabs.getByRole('link', { name: 'Map' }).click();
+    await tabs.getByRole('link', { name: 'Cities' }).click();
     await tabs.getByRole('link', { name: 'History' }).click();
     await expect(page.locator('.items li')).not.toHaveCount(0, { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
