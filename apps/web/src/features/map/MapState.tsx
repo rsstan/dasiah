@@ -2,7 +2,6 @@
 // point (search, map click, saved place) or changes the departure. The first map comes from the
 // address (/cities/vno?lat=..&lon=..&date=..&time=..) or from the page that navigated here: a
 // saved place (state.origin) or a history entry (state.history, opened by its calculation id).
-import { cellToLatLng } from 'h3-js';
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import type { HistoryEntry } from '../history/index.ts';
@@ -54,11 +53,12 @@ export function MapStateProvider({ city, legend, children }: Props) {
   // Read once: the provider is created per city (keyed by its code).
   const [initial] = useState<{ origin?: Origin; date?: string; time?: string; open?: string }>(() => {
     const handed = (location.state ?? {}) as CityNavigationState;
-    if (handed.history !== undefined) {
-      const [lat, lon] = cellToLatLng(handed.history.originH3);
-      return { origin: { lat, lon, label: 'Start point from history' }, open: handed.history.calculationId };
-    }
     const fromUrl = readUrlState(location.search);
+    if (handed.history !== undefined) {
+      // The history page puts the centre of the start cell into the address.
+      const origin = fromUrl.origin && { ...fromUrl.origin, label: 'Start point from history' };
+      return { origin, open: handed.history.calculationId };
+    }
     return { origin: handed.origin ?? fromUrl.origin, date: fromUrl.date, time: fromUrl.time };
   });
   const [origin, setOrigin] = useState<Origin | undefined>(initial.origin);

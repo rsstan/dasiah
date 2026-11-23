@@ -2,7 +2,8 @@ import { cellToChildren, cellToParent, latLngToCell } from 'h3-js';
 import { describe, expect, it } from 'vitest';
 import type { CellResult } from '../../models/types.ts';
 import { LEGEND } from '../../shared/test-support.ts';
-import { aggregate, classify, formatDuration, median, resolutionForZoom, toFeatureCollection } from './hexagons.ts';
+import { formatDuration, resolutionForZoom } from './display.ts';
+import { aggregate, classify, median, toFeatureCollection } from './hexagons.ts';
 
 const parent = cellToParent(latLngToCell(54.687, 25.28, 9), 8);
 const children = cellToChildren(parent, 9);

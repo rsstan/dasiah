@@ -1,6 +1,6 @@
 // Layout of a city (/cities/:code): the side panel (menu, the city, the current page) and the map.
 // The map state belongs to one city, so it is created anew when the code changes.
-import { Suspense, useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { Link, Outlet, useParams } from 'react-router';
 import { MapView, MapStateProvider, useMapState } from '../features/map/index.ts';
 import { useCityData } from '../features/cities/index.ts';
@@ -25,6 +25,11 @@ function Workspace() {
   const { city, legend, origin, calculation, pick } = useMapState();
   /** Phones only: the panel folded down to its header and status, the map takes the screen. */
   const [mapOnly, setMapOnly] = useState(false);
+  // Stable, so the memoised map does not re-render when only the panel changes.
+  const onPick = useCallback(
+    (point: { lat: number; lon: number }) => pick({ ...point, label: 'Point on the map' }),
+    [pick],
+  );
   return (
     <div className={mapOnly ? 'app map-only' : 'app'}>
       <aside className="panel">
@@ -53,7 +58,7 @@ function Workspace() {
             results={calculation.kind === 'done' ? calculation.results : undefined}
             legend={legend}
             origin={origin}
-            onPick={(point) => pick({ ...point, label: 'Point on the map' })}
+            onPick={onPick}
           />
         </Suspense>
       </main>

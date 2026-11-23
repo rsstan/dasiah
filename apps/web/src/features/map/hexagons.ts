@@ -15,12 +15,6 @@ export interface MapCell {
   count: number;
 }
 
-/** H3 resolution drawn at a zoom level, never finer than the data. */
-export function resolutionForZoom(zoom: number, dataResolution: number): number {
-  const wanted = zoom < 10 ? 7 : zoom <= 12 ? 8 : 9;
-  return Math.min(wanted, dataResolution);
-}
-
 export function median(values: readonly number[]): number | null {
   if (values.length === 0) {
     return null;
@@ -109,14 +103,17 @@ export function toFeatureCollection(cells: readonly MapCell[], legend: readonly 
   return { type: 'FeatureCollection' as const, features };
 }
 
-/** "1 h 05 min", "23 min", "—". */
-export function formatDuration(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined) {
-    return '—';
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
+export type CellCollection = ReturnType<typeof toFeatureCollection>;
+
+/** A job for the hexagon worker (hexagons.worker.ts); `id` matches the answer to the request. */
+export interface PrepareRequest {
+  id: number;
+  cells: readonly CellResult[];
+  resolution: number;
+  legend: readonly LegendClass[];
+}
+
+/** What the map draws for result cells at a resolution: merged cells as coloured polygons. */
+export function prepare({ cells, resolution, legend }: Omit<PrepareRequest, 'id'>): CellCollection {
+  return toFeatureCollection(aggregate(cells, resolution, legend), legend);
 }

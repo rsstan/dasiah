@@ -8,9 +8,11 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // MapLibre finds its worker next to its own module, which is not where Vite serves the
 // pre-bundled copy from; point it at the worker file explicitly (also emitted by the build).
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { BoundingBox, CalculationResults, Coordinates, LegendClass } from '../../models/types.ts';
-import { aggregate, formatDuration, resolutionForZoom, toFeatureCollection, type MapCell } from './hexagons.ts';
+import { formatDuration, resolutionForZoom } from './display.ts';
+import type { CellCollection, MapCell } from './hexagons.ts';
+import { useHexagons } from './useHexagons.ts';
 import { logger } from '../../shared/lib/logger.ts';
 
 maplibregl.setWorkerUrl(workerUrl);
@@ -20,7 +22,7 @@ export const MAP_STYLE_URL: string =
 
 const SOURCE = 'cells';
 const FILL = 'cells-fill';
-const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+const EMPTY: CellCollection = { type: 'FeatureCollection', features: [] };
 
 interface Props {
   bounds: BoundingBox;
@@ -30,7 +32,9 @@ interface Props {
   onPick: (point: Coordinates) => void;
 }
 
-export function MapView({ bounds, results, legend, origin, onPick }: Props) {
+// Memoised: the city layout re-renders on every change of the map state (status, departure),
+// while the map needs to re-render only when its own props change.
+export const MapView = memo(function MapView({ bounds, results, legend, origin, onPick }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | undefined>(undefined);
   const markerRef = useRef<maplibregl.Marker | undefined>(undefined);
@@ -120,24 +124,21 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
   }, [bounds.west, bounds.south, bounds.east, bounds.north]);
 
   const resolution = results === undefined ? undefined : resolutionForZoom(zoom, results.resolution);
-  const data = useMemo(
-    () =>
-      results === undefined || resolution === undefined
-        ? EMPTY
-        : toFeatureCollection(aggregate(results.cells, resolution, legend), legend),
-    [results, resolution, legend],
-  );
+  // Prepared off the main thread; while a new resolution is prepared the previous cells stay.
+  const prepared = useHexagons(results, resolution, legend);
+  const data = results === undefined ? EMPTY : prepared;
 
-  /** The cell data the map has finished drawing (exposed as data-cells for tests and tools). */
-  const [drawn, setDrawn] = useState<typeof data | undefined>(undefined);
+  /** The cell data the map has finished drawing (exposed as data-cells and data-resolution for tests). */
+  const [drawn, setDrawn] = useState<CellCollection | undefined>(undefined);
   useEffect(() => {
     const map = mapRef.current;
-    if (loaded && map !== undefined) {
+    if (loaded && map !== undefined && data !== undefined) {
       (map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(data);
       map.once('idle', () => setDrawn(data));
     }
   }, [loaded, data]);
-  const cellsState = data.features.length === 0 ? 'empty' : drawn === data ? 'ready' : 'drawing';
+  const cellsState =
+    data === undefined ? 'preparing' : data.features.length === 0 ? 'empty' : drawn === data ? 'ready' : 'drawing';
 
   useEffect(() => {
     const map = mapRef.current;
@@ -150,11 +151,18 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
 
   return (
     <div className="map-wrap">
-      <div ref={container} className="map" role="region" aria-label="Map" data-cells={cellsState} />
+      <div
+        ref={container}
+        className="map"
+        role="region"
+        aria-label="Map"
+        data-cells={cellsState}
+        data-resolution={resolution}
+      />
       {mapError !== undefined && <p className="map-error">{mapError}</p>}
     </div>
   );
-}
+});
 
 function popupContent(cell: MapCell, legend: readonly LegendClass[], onStartHere: () => void): HTMLElement {
   const root = document.createElement('div');

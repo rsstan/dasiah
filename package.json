@@ -35,6 +35,7 @@
     "db:psql": "scripts/with-env.sh scripts/db-as.sh",
     "web:dev": "pnpm --filter @heatmap/web run dev",
     "web:build": "pnpm --filter @heatmap/web run build",
+    "web:analyze": "pnpm --filter @heatmap/web run analyze",
     "full:up": "pnpm -s compose --profile full up -d --build --wait --wait-timeout 600",
     "full:down": "pnpm -s compose --profile full down",
     "e2e:up": "scripts/e2e.sh up",

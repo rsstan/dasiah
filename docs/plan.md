@@ -110,7 +110,7 @@ Testing Library.
       Done when: every required documentation section exists and links to the code; the requirements matrix front-end rows point to it.
 - [x] 8A.8 Direction 1, advanced architecture: feature modules with public entry points (`features/*/index.ts`) and no cross-feature imports except through them; lazy-loaded routes (`React.lazy` + `Suspense` with skeletons).
       Done when: an ESLint import rule enforces the module boundaries; the production build has one chunk per lazy route.
-- [ ] 8A.9 Direction 3, performance: code splitting (map engine, admin and account loaded on demand), hexagon polygons and zoom merging in a Web Worker, memoisation of expensive components and selectors, bundle analysis report, Lighthouse >= 90 on desktop and mobile.
+- [x] 8A.9 Direction 3, performance: code splitting (map engine, admin and account loaded on demand), hexagon polygons and zoom merging in a Web Worker, memoisation of expensive components and selectors, bundle analysis report, Lighthouse >= 90 on desktop and mobile.
       Done when: the initial JavaScript of the sign-in and places routes does not include MapLibre; the map stays responsive while 5 000 cells are prepared; bundle report and Lighthouse results (desktop and mobile) are in `docs/evidence/frontend-performance.md`.
 - [ ] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
 

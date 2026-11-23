@@ -746,14 +746,17 @@
   padding: 14px 22px 14px 16px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(10px);
+  /* No backdrop blur here: a blurred backdrop under a moving element is recomputed every frame
+     (seconds of main-thread work on a slow phone); a nearly opaque fill looks the same. */
+  background: rgba(255, 255, 255, 0.9);
   box-shadow:
     0 10px 30px rgba(15, 23, 42, 0.08),
     0 1px 2px rgba(15, 23, 42, 0.06);
   color: var(--text);
   text-decoration: none;
   text-align: left;
+  /* Only transform is animated, on its own compositor layer. */
+  will-change: transform;
   animation: float 6s ease-in-out infinite;
   transition:
     transform 0.2s ease,
@@ -862,9 +865,8 @@
   gap: 6px;
   padding: 18px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
 }
 
 .how li::before {

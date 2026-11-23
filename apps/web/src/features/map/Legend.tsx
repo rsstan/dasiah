@@ -1,6 +1,8 @@
+import { memo } from 'react';
 import type { LegendClass } from '../../models/types.ts';
 
-export function Legend({ classes }: { classes: readonly LegendClass[] }) {
+// Memoised: the legend comes from the query cache and does not change while the map state does.
+export const Legend = memo(function Legend({ classes }: { classes: readonly LegendClass[] }) {
   const sorted = [...classes].sort((a, b) => a.sortOrder - b.sortOrder);
   return (
     <section className="legend" aria-label="Legend">
@@ -16,7 +18,7 @@ export function Legend({ classes }: { classes: readonly LegendClass[] }) {
       </ul>
     </section>
   );
-}
+});
 
 function range(c: LegendClass): string {
   if (c.minRatio === null) {

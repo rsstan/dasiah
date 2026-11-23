@@ -10,6 +10,7 @@
 - [Architecture diagram](#architecture-diagram)
 - [Architecture approach](#architecture-approach)
 - [Modules and loading](#modules-and-loading)
+- [Performance](#performance)
 - [Routes](#routes)
 - [State management](#state-management)
 - [User flows and navigation](#user-flows-and-navigation)
@@ -141,14 +142,35 @@ feature's entry exports `MapView` as a lazy component, so importing anything els
 feature (such as `toSearch` on the places page) never loads MapLibre, and the city layout shows
 "Loading the map…" while it arrives.
 
-Chunks of the production build (`pnpm web:build`, sizes before gzip):
+Chunks of the production build (`pnpm web:build`, gzip; the full table and a treemap are in the
+[performance evidence](../docs/evidence/frontend-performance.md#bundle-analysis)):
 
 | Chunk | Loaded | Size |
 | --- | --- | --- |
-| `index` (React, router, query, home page, layouts) + `ui` (kit) + `logger` | at start | 479 + 106 + 9 kB |
-| `MapPage` · `SignInPage` · `PlacesPage` · `HistoryPage` · `AccountPage` · `AdminPage` | with their route | 2 · 0.6 · 0.5 · 3 · 2 · 10 kB |
-| `MapView` (MapLibre GL) | with the first city map | 1 089 kB |
-| `places`, `useMutation`, `useParam` | shared by several pages | 6 · 2 · 0.6 kB |
+| `index` (React DOM, query, layouts, home page) + `ui` (router, kit) + `logger` | at start | 85 + 35 + 4 kB |
+| `MapPage` · `SignInPage` · `PlacesPage` · `HistoryPage` · `AccountPage` · `AdminPage` | with their route | 1 · 0.4 · 0.3 · 1.3 · 1.1 · 4 kB |
+| `MapView` (MapLibre GL) | with the first city map | 297 kB |
+| `hexagons.worker` (H3), `maplibre-gl-worker` | in workers on the map page | 206, 520 kB raw |
+
+## Performance
+
+Details and measurements: [docs/evidence/frontend-performance.md](../docs/evidence/frontend-performance.md).
+
+- **Code splitting:** lazy pages and a lazy map engine (above); h3-js is not in the start chunk.
+  The first visit of `/`, `/sign-in` or `/places` loads about 125 kB of JavaScript (gzip), none of
+  it MapLibre (checked by an end-to-end test).
+- **Web Worker:** the polygons of the cells and their merging when zoomed out are prepared in
+  [hexagons.worker.ts](../apps/web/src/features/map/hexagons.worker.ts) by
+  [useHexagons](../apps/web/src/features/map/useHexagons.ts): one worker per map, results kept per
+  resolution, stale answers dropped, main-thread fallback where workers are missing or fail. With
+  5 333 cells and a four times slower CPU the median blocking time while a map is drawn drops
+  from 380 to 161 ms, and from 73 to 9 ms when zooming out.
+- **Memoisation:** `MapView` and `Legend` are memoised and the map gets a stable callback, so the
+  map does not re-render with every change of the panel. Small lists are not memoised.
+- **Lighthouse** (`scripts/lighthouse.sh`): home and sign-in 99–100 on desktop and mobile, the
+  map 99 on desktop; the map on mobile scores 68, a justified exception (the 297 kB engine and
+  the requests the map needs on simulated slow 4G).
+- **Bundle report:** `pnpm web:analyze` writes a treemap to `apps/web/dist/stats.html`.
 
 ## Routes
 
@@ -357,9 +379,9 @@ POST /api/v1/places
 
 | Kind | What | Where |
 | --- | --- | --- |
-| Unit | ESLint boundary rule, API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
+| Unit | ESLint boundary rule, hexagon worker hook (cache, stale answers, fallback), API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
 | Component (Testing Library, jsdom) | sign-in/registration form, places list (sort, filter, delete dialog, rename conflict), route guards (session check, sign-in and return, 403, 404), home page, error boundaries | `*.test.tsx`; helpers in [shared/test/render.tsx](../apps/web/src/shared/test/render.tsx) |
-| End to end (Playwright) | map, account, admin, routes and navigation against the full stack | [tests/e2e/](../tests/e2e/) |
+| End to end (Playwright) | map, account, admin, routes and navigation, performance (main-thread blocking with and without the worker; no map engine on sign-in and places) against the full stack | [tests/e2e/](../tests/e2e/) |
 
 `pnpm test` runs unit and component tests; `pnpm e2e:up && pnpm e2e` the end-to-end suite.
 
