@@ -2,8 +2,9 @@
 // import status, activation of a validated version. Routes are admin-only at the gateway; the tab
 // is shown only to admins.
 import { useState, type FormEvent } from 'react';
-import { describeError } from '../../shared/api/client.ts';
+import { ApiError, describeError } from '../../shared/api/client.ts';
 import type { City } from '../../models/types.ts';
+import { Badge, Button, Card, Dialog, Select, Table, TextField, type BadgeTone } from '../../shared/ui/index.ts';
 import {
   IN_PROGRESS,
   useActivateVersion,
@@ -31,37 +32,31 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
   const running = versions.some((v) => IN_PROGRESS.includes(v.status));
 
   return (
-    <section className="admin list-view" aria-label="Administration">
-      <h2>Administration</h2>
+    <Card className="admin list-view" aria-label="Administration" title="Administration">
       <Coverage cities={cities} />
       <ImportForm sources={sourcesOf(versions)} />
       <h3>Feed versions</h3>
       <div className="filters">
-        <label>
-          Status
-          <select
-            value={filter.status}
-            onChange={(e) => setFilter({ ...filter, status: e.target.value as FeedStatus | '' })}
-          >
-            <option value="">all</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Source
-          <select value={filter.source} onChange={(e) => setFilter({ ...filter, source: e.target.value })}>
-            <option value="">all</option>
-            {sourcesOf(versions).map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Status"
+          value={filter.status}
+          onChange={(e) => setFilter({ ...filter, status: e.target.value as FeedStatus | '' })}
+        >
+          <option value="">all</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+        <Select label="Source" value={filter.source} onChange={(e) => setFilter({ ...filter, source: e.target.value })}>
+          <option value="">all</option>
+          {sourcesOf(versions).map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
       </div>
       {running && <p className="hint">An import is running; the list refreshes every few seconds.</p>}
       {listError !== undefined && <p className="form-error">{listError}</p>}
@@ -75,54 +70,59 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
         ))}
       </ul>
       {versions.length === 0 && listError === undefined && <p className="hint">No feed versions.</p>}
-    </section>
+    </Card>
   );
 }
 
-type CityCoverageRow = NonNullable<ReturnType<typeof useCoverage>[number]['data']> | string | undefined;
+/** Colour of a feed status. */
+export const STATUS_TONE: Record<FeedStatus, BadgeTone> = {
+  active: 'success',
+  validated: 'info',
+  downloaded: 'warning',
+  staged: 'warning',
+  archived: 'neutral',
+  failed: 'danger',
+};
 
 function Coverage({ cities }: { cities: readonly City[] }) {
   const results = useCoverage(cities);
-  const rows: Record<string, CityCoverageRow> = {};
-  cities.forEach((city, i) => {
+  const rows = cities.map((city, i) => {
     const result = results[i];
-    rows[city.code] = result?.data ?? (result?.isError === true ? describeError(result.error) : undefined);
+    return {
+      city,
+      data: result?.data,
+      note:
+        result?.isError === true
+          ? result.error instanceof ApiError && result.error.status === 404
+            ? 'no timetable'
+            : describeError(result.error)
+          : result?.isPending === true
+            ? '…'
+            : '—',
+    };
   });
+  type Row = (typeof rows)[number];
   return (
-    <table className="coverage">
-      <caption>Active timetables</caption>
-      <thead>
-        <tr>
-          <th scope="col">City</th>
-          <th scope="col">Version</th>
-          <th scope="col">Stops</th>
-          <th scope="col">Trips</th>
-          <th scope="col">Cells with a stop</th>
-        </tr>
-      </thead>
-      <tbody>
-        {cities.map((city) => {
-          const row = rows[city.code];
-          return (
-            <tr key={city.code}>
-              <th scope="row">{city.name}</th>
-              {typeof row === 'object' ? (
-                <>
-                  <td>{row.feedVersionId}</td>
-                  <td>{row.stops.toLocaleString('en')}</td>
-                  <td>{row.trips.toLocaleString('en')}</td>
-                  <td>{row.hexTotal === 0 ? '—' : `${Math.round((100 * row.hexWithStop) / row.hexTotal)} %`}</td>
-                </>
-              ) : (
-                <td colSpan={4} className="hint">
-                  {row ?? '…'}
-                </td>
-              )}
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <Table<Row>
+      className="coverage"
+      caption="Active timetables"
+      rows={rows}
+      rowKey={(r) => r.city.code}
+      columns={[
+        { header: 'City', rowHeader: true, cell: (r) => r.city.name },
+        { header: 'Version', optional: true, align: 'end', cell: (r) => r.data?.feedVersionId ?? r.note },
+        { header: 'Stops', align: 'end', cell: (r) => r.data?.stops.toLocaleString('en') ?? '—' },
+        { header: 'Trips', align: 'end', cell: (r) => r.data?.trips.toLocaleString('en') ?? '—' },
+        {
+          header: 'Cells with a stop',
+          align: 'end',
+          cell: (r) =>
+            r.data === undefined || r.data.hexTotal === 0
+              ? '—'
+              : `${Math.round((100 * r.data.hexWithStop) / r.data.hexTotal)} %`,
+        },
+      ]}
+    />
   );
 }
 
@@ -151,26 +151,26 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
   return (
     <form className="form import" onSubmit={(e) => void submit(e)}>
       <h3>Import</h3>
-      <label>
-        Feed source
-        <input
-          type="text"
-          list="feed-sources"
-          required
-          pattern="[a-z0-9_]+"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="e.g. vno_vvt"
-        />
-        <datalist id="feed-sources">
-          {sources.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-      </label>
-      <button type="submit" className="primary" disabled={busy || code.trim() === ''}>
-        {busy ? 'Downloading…' : 'Download and import'}
-      </button>
+      <TextField
+        label="Feed source"
+        type="text"
+        list="feed-sources"
+        required
+        pattern="[a-z0-9_]+"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="e.g. vno_vvt"
+      />
+      <datalist id="feed-sources">
+        {sources.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
+      <div>
+        <Button type="submit" variant="primary" loading={busy} disabled={code.trim() === ''}>
+          Download and import
+        </Button>
+      </div>
       {message !== undefined && (
         <p className={message.error ? 'form-error' : 'hint'} role={message.error ? 'alert' : 'status'}>
           {message.text}
@@ -182,16 +182,15 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
 
 function VersionItem({ version: v, cityName }: { version: FeedVersion; cityName: string }) {
   const activation = useActivateVersion();
-  const busy = activation.isPending;
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const activate = async () => {
-    if (!window.confirm(`Activate version ${v.feedVersionId} for ${cityName}? New maps of the city will use it.`)) {
-      return;
-    }
     setError(undefined);
     try {
       await activation.mutateAsync(v.feedVersionId);
+      setConfirming(false);
     } catch (err) {
+      setConfirming(false);
       setError(describeError(err));
     }
   };
@@ -201,7 +200,7 @@ function VersionItem({ version: v, cityName }: { version: FeedVersion; cityName:
         <strong>
           #{v.feedVersionId} · {cityName}
         </strong>
-        <span className={`badge status-${v.status}`}>{v.status}</span>
+        <Badge tone={STATUS_TONE[v.status]}>{v.status}</Badge>
       </div>
       <span className="meta">
         {v.sourceCode} · fetched {new Date(v.fetchedAt).toLocaleString()}
@@ -217,15 +216,25 @@ function VersionItem({ version: v, cityName }: { version: FeedVersion; cityName:
       </span>
       {v.errorMessage !== null && <span className="form-error">{v.errorMessage}</span>}
       {v.status === 'validated' && (
-        <button type="button" className="primary" disabled={busy} onClick={() => void activate()}>
+        <Button variant="primary" size="sm" onClick={() => setConfirming(true)}>
           Activate
-        </button>
+        </Button>
       )}
       {error !== undefined && (
         <span className="form-error" role="alert">
           {error}
         </span>
       )}
+      <Dialog
+        open={confirming}
+        title={`Activate version ${v.feedVersionId}?`}
+        confirmLabel="Activate"
+        busy={activation.isPending}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void activate()}
+      >
+        New maps of {cityName} will use this timetable; the current one is archived.
+      </Dialog>
     </li>
   );
 }

@@ -1,6 +1,6 @@
 // "City: all / Vilnius / Warsaw ..." above a list; offers only the cities present in it.
-import { useId } from 'react';
 import type { City } from '../../models/types.ts';
+import { Select } from '../../shared/ui/index.ts';
 
 interface Props {
   cities: readonly City[];
@@ -11,22 +11,18 @@ interface Props {
 }
 
 export function CityFilter({ cities, present, value, onChange }: Props) {
-  const id = useId();
   const options = cities.filter((c) => present.includes(c.code)).sort((a, b) => a.name.localeCompare(b.name));
   if (options.length < 2) {
     return null;
   }
   return (
-    <div className="city-filter">
-      <label htmlFor={id}>City</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">All cities</option>
-        {options.map((c) => (
-          <option key={c.code} value={c.code}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Select inline className="city-filter" label="City" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">All cities</option>
+      {options.map((c) => (
+        <option key={c.code} value={c.code}>
+          {c.name}
+        </option>
+      ))}
+    </Select>
   );
 }

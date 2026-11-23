@@ -68,7 +68,7 @@ Plan: phase 8A in `docs/plan.md`. Status as of 2026-11-23.
 | Local + global state | Local: React state in components; global server state: TanStack Query (cities, legend, places, history, admin, geocoding; one cache, retries, loading/error states); global client state: Zustand (session) | `queryClient.test.ts`, `session.test.ts`; browser check: places shared between city page and places page | ready |
 | Real API, typed data, centralised requests, errors and loading | Gateway API; types generated from OpenAPI (`@heatmap/contracts`); `src/api/client.ts` | `run.test.ts`, `session.test.ts` | ready |
 | Bundler, component-based UI | Vite; components per feature | Build | ready |
-| Reusable and layout components, own UI kit | `shared/ui` | Screens built from the kit | spec (8A.1, 8A.3) |
+| Reusable and layout components, own UI kit | Layouts `app/SiteLayout.tsx`, `app/CityLayout.tsx`; kit `apps/web/src/shared/ui`: Button/ButtonLink, TextField, Select, Checkbox, Card, Badge, Tabs, Table, Skeleton, Toast, Dialog, each with its CSS; design tokens in `styles/tokens.css` | Every screen built from the kit; dialogs replace `window.confirm` | ready |
 | Forms with validation, lists/tables, filter/search/sort | Auth, place, profile, import forms; places, history, versions lists; address search, city search on the home page, city filter on places and history, version filters | e2e account and admin tests | partial: field validation and sorting spec (8A.5) |
 | Responsive layout | `styles.css` phone layout | e2e at 390 px (8.4) | ready |
 | ESLint + Prettier, basic logging | Root ESLint (react-hooks rules) and Prettier; central logger | CI lint job | partial: logger spec (8A.4) |

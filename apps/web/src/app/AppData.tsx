@@ -7,6 +7,7 @@ import type { City, LegendClass } from '../models/types.ts';
 import { describeError } from '../shared/api/client.ts';
 import { session } from '../features/auth/session.ts';
 import { useCitiesQuery, useLegendQuery } from '../features/cities/api.ts';
+import { Button } from '../shared/ui/index.ts';
 
 export interface AppData {
   cities: readonly City[];
@@ -38,9 +39,7 @@ export function RootLayout() {
     return (
       <div className="splash error" role="alert">
         <p>{describeError(cities.error ?? legend.error)}</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          Reload
-        </button>
+        <Button onClick={() => window.location.reload()}>Reload</Button>
       </div>
     );
   }

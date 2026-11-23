@@ -4,6 +4,7 @@ import { describeError } from '../../shared/api/client.ts';
 import { CityFilter } from '../cities/CityFilter.tsx';
 import type { City } from '../../models/types.ts';
 import { useHistory, type HistoryEntry } from './api.ts';
+import { Button, Card, Skeleton } from '../../shared/ui/index.ts';
 
 export type { HistoryEntry } from './api.ts';
 
@@ -17,8 +18,7 @@ export function HistoryList({ cities, onOpen }: { cities: readonly City[]; onOpe
   const loaded = history.data?.pages.flatMap((p) => p.items) ?? [];
   const items = loaded.filter((h) => cityFilter === '' || h.cityCode === cityFilter);
   return (
-    <section className="list-view" aria-label="History">
-      <h2>History</h2>
+    <Card className="list-view" aria-label="History" title="History">
       <CityFilter cities={cities} present={loaded.map((h) => h.cityCode)} value={cityFilter} onChange={setCityFilter} />
       {error !== undefined && <p className="form-error">{error}</p>}
       {!loading && items.length === 0 && error === undefined && (
@@ -34,12 +34,12 @@ export function HistoryList({ cities, onOpen }: { cities: readonly City[]; onOpe
           </li>
         ))}
       </ul>
-      {loading && <p className="hint">Loading…</p>}
+      {loading && <Skeleton lines={3} variant="card" />}
       {!loading && history.hasNextPage && (
-        <button type="button" onClick={() => void history.fetchNextPage()}>
-          Show older
-        </button>
+        <div>
+          <Button onClick={() => void history.fetchNextPage()}>Show older</Button>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }

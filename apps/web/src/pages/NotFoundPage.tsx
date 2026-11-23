@@ -1,5 +1,6 @@
 // Any unknown address.
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
+import { ButtonLink } from '../shared/ui/index.ts';
 
 export function NotFoundPage() {
   const location = useLocation();
@@ -10,7 +11,9 @@ export function NotFoundPage() {
       <p className="hint">
         There is nothing at <code>{location.pathname}</code>.
       </p>
-      <Link to="/">See all cities</Link>
+      <ButtonLink to="/" variant="primary">
+        See all cities
+      </ButtonLink>
     </section>
   );
 }

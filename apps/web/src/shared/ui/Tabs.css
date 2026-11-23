@@ -1,0 +1,23 @@
+.ui-tabs {
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  background: #f1f5f9;
+  border-radius: var(--radius-md);
+}
+
+.ui-tabs__tab {
+  flex: 1;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.ui-tabs__tab--active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}

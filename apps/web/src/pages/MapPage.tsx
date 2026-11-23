@@ -11,6 +11,7 @@ import { Status } from '../features/map/Status.tsx';
 import { usePlaces, type SavedPlace } from '../features/places/api.ts';
 import { useSession } from '../features/auth/useSession.ts';
 import { toSearch } from '../features/map/urlState.ts';
+import { Button, TextField } from '../shared/ui/index.ts';
 
 export function MapPage() {
   const { city, legend, origin, departure, calculation, pick, changeDeparture, retry } = useMapState();
@@ -42,9 +43,9 @@ export function MapPage() {
       {cityPlaces.length > 0 && (
         <div className="quick-picks" aria-label="Saved places">
           {cityPlaces.map((p) => (
-            <button key={p.placeId} type="button" onClick={() => showPlace(p)}>
+            <Button key={p.placeId} size="sm" onClick={() => showPlace(p)}>
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -54,25 +55,21 @@ export function MapPage() {
       ) : (
         <fieldset className="departure">
           <legend>Departure</legend>
-          <label>
-            Date
-            <input
-              type="date"
-              value={departure.date}
-              min={feed.validFrom}
-              max={feed.validTo}
-              onChange={(e) => changeDeparture({ ...departure, date: e.target.value })}
-            />
-          </label>
-          <label>
-            Time
-            <input
-              type="time"
-              value={departure.time}
-              step={300}
-              onChange={(e) => changeDeparture({ ...departure, time: e.target.value })}
-            />
-          </label>
+          <TextField
+            label="Date"
+            type="date"
+            value={departure.date}
+            min={feed.validFrom}
+            max={feed.validTo}
+            onChange={(e) => changeDeparture({ ...departure, date: e.target.value })}
+          />
+          <TextField
+            label="Time"
+            type="time"
+            value={departure.time}
+            step={300}
+            onChange={(e) => changeDeparture({ ...departure, time: e.target.value })}
+          />
           <p className="hint">
             Empty date: the next working day. Timetable valid {feed.validFrom} – {feed.validTo}.
           </p>

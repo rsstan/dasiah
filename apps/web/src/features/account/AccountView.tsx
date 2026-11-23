@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import { session, type UserProfile } from '../auth/session.ts';
+import { Button, Card, Checkbox, TextField } from '../../shared/ui/index.ts';
 
 export function AccountView({ user }: { user: UserProfile }) {
   const [name, setName] = useState(user.displayName ?? '');
@@ -25,8 +26,7 @@ export function AccountView({ user }: { user: UserProfile }) {
   };
 
   return (
-    <section className="account" aria-label="Account">
-      <h2>Account</h2>
+    <Card className="account" aria-label="Account" title="Account">
       <dl>
         <dt>Email</dt>
         <dd>{user.email}</dd>
@@ -40,22 +40,21 @@ export function AccountView({ user }: { user: UserProfile }) {
           void run(() => session.updateDisplayName(name.trim() === '' ? null : name.trim()), 'Saved.');
         }}
       >
-        <label>
-          Name
-          <input type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <button type="submit" disabled={busy}>
+        <TextField label="Name" type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+        <Button type="submit" loading={busy}>
           Save name
-        </button>
+        </Button>
       </form>
       {message !== undefined && (
         <p className={message.error ? 'form-error' : 'hint'} role={message.error ? 'alert' : 'status'}>
           {message.text}
         </p>
       )}
-      <button type="button" onClick={() => void run(() => session.signOut())} disabled={busy}>
-        Sign out
-      </button>
+      <div>
+        <Button onClick={() => void run(() => session.signOut())} disabled={busy}>
+          Sign out
+        </Button>
+      </div>
 
       <div className="danger-zone">
         <h3>Delete account</h3>
@@ -64,31 +63,30 @@ export function AccountView({ user }: { user: UserProfile }) {
           you. This cannot be undone.
         </p>
         {!confirming ? (
-          <button type="button" className="danger" onClick={() => setConfirming(true)}>
+          <Button variant="danger" onClick={() => setConfirming(true)}>
             Delete my account…
-          </button>
+          </Button>
         ) : (
           <div className="form">
-            <label className="checkbox">
-              <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} />I
-              understand that this cannot be undone
-            </label>
+            <Checkbox
+              label="I understand that this cannot be undone"
+              checked={understood}
+              onChange={(e) => setUnderstood(e.target.checked)}
+            />
             <div className="actions">
-              <button
-                type="button"
-                className="danger"
-                disabled={!understood || busy}
+              <Button
+                variant="danger"
+                disabled={!understood}
+                loading={busy}
                 onClick={() => void run(() => session.deleteAccount())}
               >
                 Delete permanently
-              </button>
-              <button type="button" onClick={() => setConfirming(false)}>
-                Cancel
-              </button>
+              </Button>
+              <Button onClick={() => setConfirming(false)}>Cancel</Button>
             </div>
           </div>
         )}
       </div>
-    </section>
+    </Card>
   );
 }

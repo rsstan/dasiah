@@ -4,6 +4,7 @@ import type { City } from '../../models/types.ts';
 import { CityFilter } from '../cities/CityFilter.tsx';
 import { PLACE_LIMIT, type Places, type SavedPlace } from './api.ts';
 import { KIND_LABEL } from './SavePlaceForm.tsx';
+import { Button, Card, Dialog, Skeleton, TextField } from '../../shared/ui/index.ts';
 
 interface Props {
   places: Places;
@@ -14,6 +15,7 @@ interface Props {
 export function PlacesList({ places, cities, onShow }: Props) {
   const [editing, setEditing] = useState<{ id: string; label: string } | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [deleting, setDeleting] = useState<SavedPlace | undefined>(undefined);
   const [cityFilter, setCityFilter] = useState('');
   const shown = places.items.filter((p) => cityFilter === '' || p.cityCode === cityFilter);
   const cityName = (code: string) => cities.find((c) => c.code === code)?.name ?? code;
@@ -28,14 +30,19 @@ export function PlacesList({ places, cities, onShow }: Props) {
   };
 
   return (
-    <section className="list-view" aria-label="Saved places">
-      <h2>
-        Saved places{' '}
-        <span className="count">
-          {places.items.length} of {PLACE_LIMIT}
-        </span>
-      </h2>
-      {places.loading && <p className="hint">Loading…</p>}
+    <Card
+      className="list-view"
+      aria-label="Saved places"
+      title={
+        <>
+          Saved places{' '}
+          <span className="count">
+            {places.items.length} of {PLACE_LIMIT}
+          </span>
+        </>
+      }
+    >
+      {places.loading && <Skeleton lines={3} variant="card" />}
       {places.error !== undefined && <p className="form-error">{places.error}</p>}
       {error !== undefined && (
         <p className="form-error" role="alert">
@@ -65,19 +72,19 @@ export function PlacesList({ places, cities, onShow }: Props) {
                   });
                 }}
               >
-                <input
-                  aria-label="New name"
+                <TextField
+                  label={<span className="visually-hidden">New name</span>}
                   maxLength={60}
                   required
                   value={editing.label}
                   onChange={(e) => setEditing({ id: p.placeId, label: e.target.value })}
                 />
-                <button type="submit" className="primary">
+                <Button type="submit" variant="primary" size="sm">
                   Save
-                </button>
-                <button type="button" onClick={() => setEditing(undefined)}>
+                </Button>
+                <Button size="sm" onClick={() => setEditing(undefined)}>
                   Cancel
-                </button>
+                </Button>
               </form>
             ) : (
               <>
@@ -89,26 +96,34 @@ export function PlacesList({ places, cities, onShow }: Props) {
                   <span className="meta">{p.addressText}</span>
                 </button>
                 <div className="item-actions">
-                  <button type="button" onClick={() => setEditing({ id: p.placeId, label: p.label })}>
+                  <Button size="sm" onClick={() => setEditing({ id: p.placeId, label: p.label })}>
                     Rename
-                  </button>
-                  <button
-                    type="button"
-                    className="danger"
-                    onClick={() => {
-                      if (window.confirm(`Delete “${p.label}”?`)) {
-                        void act(() => places.remove(p.placeId));
-                      }
-                    }}
-                  >
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => setDeleting(p)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
           </li>
         ))}
       </ul>
-    </section>
+      <Dialog
+        open={deleting !== undefined}
+        title="Delete this place?"
+        confirmLabel="Delete"
+        tone="danger"
+        onCancel={() => setDeleting(undefined)}
+        onConfirm={() => {
+          const target = deleting;
+          setDeleting(undefined);
+          if (target !== undefined) {
+            void act(() => places.remove(target.placeId));
+          }
+        }}
+      >
+        “{deleting?.label}” will be removed from your saved places.
+      </Dialog>
+    </Card>
   );
 }

@@ -1,45 +1,4 @@
-:root {
-  --bg: #ffffff;
-  --panel: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #1d4ed8;
-  --accent-text: #ffffff;
-  --error: #b91c1c;
-  --error-bg: #fef2f2;
-  --radius: 8px;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  color: var(--text);
-  background: var(--bg);
-  font-size: 15px;
-  line-height: 1.4;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-}
-
-input {
-  font: inherit;
-}
+/* Layouts and feature styles. Tokens: tokens.css; base: base.css; components: shared/ui/*.css. */
 
 .splash {
   display: grid;
@@ -109,25 +68,6 @@ input {
   color: var(--error);
 }
 
-.city-switch {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.city-switch button {
-  flex: 1;
-  padding: 8px;
-  border: 0;
-  background: transparent;
-}
-
-.city-switch button.active {
-  background: var(--accent);
-  color: var(--accent-text);
-}
-
 .address-search {
   display: flex;
   flex-direction: column;
@@ -135,17 +75,8 @@ input {
   position: relative;
 }
 
-.address-search label,
 .departure legend {
   font-weight: 600;
-}
-
-.address-search input,
-.departure input {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  width: 100%;
 }
 
 .candidates {
@@ -200,14 +131,6 @@ input {
   margin-bottom: 4px;
 }
 
-.departure label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 .departure .hint {
   grid-column: 1 / -1;
 }
@@ -240,8 +163,6 @@ input {
   word-break: break-all;
 }
 
-.status button,
-.splash button,
 .cell-popup button {
   padding: 6px 12px;
   border: 1px solid var(--border);
@@ -333,92 +254,6 @@ input {
   gap: 8px;
 }
 
-button.primary {
-  background: var(--accent);
-  color: var(--accent-text);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 8px 14px;
-}
-
-button.primary:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-button.link,
-a.link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  text-align: left;
-}
-
-button.danger {
-  color: var(--error);
-  border: 1px solid #fecaca;
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 6px 12px;
-}
-
-button.danger:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.sign-in,
-.save-place > button,
-.quick-picks button,
-.item-actions button,
-.list-view > button,
-.account > button,
-.form button:not(.primary):not(.danger),
-.inline-edit button:not(.primary) {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #fff;
-}
-
-.sign-in {
-  flex: none;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.home-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tabs a {
-  flex: 1;
-  text-align: center;
-  text-decoration: none;
-  padding: 8px 4px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tabs a.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
-}
-
 .auth-form,
 .form {
   display: flex;
@@ -426,39 +261,9 @@ button.danger:disabled {
   gap: 10px;
 }
 
-.auth-form h2,
-.list-view h2,
-.account h2 {
+.auth-form h2 {
   font-size: 1.05rem;
   margin: 0;
-}
-
-.auth-form label,
-.form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.auth-form input,
-.form input[type='text'],
-.form select,
-.inline-edit input {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font: inherit;
-  color: var(--text);
-  background: #fff;
-}
-
-.form label.checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  color: var(--text);
 }
 
 .form-error {
@@ -478,7 +283,7 @@ button.danger:disabled {
   gap: 6px;
 }
 
-.quick-picks button {
+.quick-picks .ui-btn {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -553,20 +358,10 @@ button.danger:disabled {
   padding: 0 10px 8px;
 }
 
-.item-actions button {
-  padding: 3px 10px;
-  font-size: 0.85rem;
-}
-
 .inline-edit {
   display: flex;
   gap: 6px;
   padding: 8px;
-}
-
-.inline-edit input {
-  flex: 1;
-  min-width: 0;
 }
 
 .account {
@@ -592,10 +387,6 @@ button.danger:disabled {
   overflow-wrap: anywhere;
 }
 
-.account > button {
-  align-self: flex-start;
-}
-
 .danger-zone {
   margin-top: 8px;
   padding-top: 12px;
@@ -612,14 +403,8 @@ button.danger:disabled {
   color: var(--error);
 }
 
-.form > button {
+.form > .ui-btn {
   align-self: flex-start;
-}
-
-/* ------------------------------------------------------------ admin (8.3) */
-
-.app.wide .panel {
-  width: 560px;
 }
 
 .admin h3 {
@@ -627,51 +412,13 @@ button.danger:disabled {
   margin: 8px 0 0;
 }
 
-.coverage {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.coverage caption {
-  text-align: left;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.coverage th,
-.coverage td {
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--border);
-  text-align: right;
-}
-
-.coverage th:first-child,
-.coverage td.hint {
-  text-align: left;
-}
-
 .filters {
   display: flex;
   gap: 8px;
 }
 
-.filters label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.85rem;
-  color: var(--muted);
+.filters > .ui-field {
   flex: 1;
-}
-
-.filters select {
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font: inherit;
-  background: #fff;
 }
 
 .version {
@@ -691,7 +438,7 @@ button.danger:disabled {
   font-family: ui-monospace, monospace;
 }
 
-.version button {
+.version .ui-btn {
   margin-top: 6px;
 }
 
@@ -702,35 +449,6 @@ button.danger:disabled {
   width: 100%;
 }
 
-.badge {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: var(--muted);
-}
-
-.badge.status-active {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badge.status-validated {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.badge.status-failed {
-  background: var(--error-bg);
-  color: var(--error);
-}
-
-.badge.status-downloaded,
-.badge.status-staged {
-  background: #fef9c3;
-  color: #854d0e;
-}
-
 /* ------------------------------------------------------------ phones (8.4) */
 
 .header-actions {
@@ -739,12 +457,8 @@ button.danger:disabled {
   flex: none;
 }
 
-.sheet-toggle {
+.panel-header .sheet-toggle {
   display: none;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #fff;
 }
 
 @media (max-width: 767px) {
@@ -758,8 +472,7 @@ button.danger:disabled {
     flex: 0 0 48dvh;
   }
 
-  .panel,
-  .app.wide .panel {
+  .panel {
     width: 100%;
     flex: 1 1 auto;
     min-height: 0;
@@ -777,7 +490,7 @@ button.danger:disabled {
     font-size: 1.1rem;
   }
 
-  .sheet-toggle {
+  .panel-header .sheet-toggle {
     display: inline-block;
   }
 
@@ -794,24 +507,9 @@ button.danger:disabled {
     display: none;
   }
 
-  /* 16 px stops iOS from zooming into a focused field; larger touch targets. */
-  input,
-  select {
-    font-size: 16px;
-  }
-
-  button {
-    min-height: 40px;
-  }
-
   .candidates button,
   .item-main {
     min-height: 44px;
-  }
-
-  .coverage th:nth-child(2),
-  .coverage td:nth-child(2) {
-    display: none;
   }
 
   .maplibregl-popup-content {
@@ -838,19 +536,6 @@ button.danger:disabled {
   font-size: 2.5rem;
   font-weight: 700;
   color: var(--muted);
-}
-
-/* ============================================================ site layout and home (8A.1b) */
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 /* ---- brand and menu (site header and city panel) */
@@ -948,9 +633,6 @@ button.danger:disabled {
   gap: 16px;
 }
 
-.site-main.page > .list-view,
-.site-main.page > .account,
-.site-main.page > .admin,
 .site-main.page > .auth-form {
   padding: 24px;
   background: var(--panel);
@@ -1034,15 +716,6 @@ button.danger:disabled {
   max-width: 620px;
   color: var(--muted);
   font-size: 1.1rem;
-}
-
-.city-search input {
-  width: min(420px, 90vw);
-  padding: 12px 18px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
 }
 
 .city-cloud {

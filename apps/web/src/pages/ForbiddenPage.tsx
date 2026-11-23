@@ -1,5 +1,6 @@
 // A signed-in user on a page their role does not allow (the admin page).
-import { Link } from 'react-router';
+
+import { ButtonLink } from '../shared/ui/index.ts';
 
 export function ForbiddenPage() {
   return (
@@ -7,7 +8,9 @@ export function ForbiddenPage() {
       <p className="status-code">403</p>
       <h2 id="forbidden-title">No access</h2>
       <p className="hint">This page is for administrators.</p>
-      <Link to="/">See all cities</Link>
+      <ButtonLink to="/" variant="primary">
+        See all cities
+      </ButtonLink>
     </section>
   );
 }

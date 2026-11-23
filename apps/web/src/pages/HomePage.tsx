@@ -1,10 +1,11 @@
 // "/": the cities of this instance as floating buttons, a search to narrow them down, and a short
 // explanation. Every city opens its own route. Links of the old format (/?city=vno&lat=..) are
 // forwarded to the city route.
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { City } from '../models/types.ts';
 import { useAppData } from '../app/AppData.tsx';
+import { TextField } from '../shared/ui/index.ts';
 
 /** "LT" -> 🇱🇹 (regional indicator letters). */
 export function flag(countryCode: string): string {
@@ -25,7 +26,6 @@ export function HomePage() {
   const { cities, legend } = useAppData();
   const location = useLocation();
   const [query, setQuery] = useState('');
-  const searchId = useId();
 
   const legacy = new URLSearchParams(location.search);
   const legacyCity = legacy.get('city');
@@ -49,18 +49,14 @@ export function HomePage() {
         </p>
 
         {cities.length > 6 && (
-          <div className="city-search">
-            <label htmlFor={searchId} className="visually-hidden">
-              Find a city
-            </label>
-            <input
-              id={searchId}
-              type="search"
-              placeholder="Find a city"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+          <TextField
+            className="city-search"
+            label={<span className="visually-hidden">Find a city</span>}
+            type="search"
+            placeholder="Find a city"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
         )}
 
         {cities.length === 0 ? (

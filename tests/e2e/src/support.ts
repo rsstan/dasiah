@@ -37,7 +37,7 @@ export async function computeFrom(page: Page, query: string, suggestion: RegExp)
 
 export async function register(page: Page, email: string, name: string): Promise<void> {
   await page.getByRole('link', { name: 'Sign in' }).click();
-  await page.getByRole('button', { name: 'Create an account' }).click();
+  await page.getByRole('tab', { name: 'Create account' }).click();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Name (optional)').fill(name);
   await page.getByLabel('Password').fill(PASSWORD);

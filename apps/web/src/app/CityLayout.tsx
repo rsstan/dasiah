@@ -6,6 +6,7 @@ import { MapView } from '../features/map/MapView.tsx';
 import { useAppData } from './AppData.tsx';
 import { MapStateProvider, useMapState } from '../features/map/MapState.tsx';
 import { Brand, SiteNav } from './SiteNav.tsx';
+import { Button, ButtonLink } from '../shared/ui/index.ts';
 
 export function CityLayout() {
   const { code } = useParams();
@@ -30,9 +31,9 @@ function Workspace() {
       <aside className="panel">
         <header className="panel-header">
           <Brand />
-          <button type="button" className="sheet-toggle" aria-expanded={!mapOnly} onClick={() => setMapOnly(!mapOnly)}>
+          <Button size="sm" className="sheet-toggle" aria-expanded={!mapOnly} onClick={() => setMapOnly(!mapOnly)}>
             {mapOnly ? 'Controls' : 'Full map'}
-          </button>
+          </Button>
         </header>
         <SiteNav />
         <div className="city-heading">
@@ -72,7 +73,9 @@ function CityNotFound({ code }: { code: string }) {
           <p className="hint">
             This instance has no city with the code <code>{code}</code>.
           </p>
-          <Link to="/">See all cities</Link>
+          <ButtonLink to="/" variant="primary">
+            See all cities
+          </ButtonLink>
         </section>
       </main>
     </div>

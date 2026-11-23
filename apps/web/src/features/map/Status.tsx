@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CalculationState } from './api/useCalculation.ts';
+import { Button } from '../../shared/ui/index.ts';
 
 interface Props {
   state: CalculationState;
@@ -42,9 +43,9 @@ export function Status({ state, onRetry }: Props) {
         <div className="status error" role="alert">
           <p>{state.message}</p>
           {state.correlationId !== undefined && <p className="reference">Reference: {state.correlationId}</p>}
-          <button type="button" onClick={onRetry}>
+          <Button size="sm" onClick={onRetry}>
             Try again
-          </button>
+          </Button>
         </div>
       );
   }

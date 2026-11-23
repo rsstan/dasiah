@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import type { Origin } from '../map/urlState.ts';
 import type { PlaceKind, Places } from './api.ts';
+import { Button, Select, TextField } from '../../shared/ui/index.ts';
 
 export const KIND_LABEL: Record<PlaceKind, string> = { home: 'Home', work: 'Work', study: 'Study', other: 'Other' };
 
@@ -20,9 +21,7 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
   if (!open) {
     return (
       <div className="save-place">
-        <button type="button" onClick={() => setOpen(true)}>
-          ☆ Save this start point
-        </button>
+        <Button onClick={() => setOpen(true)}>☆ Save this start point</Button>
         {message !== undefined && (
           <p className={message.error ? 'form-error' : 'hint'} role="status">
             {message.text}
@@ -56,38 +55,31 @@ export function SavePlaceForm({ origin, cityCode, places }: { origin: Origin; ci
 
   return (
     <form className="save-place form" onSubmit={(e) => void submit(e)}>
-      <label>
-        Kind
-        <select value={kind} onChange={(e) => setKind(e.target.value as PlaceKind)}>
-          {Object.entries(KIND_LABEL).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Name
-        <input
-          type="text"
-          maxLength={60}
-          placeholder={KIND_LABEL[kind]}
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-        />
-      </label>
+      <Select label="Kind" value={kind} onChange={(e) => setKind(e.target.value as PlaceKind)}>
+        {Object.entries(KIND_LABEL).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </Select>
+      <TextField
+        label="Name"
+        type="text"
+        maxLength={60}
+        placeholder={KIND_LABEL[kind]}
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
       {message?.error === true && (
         <p className="form-error" role="alert">
           {message.text}
         </p>
       )}
       <div className="actions">
-        <button type="submit" className="primary" disabled={busy}>
+        <Button type="submit" variant="primary" loading={busy}>
           Save
-        </button>
-        <button type="button" onClick={() => setOpen(false)}>
-          Cancel
-        </button>
+        </Button>
+        <Button onClick={() => setOpen(false)}>Cancel</Button>
       </div>
     </form>
   );

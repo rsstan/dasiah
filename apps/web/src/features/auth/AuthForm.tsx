@@ -2,6 +2,12 @@
 import { useState, type FormEvent } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import { session } from './session.ts';
+import { Button, Tabs, TextField, type TabItem } from '../../shared/ui/index.ts';
+
+const MODES: readonly TabItem<'sign-in' | 'register'>[] = [
+  { id: 'sign-in', label: 'Sign in' },
+  { id: 'register', label: 'Create account' },
+];
 
 export const MIN_PASSWORD = 10;
 
@@ -38,62 +44,55 @@ export function AuthForm({ onDone }: { onDone: () => void }) {
 
   const register = mode === 'register';
   return (
-    <form className="auth-form" onSubmit={(e) => void submit(e)} noValidate={false}>
+    <form className="auth-form" onSubmit={(e) => void submit(e)}>
       <h2>{register ? 'Create an account' : 'Sign in'}</h2>
       <p className="hint">Save home and work addresses and see the maps you looked at.</p>
-      <label>
-        Email
-        <input
-          type="email"
-          autoComplete={register ? 'email' : 'username'}
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </label>
+      <Tabs
+        label="Sign in or create an account"
+        items={MODES}
+        value={mode}
+        onChange={(next) => {
+          setMode(next);
+          setError(undefined);
+        }}
+      />
+      <TextField
+        label="Email"
+        type="email"
+        autoComplete={register ? 'email' : 'username'}
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
       {register && (
-        <label>
-          Name (optional)
-          <input
-            type="text"
-            maxLength={80}
-            autoComplete="nickname"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </label>
-      )}
-      <label>
-        Password
-        <input
-          type="password"
-          autoComplete={register ? 'new-password' : 'current-password'}
-          required
-          minLength={register ? MIN_PASSWORD : 1}
-          maxLength={128}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+        <TextField
+          label="Name (optional)"
+          type="text"
+          maxLength={80}
+          autoComplete="nickname"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
         />
-        {register && <span className="hint">At least {MIN_PASSWORD} characters.</span>}
-      </label>
+      )}
+      <TextField
+        label="Password"
+        type="password"
+        autoComplete={register ? 'new-password' : 'current-password'}
+        required
+        minLength={register ? MIN_PASSWORD : 1}
+        maxLength={128}
+        hint={register ? `At least ${MIN_PASSWORD} characters.` : undefined}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       {error !== undefined && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
-      <button type="submit" className="primary" disabled={busy}>
-        {busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}
-      </button>
-      <button
-        type="button"
-        className="link"
-        onClick={() => {
-          setMode(register ? 'sign-in' : 'register');
-          setError(undefined);
-        }}
-      >
-        {register ? 'I already have an account' : 'Create an account'}
-      </button>
+      <Button type="submit" variant="primary" block loading={busy}>
+        {register ? 'Create account' : 'Sign in'}
+      </Button>
     </form>
   );
 }

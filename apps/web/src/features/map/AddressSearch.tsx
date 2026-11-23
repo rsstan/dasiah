@@ -5,6 +5,7 @@ import { describeError } from '../../shared/api/client.ts';
 import { useDebounced } from '../../shared/lib/useDebounced.ts';
 import type { GeocodeCandidate } from '../../models/types.ts';
 import { useGeocode } from './api/geocode.ts';
+import { TextField } from '../../shared/ui/index.ts';
 
 interface Props {
   cityCode: string;
@@ -52,9 +53,8 @@ export function AddressSearch({ cityCode, selected, onSelect }: Props) {
 
   return (
     <div className="address-search">
-      <label htmlFor={`${listId}-input`}>Start address</label>
-      <input
-        id={`${listId}-input`}
+      <TextField
+        label="Start address"
         type="search"
         autoComplete="off"
         placeholder="Street and number, or click the map"
