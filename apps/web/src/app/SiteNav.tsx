@@ -1,7 +1,7 @@
 // The site menu, the same on every page: brand, cities, and for a signed-in user places,
 // history, admin (admins) and the account; otherwise "Sign in", which returns to the current page.
 import { Link, NavLink, useLocation } from 'react-router';
-import { useSession } from '../session/useSession.ts';
+import { useSession } from '../features/auth/useSession.ts';
 
 export function Brand() {
   return (

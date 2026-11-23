@@ -5,7 +5,7 @@
 import { useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { ForbiddenPage } from '../pages/ForbiddenPage.tsx';
-import { useSession } from '../session/useSession.ts';
+import { useSession } from '../features/auth/useSession.ts';
 
 export function RequireAuth() {
   const auth = useSession();

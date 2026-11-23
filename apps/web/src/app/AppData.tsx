@@ -1,10 +1,12 @@
-// Root of every route: loads the cities of this instance and the legend once, restores the
-// session from the refresh cookie, and offers both to the pages (useAppData).
+// Root of every route: waits for the cities of this instance and the legend (TanStack Query,
+// cached), restores the session from the refresh cookie, and offers the loaded data to the pages
+// (useAppData), so a page never deals with "cities not loaded yet".
 import { createContext, use, useEffect } from 'react';
 import { Outlet } from 'react-router';
-import type { City, LegendClass } from '../api/types.ts';
-import { useGet } from '../api/useApi.ts';
-import { session } from '../session/session.ts';
+import type { City, LegendClass } from '../models/types.ts';
+import { describeError } from '../shared/api/client.ts';
+import { session } from '../features/auth/session.ts';
+import { useCitiesQuery, useLegendQuery } from '../features/cities/api.ts';
 
 export interface AppData {
   cities: readonly City[];
@@ -22,20 +24,20 @@ export function useAppData(): AppData {
 }
 
 export function RootLayout() {
-  const cities = useGet<{ items: City[] }>('/cities');
-  const legend = useGet<{ items: LegendClass[] }>('/legend');
+  const cities = useCitiesQuery();
+  const legend = useLegendQuery();
 
   useEffect(() => {
     void session.restore();
   }, []);
 
-  if (cities.kind === 'loading' || legend.kind === 'loading') {
+  if (cities.isPending || legend.isPending) {
     return <div className="splash">Loading…</div>;
   }
-  if (cities.kind === 'error' || legend.kind === 'error') {
+  if (cities.isError || legend.isError) {
     return (
       <div className="splash error" role="alert">
-        <p>{cities.kind === 'error' ? cities.message : legend.kind === 'error' ? legend.message : ''}</p>
+        <p>{describeError(cities.error ?? legend.error)}</p>
         <button type="button" onClick={() => window.location.reload()}>
           Reload
         </button>
@@ -43,7 +45,7 @@ export function RootLayout() {
     );
   }
   return (
-    <AppDataContext value={{ cities: cities.data.items, legend: legend.data.items }}>
+    <AppDataContext value={{ cities: cities.data, legend: legend.data }}>
       <Outlet />
     </AppDataContext>
   );

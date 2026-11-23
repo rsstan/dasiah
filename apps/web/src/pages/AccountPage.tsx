@@ -1,6 +1,6 @@
 // "/account": profile, sign out, delete account.
-import { AccountView } from '../account/AccountView.tsx';
-import { useSession } from '../session/useSession.ts';
+import { AccountView } from '../features/account/AccountView.tsx';
+import { useSession } from '../features/auth/useSession.ts';
 
 export function AccountPage() {
   const auth = useSession();

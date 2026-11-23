@@ -3,7 +3,7 @@
 // forwarded to the city route.
 import { useId, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
-import type { City } from '../api/types.ts';
+import type { City } from '../models/types.ts';
 import { useAppData } from '../app/AppData.tsx';
 
 /** "LT" -> 🇱🇹 (regional indicator letters). */

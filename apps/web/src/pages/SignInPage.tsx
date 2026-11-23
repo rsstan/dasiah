@@ -1,8 +1,8 @@
 // "/sign-in": sign in or create an account, then return to ?next= (or the map).
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
-import { AuthForm } from '../account/AuthForm.tsx';
+import { AuthForm } from '../features/auth/AuthForm.tsx';
 import { safeNext } from '../app/guards.tsx';
-import { useSession } from '../session/useSession.ts';
+import { useSession } from '../features/auth/useSession.ts';
 
 export function SignInPage() {
   const auth = useSession();

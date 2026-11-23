@@ -1,10 +1,10 @@
 // "/history": maps the user looked at, in every city; one click reopens the map in its city.
 import { cellToLatLng } from 'h3-js';
 import { useNavigate } from 'react-router';
-import { HistoryList } from '../account/HistoryList.tsx';
+import { HistoryList } from '../features/history/HistoryList.tsx';
 import { useAppData } from '../app/AppData.tsx';
-import type { CityNavigationState } from '../app/MapState.tsx';
-import { toSearch } from '../urlState.ts';
+import type { CityNavigationState } from '../features/map/MapState.tsx';
+import { toSearch } from '../features/map/urlState.ts';
 
 export function HistoryPage() {
   const { cities } = useAppData();

@@ -63,9 +63,9 @@ Plan: phase 8A in `docs/plan.md`. Status as of 2026-11-23.
 | --- | --- | --- | --- |
 | SPA on a modern framework | React 19 + Vite, `apps/web` | Build in CI (`pnpm web:build`) | ready |
 | Documentation: architecture diagram, approach, API for the client, user flows, stack justification | `specs/frontend.md` | Document | spec (8A.7) |
-| Components / pages / services separation, clear folders | `apps/web/src`: `app/` (router, layout, map state, guards), `pages/`, components and services per feature | Folder structure | partial: pages and layout ready; layers spec (8A.2) |
+| Components / pages / services separation, clear folders | `apps/web/src`: `app/` (router, layouts, providers, guards), `pages/`, `features/<feature>/` (components + `api` hooks), `shared/api` (fetch wrapper, query client), `shared/lib`, `models/`, `styles/` | Folder structure; ESLint rule: only `shared/api` and `features/*/api` may call the server | ready |
 | Routing, 3–4 routes or more | React Router (`apps/web/src/app/router.tsx`): home `/` with the cities, one route per city `/cities/:code` (built from the API), `/sign-in`, `/places`, `/history`, `/account`, `/admin`, 404; two layouts (site, city); guards for signed-in and admin pages | `tests/e2e/src/routes.spec.ts`: cities on the home page and their routes, unknown city, old links, 404, sign-in and return, back/forward, 403 on `/admin` | ready |
-| Local + global state | React state; session store; TanStack Query and Zustand planned | Code, `specs/frontend.md` | partial; spec (8A.2) |
+| Local + global state | Local: React state in components; global server state: TanStack Query (cities, legend, places, history, admin, geocoding; one cache, retries, loading/error states); global client state: Zustand (session) | `queryClient.test.ts`, `session.test.ts`; browser check: places shared between city page and places page | ready |
 | Real API, typed data, centralised requests, errors and loading | Gateway API; types generated from OpenAPI (`@heatmap/contracts`); `src/api/client.ts` | `run.test.ts`, `session.test.ts` | ready |
 | Bundler, component-based UI | Vite; components per feature | Build | ready |
 | Reusable and layout components, own UI kit | `shared/ui` | Screens built from the kit | spec (8A.1, 8A.3) |

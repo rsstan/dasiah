@@ -2,9 +2,9 @@
 // The map state belongs to one city, so it is created anew when the code changes.
 import { useState } from 'react';
 import { Link, Outlet, useParams } from 'react-router';
-import { MapView } from '../map/MapView.tsx';
+import { MapView } from '../features/map/MapView.tsx';
 import { useAppData } from './AppData.tsx';
-import { MapStateProvider, useMapState } from './MapState.tsx';
+import { MapStateProvider, useMapState } from '../features/map/MapState.tsx';
 import { Brand, SiteNav } from './SiteNav.tsx';
 
 export function CityLayout() {

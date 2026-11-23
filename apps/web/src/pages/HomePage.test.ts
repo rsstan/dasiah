@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { City } from '../api/types.ts';
+import type { City } from '../models/types.ts';
 import { safeNext } from '../app/guards.tsx';
 import { filterCities, flag } from './HomePage.tsx';
 
