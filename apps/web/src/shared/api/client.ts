@@ -1,6 +1,7 @@
 // Thin fetch wrapper for the gateway: one correlation id per call (sent as X-Correlation-Id and
 // kept on errors so a user can quote it), JSON in and out, problem+json turned into ApiError.
 import type { Problem } from '../../models/types.ts';
+import { logger } from '../lib/logger.ts';
 
 export const API_BASE = '/api/v1';
 
@@ -104,6 +105,7 @@ async function send<T>(
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw error;
     }
+    logger.error('request failed: no connection', { method: options.method ?? 'GET', path, correlationId });
     throw new ApiError(0, { title: 'The server cannot be reached. Check your connection.' }, correlationId);
   }
   const text = await response.text();
@@ -116,6 +118,12 @@ async function send<T>(
     }
   }
   if (!response.ok) {
+    logger[response.status >= 500 ? 'error' : 'warn']('request failed', {
+      method: options.method ?? 'GET',
+      path,
+      status: response.status,
+      correlationId: response.headers.get('x-correlation-id') ?? correlationId,
+    });
     const retryAfter = Number(response.headers.get('retry-after'));
     const problem = (typeof body === 'object' && body !== null ? body : {}) as Partial<Problem>;
     throw new ApiError(

@@ -11,6 +11,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BoundingBox, CalculationResults, Coordinates, LegendClass } from '../../models/types.ts';
 import { aggregate, formatDuration, resolutionForZoom, toFeatureCollection, type MapCell } from './hexagons.ts';
+import { logger } from '../../shared/lib/logger.ts';
 
 maplibregl.setWorkerUrl(workerUrl);
 
@@ -66,7 +67,7 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
       if (!map.isStyleLoaded()) {
         setMapError('The basemap could not be loaded. The results are still shown.');
       }
-      console.warn('map error', e.error);
+      logger.warn('map error', { error: e.error instanceof Error ? e.error.message : String(e.error) });
     });
     map.on('load', () => {
       map.addSource(SOURCE, { type: 'geojson', data: EMPTY });

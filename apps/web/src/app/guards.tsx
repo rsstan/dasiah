@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { ForbiddenPage } from '../pages/ForbiddenPage.tsx';
 import { useSession } from '../features/auth/useSession.ts';
+import { Skeleton } from '../shared/ui/index.ts';
 
 export function RequireAuth() {
   const auth = useSession();
@@ -15,11 +16,7 @@ export function RequireAuth() {
     setWasSignedIn(true);
   }
   if (auth.kind === 'unknown') {
-    return (
-      <p className="hint" role="status">
-        Checking your session…
-      </p>
-    );
+    return <Skeleton lines={4} variant="card" />;
   }
   if (auth.kind === 'signed-out' && wasSignedIn) {
     return <Navigate to="/" replace />;

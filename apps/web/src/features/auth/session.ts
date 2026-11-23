@@ -16,13 +16,18 @@ export type SessionState =
   | { kind: 'signed-out' }
   | { kind: 'signed-in'; user: UserProfile };
 
+/** Why a session ended: the user's choice, or the server no longer accepts it. */
+export type SessionEnd = 'signed-out' | 'deleted' | 'expired';
+
 /** Refresh this long before the access token expires. */
 const EARLY_S = 60;
 const LOCK = 'heatmap-refresh';
 
 export class Session {
   /** Global client state (Zustand): who is signed in; components read it through useSession. */
-  readonly store = createStore<{ state: SessionState }>(() => ({ state: { kind: 'unknown' } }));
+  readonly store = createStore<{ state: SessionState; ended?: SessionEnd | undefined }>(() => ({
+    state: { kind: 'unknown' },
+  }));
   private accessToken: string | undefined;
   private refreshing: Promise<boolean> | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -36,8 +41,8 @@ export class Session {
 
   readonly getState = (): SessionState => this.store.getState().state;
 
-  private set(state: SessionState): void {
-    this.store.setState({ state });
+  private set(state: SessionState, ended?: SessionEnd): void {
+    this.store.setState({ state, ended });
   }
 
   // ------------------------------------------------------------ actions
@@ -76,13 +81,13 @@ export class Session {
     } catch {
       // Signing out locally is what matters; the server session expires on its own.
     }
-    this.clear();
+    this.clear('signed-out');
   }
 
   /** Erases the account in every service (identity anonymises, places erases on the event). */
   async deleteAccount(): Promise<void> {
     await request('/users/me', { method: 'DELETE' });
-    this.clear();
+    this.clear('deleted');
   }
 
   async updateDisplayName(displayName: string | null): Promise<void> {
@@ -102,7 +107,7 @@ export class Session {
         return true;
       } catch (error) {
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          this.clear();
+          this.clear('expired');
           return false;
         }
         // Network or server trouble: keep the user, the next call tries again.
@@ -127,11 +132,11 @@ export class Session {
     }
   }
 
-  private clear(): void {
+  private clear(ended: SessionEnd): void {
     this.accessToken = undefined;
     clearTimeout(this.timer);
     this.timer = undefined;
-    this.set({ kind: 'signed-out' });
+    this.set({ kind: 'signed-out' }, ended);
   }
 
   private locked<T>(fn: () => Promise<T>): Promise<T> {

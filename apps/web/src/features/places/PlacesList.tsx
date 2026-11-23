@@ -49,7 +49,7 @@ export function PlacesList({ places, cities, onShow }: Props) {
           {error}
         </p>
       )}
-      {!places.loading && places.items.length === 0 && (
+      {!places.loading && places.error === undefined && places.items.length === 0 && (
         <p className="hint">No saved places yet. Pick a start point on the map and save it.</p>
       )}
       <CityFilter

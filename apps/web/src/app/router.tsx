@@ -19,40 +19,49 @@ import { PlacesPage } from '../pages/PlacesPage.tsx';
 import { SignInPage } from '../pages/SignInPage.tsx';
 import { RootLayout } from './AppData.tsx';
 import { CityLayout } from './CityLayout.tsx';
+import { RouteError } from './ErrorBoundary.tsx';
 import { RequireAdmin, RequireAuth } from './guards.tsx';
 import { SiteLayout } from './SiteLayout.tsx';
 
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteError />,
     children: [
       {
         path: 'cities/:code',
         element: <CityLayout />,
+        errorElement: <RouteError />,
         children: [{ index: true, element: <MapPage /> }],
       },
       {
         element: <SiteLayout />,
         children: [
-          { index: true, element: <HomePage /> },
-          { path: 'sign-in', element: <SignInPage /> },
           {
-            element: <RequireAuth />,
+            // Errors of a page show inside the site layout (menu stays usable).
+            errorElement: <RouteError />,
             children: [
-              { path: 'places', element: <PlacesPage /> },
-              { path: 'history', element: <HistoryPage /> },
-              { path: 'account', element: <AccountPage /> },
+              { index: true, element: <HomePage /> },
+              { path: 'sign-in', element: <SignInPage /> },
               {
-                path: 'admin',
-                element: (
-                  <RequireAdmin>
-                    <AdminPage />
-                  </RequireAdmin>
-                ),
+                element: <RequireAuth />,
+                children: [
+                  { path: 'places', element: <PlacesPage /> },
+                  { path: 'history', element: <HistoryPage /> },
+                  { path: 'account', element: <AccountPage /> },
+                  {
+                    path: 'admin',
+                    element: (
+                      <RequireAdmin>
+                        <AdminPage />
+                      </RequireAdmin>
+                    ),
+                  },
+                ],
               },
+              { path: '*', element: <NotFoundPage /> },
             ],
           },
-          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

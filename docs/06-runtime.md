@@ -141,7 +141,7 @@ root's development tools; it is never deployed.
 
 | Level | Tool | Scope |
 | --- | --- | --- |
-| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter |
+| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter, error policy and toasts, logger; component tests in jsdom (`*.test.tsx`, Testing Library): error boundaries |
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |

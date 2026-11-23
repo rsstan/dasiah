@@ -7,7 +7,7 @@ import type { City, LegendClass } from '../models/types.ts';
 import { describeError } from '../shared/api/client.ts';
 import { session } from '../features/auth/session.ts';
 import { useCitiesQuery, useLegendQuery } from '../features/cities/api.ts';
-import { Button } from '../shared/ui/index.ts';
+import { Button, Skeleton } from '../shared/ui/index.ts';
 
 export interface AppData {
   cities: readonly City[];
@@ -33,7 +33,11 @@ export function RootLayout() {
   }, []);
 
   if (cities.isPending || legend.isPending) {
-    return <div className="splash">Loading…</div>;
+    return (
+      <div className="splash">
+        <Skeleton lines={4} variant="card" />
+      </div>
+    );
   }
   if (cities.isError || legend.isError) {
     return (

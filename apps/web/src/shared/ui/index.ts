@@ -8,3 +8,4 @@ export { Skeleton } from './Skeleton.tsx';
 export { Table, type Column } from './Table.tsx';
 export { Tabs, type TabItem } from './Tabs.tsx';
 export { Toast, type ToastTone } from './Toast.tsx';
+export { Toaster } from './Toaster.tsx';

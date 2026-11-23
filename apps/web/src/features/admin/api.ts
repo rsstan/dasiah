@@ -47,6 +47,8 @@ export function useCoverage(cities: readonly City[]) {
       queryKey: coverageKey(city.code),
       queryFn: async ({ signal }: { signal: AbortSignal }) =>
         (await request<CityCoverage>(`/cities/${city.code}/coverage`, { signal })).body,
+      // A city without a timetable answers 404; the table says so.
+      meta: { silent: true },
     })),
   });
 }

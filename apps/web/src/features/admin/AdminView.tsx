@@ -4,7 +4,17 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError, describeError } from '../../shared/api/client.ts';
 import type { City } from '../../models/types.ts';
-import { Badge, Button, Card, Dialog, Select, Table, TextField, type BadgeTone } from '../../shared/ui/index.ts';
+import {
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Select,
+  Skeleton,
+  Table,
+  TextField,
+  type BadgeTone,
+} from '../../shared/ui/index.ts';
 import {
   IN_PROGRESS,
   useActivateVersion,
@@ -59,6 +69,7 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
         </Select>
       </div>
       {running && <p className="hint">An import is running; the list refreshes every few seconds.</p>}
+      {query.isPending && <Skeleton lines={2} variant="card" />}
       {listError !== undefined && <p className="form-error">{listError}</p>}
       <ul className="items">
         {versions.map((v) => (
@@ -69,7 +80,9 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
           />
         ))}
       </ul>
-      {versions.length === 0 && listError === undefined && <p className="hint">No feed versions.</p>}
+      {!query.isPending && versions.length === 0 && listError === undefined && (
+        <p className="hint">No feed versions.</p>
+      )}
     </Card>
   );
 }
