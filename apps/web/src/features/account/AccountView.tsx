@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
-import { session, type UserProfile } from '../auth/session.ts';
+import { session, type UserProfile } from '../auth/index.ts';
 import { Button, Card, Checkbox, TextField } from '../../shared/ui/index.ts';
 import { check, maxLength } from '../../shared/lib/validation.ts';
 

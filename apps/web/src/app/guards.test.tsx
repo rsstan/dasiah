@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { session, type SessionState } from '../features/auth/session.ts';
+import { session, type SessionState } from '../features/auth/index.ts';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
 import { renderRoutes } from '../shared/test/render.tsx';
 import { RequireAdmin, RequireAuth } from './guards.tsx';

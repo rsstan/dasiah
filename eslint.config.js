@@ -3,6 +3,7 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
+import { boundaries } from './apps/web/eslint/boundaries.js';
 
 export default tseslint.config(
   {
@@ -31,6 +32,13 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },
     rules: { ...reactHooks.configs.recommended.rules },
+  },
+  {
+    // Web layers and feature modules (app -> pages -> features -> shared -> models; a feature is
+    // used from outside only through features/<name>/index.ts). See apps/web/eslint/boundaries.js.
+    files: ['apps/web/src/**/*.{ts,tsx}'],
+    plugins: { web: { rules: { boundaries } } },
+    rules: { 'web/boundaries': 'error' },
   },
   {
     // Web layers: only shared/api and the api modules of the features call the server; components

@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { City } from '../models/types.ts';
-import { AppDataContext } from '../app/AppData.tsx';
+import { CityDataContext } from '../features/cities/index.ts';
 import { renderRoutes } from '../shared/test/render.tsx';
 import { HomePage } from './HomePage.tsx';
 
@@ -25,9 +25,9 @@ function renderHome(cities: City[]) {
       {
         path: '/',
         element: (
-          <AppDataContext value={{ cities, legend: [] }}>
+          <CityDataContext value={{ cities, legend: [] }}>
             <HomePage />
-          </AppDataContext>
+          </CityDataContext>
         ),
       },
       { path: '/cities/:code', element: <h1>City page</h1> },

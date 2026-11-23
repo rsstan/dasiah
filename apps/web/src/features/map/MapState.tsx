@@ -5,7 +5,7 @@
 import { cellToLatLng } from 'h3-js';
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
-import type { HistoryEntry } from '../history/HistoryList.tsx';
+import type { HistoryEntry } from '../history/index.ts';
 import type { City, LegendClass } from '../../models/types.ts';
 import { useCalculation, type CalculationState } from './api/useCalculation.ts';
 import { readUrlState, type Origin } from './urlState.ts';

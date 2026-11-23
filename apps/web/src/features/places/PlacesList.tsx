@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import type { City } from '../../models/types.ts';
-import { CityFilter } from '../cities/CityFilter.tsx';
+import { CityFilter } from '../cities/index.ts';
 import { PLACE_LIMIT, type Places, type SavedPlace } from './api.ts';
 import { KIND_LABEL } from './SavePlaceForm.tsx';
 import { Button, Card, Dialog, Select, Skeleton, TextField } from '../../shared/ui/index.ts';

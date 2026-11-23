@@ -3,7 +3,7 @@
 // is dropped; when it ends without the user asking (refresh refused), a toast says so.
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
-import { session } from '../features/auth/session.ts';
+import { session } from '../features/auth/index.ts';
 import { ME, queryClient } from '../shared/api/queryClient.ts';
 import { logger } from '../shared/lib/logger.ts';
 import { notify } from '../shared/notifications/store.ts';

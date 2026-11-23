@@ -3,14 +3,9 @@
 // string, so the address bar always holds a link to the current map.
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import { SavePlaceForm } from '../features/places/SavePlaceForm.tsx';
-import { useMapState } from '../features/map/MapState.tsx';
-import { AddressSearch } from '../features/map/AddressSearch.tsx';
-import { Legend } from '../features/map/Legend.tsx';
-import { Status } from '../features/map/Status.tsx';
-import { usePlaces, type SavedPlace } from '../features/places/api.ts';
-import { useSession } from '../features/auth/useSession.ts';
-import { toSearch } from '../features/map/urlState.ts';
+import { SavePlaceForm, usePlaces, type SavedPlace } from '../features/places/index.ts';
+import { useMapState, AddressSearch, Legend, Status, toSearch } from '../features/map/index.ts';
+import { useSession } from '../features/auth/index.ts';
 import { Button, TextField } from '../shared/ui/index.ts';
 
 export function MapPage() {

@@ -1,16 +1,15 @@
 // Layout of a city (/cities/:code): the side panel (menu, the city, the current page) and the map.
 // The map state belongs to one city, so it is created anew when the code changes.
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Link, Outlet, useParams } from 'react-router';
-import { MapView } from '../features/map/MapView.tsx';
-import { useAppData } from './AppData.tsx';
-import { MapStateProvider, useMapState } from '../features/map/MapState.tsx';
+import { MapView, MapStateProvider, useMapState } from '../features/map/index.ts';
+import { useCityData } from '../features/cities/index.ts';
 import { Brand, SiteNav } from './SiteNav.tsx';
 import { Button, ButtonLink } from '../shared/ui/index.ts';
 
 export function CityLayout() {
   const { code } = useParams();
-  const { cities, legend } = useAppData();
+  const { cities, legend } = useCityData();
   const city = cities.find((c) => c.code === code);
   if (city === undefined) {
     return <CityNotFound code={code ?? ''} />;
@@ -47,14 +46,25 @@ function Workspace() {
         <Outlet />
       </aside>
       <main className="map-area">
-        <MapView
-          bounds={city.bounds}
-          results={calculation.kind === 'done' ? calculation.results : undefined}
-          legend={legend}
-          origin={origin}
-          onPick={(point) => pick({ ...point, label: 'Point on the map' })}
-        />
+        {/* The map engine is a separate chunk; the panel works while it loads. */}
+        <Suspense fallback={<MapLoading />}>
+          <MapView
+            bounds={city.bounds}
+            results={calculation.kind === 'done' ? calculation.results : undefined}
+            legend={legend}
+            origin={origin}
+            onPick={(point) => pick({ ...point, label: 'Point on the map' })}
+          />
+        </Suspense>
       </main>
+    </div>
+  );
+}
+
+function MapLoading() {
+  return (
+    <div className="map-wrap map-loading" role="status">
+      Loading the map…
     </div>
   );
 }

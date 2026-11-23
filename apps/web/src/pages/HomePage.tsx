@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { City } from '../models/types.ts';
-import { useAppData } from '../app/AppData.tsx';
+import { useCityData } from '../features/cities/index.ts';
 import { TextField } from '../shared/ui/index.ts';
 
 /** "LT" -> 🇱🇹 (regional indicator letters). */
@@ -23,7 +23,7 @@ export function filterCities(cities: readonly City[], query: string): City[] {
 }
 
 export function HomePage() {
-  const { cities, legend } = useAppData();
+  const { cities, legend } = useCityData();
   const location = useLocation();
   const [query, setQuery] = useState('');
 

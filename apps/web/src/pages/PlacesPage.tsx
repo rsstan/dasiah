@@ -1,14 +1,12 @@
 // "/places": the user's saved places in every city, filtered by city; "show" opens the city
 // with the place as the start point.
 import { useNavigate } from 'react-router';
-import { PlacesList } from '../features/places/PlacesList.tsx';
-import { useAppData } from '../app/AppData.tsx';
-import type { CityNavigationState } from '../features/map/MapState.tsx';
-import { usePlaces } from '../features/places/api.ts';
-import { toSearch } from '../features/map/urlState.ts';
+import { PlacesList, usePlaces } from '../features/places/index.ts';
+import { useCityData } from '../features/cities/index.ts';
+import { type CityNavigationState, toSearch } from '../features/map/index.ts';
 
 export function PlacesPage() {
-  const { cities } = useAppData();
+  const { cities } = useCityData();
   const places = usePlaces(true);
   const navigate = useNavigate();
   return (

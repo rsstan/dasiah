@@ -6,7 +6,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { request } from '../../shared/api/client.ts';
 import { ME } from '../../shared/api/queryClient.ts';
 import type { City } from '../../models/types.ts';
-import { citiesKey } from '../cities/api.ts';
+import { citiesKey } from '../cities/index.ts';
 
 type Schemas = GatewayApi.components['schemas'];
 export type FeedVersion = Schemas['FeedVersion'];

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { session } from '../features/auth/session.ts';
+import { session } from '../features/auth/index.ts';
 import { notifications } from '../shared/notifications/store.ts';
 import { watchSessionEnd } from './providers.tsx';
 

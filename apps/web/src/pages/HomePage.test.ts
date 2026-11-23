@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { City } from '../models/types.ts';
-import { safeNext } from '../app/guards.tsx';
 import { filterCities, flag } from './HomePage.tsx';
 
 const city = (code: string, name: string, countryCode: string): City => ({
@@ -25,14 +24,5 @@ describe('home page', () => {
   it('turns a country code into its flag', () => {
     expect(flag('LT')).toBe('🇱🇹');
     expect(flag('pl')).toBe('');
-  });
-});
-
-describe('safeNext', () => {
-  it('returns only paths inside the application', () => {
-    expect(safeNext('/places?x=1')).toBe('/places?x=1');
-    expect(safeNext(null)).toBe('/');
-    expect(safeNext('https://evil.example')).toBe('/');
-    expect(safeNext('//evil.example/path')).toBe('/');
   });
 });

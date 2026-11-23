@@ -1,6 +1,6 @@
 // The maps the user looked at (newest first, 50 kept), with a city filter and "show older".
 import { describeError } from '../../shared/api/client.ts';
-import { CityFilter } from '../cities/CityFilter.tsx';
+import { CityFilter } from '../cities/index.ts';
 import type { City } from '../../models/types.ts';
 import { useHistory, type HistoryEntry } from './api.ts';
 import { Button, Card, Skeleton } from '../../shared/ui/index.ts';

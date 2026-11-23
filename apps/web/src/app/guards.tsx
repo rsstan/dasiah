@@ -5,7 +5,7 @@
 import { useState, type ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { ForbiddenPage } from '../pages/ForbiddenPage.tsx';
-import { useSession } from '../features/auth/useSession.ts';
+import { useSession } from '../features/auth/index.ts';
 import { Skeleton } from '../shared/ui/index.ts';
 
 export function RequireAuth() {
@@ -34,9 +34,4 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
     return <ForbiddenPage />;
   }
   return children;
-}
-
-/** Where to go after signing in: only paths inside the application. */
-export function safeNext(next: string | null): string {
-  return next !== null && next.startsWith('/') && !next.startsWith('//') ? next : '/';
 }

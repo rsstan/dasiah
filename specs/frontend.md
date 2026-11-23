@@ -9,6 +9,7 @@
 - [At a glance](#at-a-glance)
 - [Architecture diagram](#architecture-diagram)
 - [Architecture approach](#architecture-approach)
+- [Modules and loading](#modules-and-loading)
 - [Routes](#routes)
 - [State management](#state-management)
 - [User flows and navigation](#user-flows-and-navigation)
@@ -31,13 +32,14 @@
 | State | Server state in TanStack Query, client global state in Zustand, view settings in the URL, the rest local |
 | UI | Own component kit (`shared/ui`) on design tokens; MapLibre GL for the map |
 | API | The gateway's REST API; types generated from the OpenAPI contracts |
-| Tests | 18 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
+| Tests | 25 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
 
 ## Architecture diagram
 
 Layers from top to bottom; an arrow means "uses". A layer never imports from a layer above it,
-and only `shared/api` and the `api` modules of the features call the server (enforced by an
-ESLint rule).
+a feature is used from outside only through its public entry, and only `shared/api` and the
+`api` modules of the features call the server; ESLint enforces all three
+([Modules and loading](#modules-and-loading)).
 
 ```mermaid
 flowchart TB
@@ -79,10 +81,11 @@ Folder layout of [apps/web/src/](../apps/web/src/):
 ```text
 app/          router, layouts (root, site, city), providers, guards, error boundaries
 pages/        one component per route; composes features, no requests of its own
-features/     map, places, history, auth, account, admin, cities: components + api hooks
+features/     map, places, history, auth, account, admin, cities: components + api hooks;
+              each with a public entry index.ts
 shared/api/   fetch wrapper (client.ts), query client, global error policy
 shared/ui/    component kit (Button, TextField, Select, Card, Table, Dialog, Toast, ...)
-shared/lib/   logger, validation rules, URL-backed settings, debounce
+shared/lib/   logger, validation rules, URL-backed settings, debounce, safe redirect
 shared/test/  helpers for component tests (imported by tests only)
 models/       API types (from @heatmap/contracts, generated from contracts/openapi)
 styles/       design tokens, base styles, layout and feature styles
@@ -110,6 +113,43 @@ styles/       design tokens, base styles, layout and feature styles
 - **No micro frontends.** One team, one deployable page; a split would add build and runtime
   complexity without a benefit here.
 
+## Modules and loading
+
+**Feature modules.** Every folder in `features/` is a module with one public entry,
+`features/<name>/index.ts`, that lists what other code may use (for example `features/places`
+offers `usePlaces`, `PlacesList`, `SavePlaceForm` and the `SavedPlace` type; its sorting, rules
+and query keys stay inside). Files inside a module import each other freely; everything outside,
+including other features, goes through the entry. Tests sit with the module they test.
+
+**Enforced by ESLint.** A local rule, [apps/web/eslint/boundaries.js](../apps/web/eslint/boundaries.js)
+(`web/boundaries`), resolves every relative import (static, re-export and dynamic `import()`)
+against the importing file and reports:
+
+| Mistake | Example |
+| --- | --- |
+| an import from a higher layer | a page importing from `app/`, `shared/` importing a feature |
+| a page importing another page | `HistoryPage` importing from `PlacesPage` |
+| a feature used past its public entry | `import … from '../features/places/api.ts'` in a page |
+
+The rule has its own test, [apps/web/test/boundaries.test.ts](../apps/web/test/boundaries.test.ts).
+A second rule keeps server calls in the `api` modules (`no-restricted-imports`).
+
+**Lazy routes.** [app/router.tsx](../apps/web/src/app/router.tsx) loads every page except the home
+and not-found pages with `React.lazy`; each is wrapped in `Suspense` with a skeleton, inside the
+layout, so the menu stays while a page loads. The map engine is split once more: the map
+feature's entry exports `MapView` as a lazy component, so importing anything else from the
+feature (such as `toSearch` on the places page) never loads MapLibre, and the city layout shows
+"Loading the map…" while it arrives.
+
+Chunks of the production build (`pnpm web:build`, sizes before gzip):
+
+| Chunk | Loaded | Size |
+| --- | --- | --- |
+| `index` (React, router, query, home page, layouts) + `ui` (kit) + `logger` | at start | 479 + 106 + 9 kB |
+| `MapPage` · `SignInPage` · `PlacesPage` · `HistoryPage` · `AccountPage` · `AdminPage` | with their route | 2 · 0.6 · 0.5 · 3 · 2 · 10 kB |
+| `MapView` (MapLibre GL) | with the first city map | 1 089 kB |
+| `places`, `useMutation`, `useParam` | shared by several pages | 6 · 2 · 0.6 kB |
+
 ## Routes
 
 [app/router.tsx](../apps/web/src/app/router.tsx); every route has an error boundary
@@ -126,6 +166,7 @@ styles/       design tokens, base styles, layout and feature styles
 | `/admin` | Coverage, feed import, versions, activation | admins (others: 403 page) | site |
 | `*` | 404 page | everyone | site |
 
+Every page except home and 404 is loaded on first visit ([Modules and loading](#modules-and-loading)).
 Guards ([app/guards.tsx](../apps/web/src/app/guards.tsx)): while the session is being restored
 they show a skeleton; a signed-out visitor is sent to `/sign-in?next=<where they were>`; a user
 who signs out on a protected page goes to the home page; a non-admin on `/admin` sees the 403
@@ -139,6 +180,7 @@ unknown code shows "City not found".
 | Server state | TanStack Query cache ([shared/api/queryClient.ts](../apps/web/src/shared/api/queryClient.ts)) | cities, legend, saved places, history (paged), admin versions (polled during an import) and coverage, address suggestions |
 | Global client state | Zustand: session ([features/auth/session.ts](../apps/web/src/features/auth/session.ts)), notifications ([shared/notifications/store.ts](../apps/web/src/shared/notifications/store.ts)) | who is signed in and why a session ended; the toasts |
 | URL | React Router search params, [shared/lib/useParam.ts](../apps/web/src/shared/lib/useParam.ts) | city, start point, departure; list filters and sort orders (remembered for the tab) |
+| Loaded reference data | React context ([features/cities/data.ts](../apps/web/src/features/cities/data.ts)), provided by the root layout | the cities and the legend, once loaded (`useCityData`) |
 | Map state | React context per city ([features/map/MapState.tsx](../apps/web/src/features/map/MapState.tsx)) | the current start point, departure and calculation of the open city |
 | Local state | `useState` in components | form fields and their errors, open dialogs, editing mode |
 
@@ -315,7 +357,7 @@ POST /api/v1/places
 
 | Kind | What | Where |
 | --- | --- | --- |
-| Unit | API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
+| Unit | ESLint boundary rule, API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
 | Component (Testing Library, jsdom) | sign-in/registration form, places list (sort, filter, delete dialog, rename conflict), route guards (session check, sign-in and return, 403, 404), home page, error boundaries | `*.test.tsx`; helpers in [shared/test/render.tsx](../apps/web/src/shared/test/render.tsx) |
 | End to end (Playwright) | map, account, admin, routes and navigation against the full stack | [tests/e2e/](../tests/e2e/) |
 

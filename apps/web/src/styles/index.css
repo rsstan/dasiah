@@ -51,9 +51,18 @@
 }
 
 .map-wrap,
-.map {
+/* Two classes: MapLibre's own CSS (.maplibregl-map { position: relative }) arrives later with the
+   lazily loaded map chunk and must not win. */
+.map-wrap > .map {
   position: absolute;
   inset: 0;
+}
+
+.map-loading {
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
 .map-error {

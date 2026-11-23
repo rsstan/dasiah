@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { describeError } from '../../shared/api/client.ts';
-import type { Origin } from '../map/urlState.ts';
+import type { Origin } from '../map/index.ts';
 import type { PlaceKind, Places } from './api.ts';
 import { Button, Select, TextField } from '../../shared/ui/index.ts';
 import { labelConflict, validateLabel } from './validation.ts';

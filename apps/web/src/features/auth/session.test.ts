@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { request } from '../../shared/api/client.ts';
-import { addressOf } from '../places/SavePlaceForm.tsx';
 import { Session } from './session.ts';
 
 const USER = {
@@ -133,14 +132,5 @@ describe('Session', () => {
     expect(s.getState()).toEqual({ kind: 'signed-out' });
     await request('/legend');
     expect(calls.at(-1)).toBe('GET /api/v1/legend');
-  });
-});
-
-describe('addressOf', () => {
-  it('uses the geocoded address, else the coordinates', () => {
-    expect(addressOf({ lat: 54.687, lon: 25.28, label: 'x', address: 'Gedimino pr. 9, Vilnius' })).toBe(
-      'Gedimino pr. 9, Vilnius',
-    );
-    expect(addressOf({ lat: 54.687123456, lon: 25.28, label: 'Point on the map' })).toBe('54.68712, 25.28000');
   });
 });
