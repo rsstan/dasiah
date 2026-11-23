@@ -14,6 +14,8 @@ test.describe('map (anonymous)', () => {
     // The start cell is under the marker at the centre of the computed area; a click next to it
     // opens the popup of a cell.
     const map = page.locator('.map');
+    // Click only once the cells are drawn; before that a click picks a new start point.
+    await expect(map).toHaveAttribute('data-cells', 'ready');
     const box = await map.boundingBox();
     if (box === null) throw new Error('no map');
     await page.mouse.click(box.x + box.width / 2 + 25, box.y + box.height / 2 + 25);

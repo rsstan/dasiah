@@ -53,10 +53,3 @@ export function toSearch(state: UrlState): string {
   const s = params.toString();
   return s === '' ? '' : `?${s}`;
 }
-
-export function writeUrlState(state: UrlState): void {
-  const search = toSearch(state);
-  if (search !== window.location.search) {
-    window.history.replaceState(null, '', `${window.location.pathname}${search}${window.location.hash}`);
-  }
-}

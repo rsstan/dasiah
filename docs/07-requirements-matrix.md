@@ -54,3 +54,32 @@ Each grading requirement, where it is satisfied, and what to show as evidence. S
 | Message broker | RabbitMQ, three events, outbox/inbox (`packages/common/src/messaging`) | AsyncAPI; `messaging.itest.ts` (at-least-once, duplicate skipped, poison and failing messages in the DLQ); RabbitMQ UI screenshot in P9 | ready; all three events produced and consumed (`places.itest.ts`, `erasure.itest.ts`) |
 | Resilience patterns | Timeout, retry, breaker, bulkhead, fallback, outbox, idempotent consumer, DLQ, single flight | `docs/02-architecture.md#resilience-patterns`; tests: `http-client.test.ts`, `messaging.itest.ts`, `gateway.itest.ts`, `osrm.test.ts`, `loader.itest.ts` (previous timetable kept), `calculations.itest.ts` (OSRM down -> 503 and cached maps served, bulkhead 503, identical requests computed once), `places.itest.ts` (geocoder down -> expired cache entry served, 503 without one); drills with the running stack in P9 | ready (tests), drills P9 |
 | Tracing | OpenTelemetry + Jaeger (`packages/common/src/tracing.ts`) | Sample-service trace: server span, pg spans, outgoing fetch, nested inbound span; screenshot in P9 | ready (platform), evidence P9 |
+
+## Front-End: minimum
+
+Plan: phase 8A in `docs/plan.md`. Status as of 2026-11-23.
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| SPA on a modern framework | React 19 + Vite, `apps/web` | Build in CI (`pnpm web:build`) | ready |
+| Documentation: architecture diagram, approach, API for the client, user flows, stack justification | `specs/frontend.md` | Document | spec (8A.7) |
+| Components / pages / services separation, clear folders | `apps/web/src`: `app/` (router, layout, map state, guards), `pages/`, components and services per feature | Folder structure | partial: pages and layout ready; layers spec (8A.2) |
+| Routing, 3–4 routes or more | React Router: `/`, `/sign-in`, `/places`, `/history`, `/account`, `/admin`, 404 (`apps/web/src/app/router.tsx`); guards for signed-in and admin pages | `tests/e2e/src/routes.spec.ts`: 404, sign-in and return, navigation, back/forward, 403 on `/admin` | ready |
+| Local + global state | React state; session store; TanStack Query and Zustand planned | Code, `specs/frontend.md` | partial; spec (8A.2) |
+| Real API, typed data, centralised requests, errors and loading | Gateway API; types generated from OpenAPI (`@heatmap/contracts`); `src/api/client.ts` | `run.test.ts`, `session.test.ts` | ready |
+| Bundler, component-based UI | Vite; components per feature | Build | ready |
+| Reusable and layout components, own UI kit | `shared/ui` | Screens built from the kit | spec (8A.1, 8A.3) |
+| Forms with validation, lists/tables, filter/search/sort | Auth, place, profile, import forms; places, history, versions lists; address search, version filters | e2e account and admin tests | partial: field validation and sorting spec (8A.5) |
+| Responsive layout | `styles.css` phone layout | e2e at 390 px (8.4) | ready |
+| ESLint + Prettier, basic logging | Root ESLint (react-hooks rules) and Prettier; central logger | CI lint job | partial: logger spec (8A.4) |
+| Global error handler, toasts, 401/403/404/500, skeletons | Error boundary, toast store, status pages | Tests | spec (8A.4) |
+| Unit tests (3+), e2e (1–2) | Vitest: client, session, calculation, hexagons, URL state; Playwright: map, account, admin | CI unit and e2e jobs | ready; component tests spec (8A.6) |
+| No unjustified inline styles, no tokens in code, no `any` | Two inline styles (legend colour from the API, map cursor via MapLibre); access token only in memory | Lint (`no-explicit-any`) | ready; justification in docs (8A.7) |
+
+## Front-End: maximum
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| Direction 1: feature modules, lazy routes | `features/*` with public entry points, `React.lazy` routes | ESLint boundary rule, build chunks | spec (8A.8) |
+| Direction 3: code splitting, Web Worker, memoisation, bundle analysis, Lighthouse >= 90 | Lazy map engine, hexagon worker | `docs/evidence/frontend-performance.md` | spec (8A.9) |
+| Direction 4 (reserve): theme, accessibility, data visualisation | Tokens, keyboard navigation, axe in Playwright, class distribution chart | Tests, screenshots | optional (8A.10) |

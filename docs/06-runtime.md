@@ -145,7 +145,7 @@ root's development tools; it is never deployed.
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
-| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
+| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; routes (404, sign-in and return, back/forward, 403 on `/admin`); register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
 | Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |
 
 ## CI (GitHub Actions)

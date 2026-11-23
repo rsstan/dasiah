@@ -346,7 +346,8 @@ button.primary:disabled {
   cursor: default;
 }
 
-button.link {
+button.link,
+a.link {
   border: 0;
   background: none;
   padding: 0;
@@ -383,6 +384,13 @@ button.danger:disabled {
 
 .sign-in {
   flex: none;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.home-link {
+  color: inherit;
+  text-decoration: none;
 }
 
 .tabs {
@@ -391,8 +399,10 @@ button.danger:disabled {
   border-bottom: 1px solid var(--border);
 }
 
-.tabs button {
+.tabs a {
   flex: 1;
+  text-align: center;
+  text-decoration: none;
   padding: 8px 4px;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -403,7 +413,7 @@ button.danger:disabled {
   text-overflow: ellipsis;
 }
 
-.tabs button.active {
+.tabs a.active {
   color: var(--text);
   border-bottom-color: var(--accent);
   font-weight: 600;
@@ -807,4 +817,25 @@ button.danger:disabled {
   .maplibregl-popup-content {
     max-width: 80vw;
   }
+}
+
+/* ------------------------------------------------------------ status pages (404, 403) */
+
+.status-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 0;
+}
+
+.status-page h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.status-code {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--muted);
 }

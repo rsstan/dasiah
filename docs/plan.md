@@ -83,6 +83,34 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 - [x] 8.3 Admin page: feed versions, import, activate.
 - [x] 8.4 Responsive layout for phones.
 
+## Phase 8A — Front-end architecture (task "Front-End")
+
+Brings `apps/web` up to the front-end grading requirements (`docs/07-requirements-matrix.md#front-end-minimum`).
+Decisions (2026-11-23): own component kit instead of a UI library; for the maximum, direction 1
+(advanced architecture: feature modules, lazy routes) and direction 3 (performance) in full,
+direction 4 (advanced UI/UX) as a reserve. Libraries: React Router, TanStack Query, Zustand,
+Testing Library.
+
+- [x] 8A.1 Routing and pages: React Router with `/` (map), `/places`, `/history`, `/account`, `/admin` (admin only), `/sign-in`, not-found page; `App.tsx` split into `pages/` and a layout component (`AppShell`); shared map links (`?city=&lat=&lon=`) keep working.
+      Done when: every route renders by its URL and through the navigation, browser back/forward work, an unknown URL shows the 404 page, `/admin` as a non-admin shows the 403 page; e2e suite green.
+- [ ] 8A.2 Structure and state: folders `app/` (router, providers), `pages/`, `features/` (map, places, history, auth, admin), `shared/ui`, `shared/api`, `models/`, `styles/`; server data (cities, legend, places, history, admin) through TanStack Query; client global state (session, theme, notifications) in Zustand stores, keeping one-at-a-time token refresh (Web Lock).
+      Done when: no component calls `fetch` or the API client directly except through `shared/api` and query hooks; the session tests still pass; lint rule or test guards the layer boundaries.
+- [ ] 8A.3 Own component kit in `shared/ui`: Button, TextField, Select, Checkbox, Card, Badge, Tabs, Table, Skeleton, Toast, Dialog, with CSS per component and design tokens (colours, spacing, radii, typography) as CSS variables; existing screens rebuilt from it.
+      Done when: screens use kit components instead of repeated markup; no inline styles except the documented ones (legend swatch colour from the API, map cursor through MapLibre).
+- [ ] 8A.4 Error handling and loading: error boundary for the app and per route; toast notifications; explicit handling of 401 (sign in again), 403 (forbidden page), 404 (not-found page or message), 5xx (toast with the reference id); skeletons for every async load; central logger (console, with correlation id, level by environment).
+      Done when: a thrown render error shows the fallback instead of a blank page; each of 401/403/404/500 has a test; no async view without a loading state.
+- [ ] 8A.5 Forms and lists: field-level validation with messages (sign-in and registration, save and rename place, profile, feed import); sorting and filtering of saved places (name, date, city) and sorting of feed versions.
+      Done when: invalid input shows a message at the field and is not sent; sort and filter state survive navigation.
+- [ ] 8A.6 Component tests: Vitest + Testing Library (jsdom) for the auth form (validation, server error), the places list (sort, filter, delete), the error boundary, the router guards (404, admin-only); one e2e scenario for navigation between routes.
+      Done when: at least 4 component test files pass in CI next to the existing unit and e2e tests.
+- [ ] 8A.7 Documentation `specs/frontend.md`: architecture diagram (modules, components, routes, state), approach (component-based, feature modules, server state vs client state), API used by the client (schemas, methods, request/response examples, from the contracts), user flows / navigation diagram, tech stack justification (React, Vite, React Router, TanStack Query, Zustand, own kit, MapLibre), justified exceptions (inline styles).
+      Done when: every required documentation section exists and links to the code; the requirements matrix front-end rows point to it.
+- [ ] 8A.8 Direction 1, advanced architecture: feature modules with public entry points (`features/*/index.ts`) and no cross-feature imports except through them; lazy-loaded routes (`React.lazy` + `Suspense` with skeletons).
+      Done when: an ESLint import rule enforces the module boundaries; the production build has one chunk per lazy route.
+- [ ] 8A.9 Direction 3, performance: code splitting (map engine, admin and account loaded on demand), hexagon polygons and zoom merging in a Web Worker, memoisation of expensive components and selectors, bundle analysis report, Lighthouse >= 90 on desktop and mobile.
+      Done when: the initial JavaScript of the sign-in and places routes does not include MapLibre; the map stays responsive while 5 000 cells are prepared; bundle report and Lighthouse results (desktop and mobile) are in `docs/evidence/frontend-performance.md`.
+- [ ] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
+
 ## Phase 9 — Hardening and evidence
 
 - [x] 9.1 Compose profile `full`; Playwright end-to-end suite.

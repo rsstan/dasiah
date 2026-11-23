@@ -127,11 +127,16 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
     [results, resolution, legend],
   );
 
+  /** The cell data the map has finished drawing (exposed as data-cells for tests and tools). */
+  const [drawn, setDrawn] = useState<typeof data | undefined>(undefined);
   useEffect(() => {
-    if (loaded) {
-      (mapRef.current?.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(data);
+    const map = mapRef.current;
+    if (loaded && map !== undefined) {
+      (map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(data);
+      map.once('idle', () => setDrawn(data));
     }
   }, [loaded, data]);
+  const cellsState = data.features.length === 0 ? 'empty' : drawn === data ? 'ready' : 'drawing';
 
   useEffect(() => {
     const map = mapRef.current;
@@ -144,7 +149,7 @@ export function MapView({ bounds, results, legend, origin, onPick }: Props) {
 
   return (
     <div className="map-wrap">
-      <div ref={container} className="map" role="region" aria-label="Map" />
+      <div ref={container} className="map" role="region" aria-label="Map" data-cells={cellsState} />
       {mapError !== undefined && <p className="map-error">{mapError}</p>}
     </div>
   );
