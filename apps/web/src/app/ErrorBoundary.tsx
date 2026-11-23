@@ -4,7 +4,7 @@
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router';
 import { logger } from '../shared/lib/logger.ts';
-import { Button, ButtonLink } from '../shared/ui/index.ts';
+import { Button, ButtonLink, PageTitle } from '../shared/ui/index.ts';
 
 function newReference(): string {
   return crypto.randomUUID().slice(0, 8);
@@ -14,7 +14,7 @@ function Fallback({ code, title, text, reference }: { code: string; title: strin
   return (
     <section className="status-page" role="alert" aria-labelledby="error-title">
       <p className="status-code">{code}</p>
-      <h2 id="error-title">{title}</h2>
+      <PageTitle title={title} visible id="error-title" />
       <p className="hint">{text}</p>
       {reference !== undefined && <p className="hint">Reference: {reference}</p>}
       <div className="actions">
@@ -79,7 +79,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, State> 
         <main className="site-main page">
           <section className="status-page" role="alert" aria-labelledby="app-error-title">
             <p className="status-code">Error</p>
-            <h2 id="app-error-title">The application failed</h2>
+            <h1 id="app-error-title">The application failed</h1>
             <p className="hint">Reload the page. If it happens again, quote this reference: {this.state.ref}</p>
             <div className="actions">
               <Button variant="primary" onClick={() => window.location.reload()}>

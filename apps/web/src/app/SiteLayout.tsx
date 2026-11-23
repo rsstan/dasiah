@@ -2,16 +2,18 @@
 // site menu on top, the page below.
 import { Outlet, useMatch } from 'react-router';
 import { Brand, SiteNav } from './SiteNav.tsx';
+import { SkipLink } from './SkipLink.tsx';
 
 export function SiteLayout() {
   const home = useMatch({ path: '/', end: true }) !== null;
   return (
     <div className={home ? 'site site-home' : 'site'}>
+      <SkipLink target="content" />
       <header className="site-header">
         <Brand />
         <SiteNav />
       </header>
-      <main className={home ? 'site-main' : 'site-main page'}>
+      <main id="content" tabIndex={-1} className={home ? 'site-main' : 'site-main page'}>
         <Outlet />
       </main>
       <footer className="site-footer">

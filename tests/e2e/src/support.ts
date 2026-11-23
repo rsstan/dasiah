@@ -31,7 +31,7 @@ export async function openWarsaw(page: Page): Promise<void> {
 /** Types an address, picks the first suggestion and waits for the map. */
 export async function computeFrom(page: Page, query: string, suggestion: RegExp): Promise<void> {
   await page.getByLabel('Start address').fill(query);
-  await page.getByRole('option').filter({ hasText: suggestion }).first().getByRole('button').click();
+  await page.getByRole('option').filter({ hasText: suggestion }).first().click();
   await expect(page.locator('.status.done')).toContainText('cells', { timeout: 60_000 });
 }
 

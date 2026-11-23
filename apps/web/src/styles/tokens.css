@@ -1,12 +1,17 @@
 /* Design tokens: the only place where colours, spacing, radii, type and shadows are defined.
-   Components (shared/ui) and page styles use these variables, never raw values. */
+   Components (shared/ui) and page styles use these variables, never raw values.
+   Two themes: light (below) and dark (:root[data-theme='dark'] at the end). The theme is set on
+   <html> by index.html before the first paint and by shared/lib/theme.ts afterwards. */
 :root {
+  color-scheme: light;
+
   /* colour */
   --color-bg: #ffffff;
   --color-surface: #ffffff;
   --color-surface-muted: #f8fafc;
   --color-text: #1f2937;
-  --color-text-muted: #6b7280;
+  /* At least 5.2:1 on every light surface (the earlier #6b7280 fell to 4.4:1 on the tab bar). */
+  --color-text-muted: #5f6775;
   --color-border: #e5e7eb;
   --color-border-strong: #cbd5e1;
   --color-accent: #1d4ed8;
@@ -26,6 +31,25 @@
   --color-skeleton: #e5e7eb;
   --color-skeleton-shine: #f3f4f6;
   --color-backdrop: rgba(15, 23, 42, 0.45);
+  --color-page: #f8fafc;
+  --color-surface-sunken: #f1f5f9;
+  --color-accent-tint: #eff6ff;
+  --color-accent-faint: rgba(29, 78, 216, 0.06);
+  --color-glass: rgba(255, 255, 255, 0.8);
+  --color-glass-strong: rgba(255, 255, 255, 0.9);
+  --color-glass-border: rgba(255, 255, 255, 0.7);
+  --color-brand: #1a9850;
+  --color-brand-inner: #fee08b;
+  --color-live: #1a9850;
+  --color-off: #bdbdbd;
+
+  /* home page */
+  --hero-glow-green: rgba(26, 152, 80, 0.16);
+  --hero-glow-blue: rgba(29, 78, 216, 0.14);
+  --hero-glow-orange: rgba(252, 141, 89, 0.16);
+  --hero-title-from: #0f172a;
+  --hero-title-mid: #1d4ed8;
+  --hero-title-to: #1a9850;
 
   /* spacing (4 px scale) */
   --space-1: 4px;
@@ -53,6 +77,8 @@
   /* elevation and focus */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --shadow-chip: 0 10px 30px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-chip-hover: 0 16px 40px rgba(29, 78, 216, 0.18), 0 1px 2px rgba(15, 23, 42, 0.06);
   --focus-ring: 0 0 0 3px rgba(29, 78, 216, 0.35);
   --duration-fast: 0.15s;
 
@@ -67,4 +93,57 @@
   --error: var(--color-danger);
   --error-bg: var(--color-danger-soft);
   --radius: var(--radius-md);
+}
+
+/* Dark theme: only colours change. Text contrast at least 4.5:1 on every surface (checked by axe
+   in tests/e2e/src/accessibility.spec.ts). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0b1220;
+  --color-surface: #111a2b;
+  --color-surface-muted: #162135;
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-border: #263247;
+  --color-border-strong: #364560;
+  --color-accent: #60a5fa;
+  --color-accent-hover: #93c5fd;
+  --color-accent-soft: rgba(96, 165, 250, 0.16);
+  --color-on-accent: #0b1220;
+  --color-success: #4ade80;
+  --color-success-soft: rgba(74, 222, 128, 0.14);
+  --color-warning: #facc15;
+  --color-warning-soft: rgba(250, 204, 21, 0.14);
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-danger-soft: rgba(248, 113, 113, 0.12);
+  --color-danger-border: rgba(248, 113, 113, 0.4);
+  --color-info: #93c5fd;
+  --color-info-soft: rgba(96, 165, 250, 0.16);
+  --color-skeleton: #1e293b;
+  --color-skeleton-shine: #273449;
+  --color-backdrop: rgba(0, 0, 0, 0.6);
+  --color-page: #0b1220;
+  --color-surface-sunken: #0d1526;
+  --color-accent-tint: rgba(96, 165, 250, 0.14);
+  --color-accent-faint: rgba(96, 165, 250, 0.08);
+  --color-glass: rgba(17, 26, 43, 0.8);
+  --color-glass-strong: rgba(17, 26, 43, 0.92);
+  --color-glass-border: rgba(148, 163, 184, 0.18);
+  --color-live: #4ade80;
+  --color-off: #64748b;
+
+  --hero-glow-green: rgba(26, 152, 80, 0.22);
+  --hero-glow-blue: rgba(59, 130, 246, 0.22);
+  --hero-glow-orange: rgba(252, 141, 89, 0.14);
+  --hero-title-from: #f8fafc;
+  --hero-title-mid: #93c5fd;
+  --hero-title-to: #4ade80;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-chip: 0 10px 30px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-chip-hover: 0 16px 40px rgba(59, 130, 246, 0.25), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
 }

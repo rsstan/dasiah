@@ -6,6 +6,18 @@
     <meta name="description" content="How much slower is public transport than a car, cell by cell." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Transit Heatmap</title>
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // The theme before the first paint (kept up to date by src/shared/lib/theme.ts, same key).
+      (function () {
+        var choice = 'system';
+        try {
+          choice = localStorage.getItem('heatmap.theme') || 'system';
+        } catch (e) {}
+        var dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -18,6 +18,7 @@
 - [Errors, loading and logging](#errors-loading-and-logging)
 - [Forms and lists](#forms-and-lists)
 - [Components and styles](#components-and-styles)
+- [Theme, accessibility, chart](#theme-accessibility-chart)
 - [Tests](#tests)
 - [Tech stack and why](#tech-stack-and-why)
 - [How to run](#how-to-run)
@@ -33,7 +34,7 @@
 | State | Server state in TanStack Query, client global state in Zustand, view settings in the URL, the rest local |
 | UI | Own component kit (`shared/ui`) on design tokens; MapLibre GL for the map |
 | API | The gateway's REST API; types generated from the OpenAPI contracts |
-| Tests | 25 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
+| Tests | 30 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
 
 ## Architecture diagram
 
@@ -359,29 +360,66 @@ POST /api/v1/places
 ## Components and styles
 
 - **Own component kit** in [shared/ui/](../apps/web/src/shared/ui/): Button and ButtonLink,
-  TextField, Select, Checkbox, Card, Badge, Tabs, Table, Skeleton, Toast/Toaster, Dialog. Every
+  TextField, Select, Checkbox, Card, Badge, Tabs, Table, Skeleton, Toast/Toaster, Dialog,
+  PageTitle. Every
   screen is built from it; no external UI library.
 - **Layout components:** `SiteLayout` (menu + page) and `CityLayout` (panel + map) in
   [app/](../apps/web/src/app/).
 - **CSS architecture:** design tokens (colours, spacing, radii, type, elevation) as CSS variables
-  in [styles/tokens.css](../apps/web/src/styles/tokens.css); base styles in `styles/base.css`;
+  in [styles/tokens.css](../apps/web/src/styles/tokens.css), with a light and a dark set; no
+  colour is written outside that file; base styles in `styles/base.css`;
   each kit component has its own CSS file with `ui-` prefixed classes; layouts and feature
   styles in `styles/index.css`. Responsive: below 768 px the city view stacks the map over the
   panel and the menus wrap.
 - **Inline styles, the justified exceptions:** the colour swatches of the legend (map legend and
   home page) take their colour from the API (`GET /legend`), so a fixed class cannot describe
   them; the map's cursor is set through MapLibre's API on its canvas. Nothing else uses inline
-  styles.
+  styles (the class chart colours its bars with SVG `fill` attributes). `index.html` has one
+  inline script: it sets the theme before the first paint.
 - **Accessibility basics:** labels tied to every field, errors announced, `aria-current` in the
   menu, keyboard tabs, native modal dialogs, a live region for toasts, reduced motion honoured.
+
+## Theme, accessibility, chart
+
+- **Light and dark theme.** The menu's theme button cycles system → light → dark
+  ([app/ThemeToggle.tsx](../apps/web/src/app/ThemeToggle.tsx)); the choice is kept in
+  `localStorage`, "system" follows the operating system and changes with it
+  ([shared/lib/theme.ts](../apps/web/src/shared/lib/theme.ts)). The theme is an attribute on
+  `<html>` (`data-theme`), set by a small script in `index.html` before the first paint, so the
+  page never flashes in the wrong colours; the dark set of tokens redefines only colours. The
+  basemap follows: OpenFreeMap Positron or Dark (`VITE_MAP_STYLE_URL`, `VITE_MAP_STYLE_URL_DARK`);
+  on a switch the map swaps its style and carries the cells over (`transformStyle`), and
+  MapLibre's controls and popups take the theme's colours.
+- **Keyboard.** "Skip to content" is the first stop on every page. The address box is a
+  WAI-ARIA combobox: Down/Up move through the suggestions (`aria-activedescendant`, the focus
+  stays in the box), Enter picks, Escape closes. Lists, tables and the city buttons are native
+  buttons and links, reachable with Tab.
+- **Focus after navigation.** Every page has one `<h1>` ([PageTitle](../apps/web/src/shared/ui/PageTitle.tsx);
+  hidden where the design shows no title) that also sets the document title
+  ("Saved places · Transit Heatmap"). After a move to another page (not on the first load, not
+  when only filters in the address change) the router asks for focus and the new page's heading
+  takes it, also for lazily loaded pages, so screen readers announce the new page and Tab
+  continues from there.
+- **Contrast and axe.** [tests/e2e/src/accessibility.spec.ts](../tests/e2e/src/accessibility.spec.ts)
+  runs axe (WCAG 2.1 A and AA, including colour contrast, plus axe's best practices) on home,
+  sign-in, a computed city map, 404, places, history, account and admin, in both themes; the
+  muted text colour was darkened to pass it (at least 5.2:1 on every light surface). The same
+  file walks the main flow with the keyboard only.
+- **Class chart.** Below the legend,
+  [ClassChart](../apps/web/src/features/map/ClassChart.tsx) shows how the cells of the current
+  map split over the legend classes: one bar per class in legend order and the map's colours,
+  scaled to the largest class, with the count and the share written beside every bar (the pale
+  yellow and light green bars are below 3:1 against a white panel, so the numbers carry the
+  reading, not the colour). It is an ordered list whose items read as text; the bars are hidden
+  from screen readers.
 
 ## Tests
 
 | Kind | What | Where |
 | --- | --- | --- |
-| Unit | ESLint boundary rule, hexagon worker hook (cache, stale answers, fallback), API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
-| Component (Testing Library, jsdom) | sign-in/registration form, places list (sort, filter, delete dialog, rename conflict), route guards (session check, sign-in and return, 403, 404), home page, error boundaries | `*.test.tsx`; helpers in [shared/test/render.tsx](../apps/web/src/shared/test/render.tsx) |
-| End to end (Playwright) | map, account, admin, routes and navigation, performance (main-thread blocking with and without the worker; no map engine on sign-in and places) against the full stack | [tests/e2e/](../tests/e2e/) |
+| Unit | ESLint boundary rule, theme (system, choice, storage), class shares, hexagon worker hook (cache, stale answers, fallback), API client and polling, session (refresh once, no overlapping refreshes), hexagon merging and legend classes, URL state, validation rules, sorting, error policy and query cache, logger | `*.test.ts` next to the code |
+| Component (Testing Library, jsdom) | address search with the keyboard (combobox), page title and focus, sign-in/registration form, places list (sort, filter, delete dialog, rename conflict), route guards (session check, sign-in and return, 403, 404), home page, error boundaries | `*.test.tsx`; helpers in [shared/test/render.tsx](../apps/web/src/shared/test/render.tsx) |
+| End to end (Playwright) | map, account, admin, routes and navigation, accessibility (axe on every page in both themes, keyboard-only flow), performance (main-thread blocking with and without the worker; no map engine on sign-in and places) against the full stack | [tests/e2e/](../tests/e2e/) |
 
 `pnpm test` runs unit and component tests; `pnpm e2e:up && pnpm e2e` the end-to-end suite.
 

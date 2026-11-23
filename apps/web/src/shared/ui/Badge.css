@@ -8,7 +8,7 @@
 }
 
 .ui-badge--neutral {
-  background: #f3f4f6;
+  background: var(--color-surface-sunken);
   color: var(--color-text-muted);
 }
 

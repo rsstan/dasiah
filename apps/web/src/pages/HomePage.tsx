@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { City } from '../models/types.ts';
 import { useCityData } from '../features/cities/index.ts';
-import { TextField } from '../shared/ui/index.ts';
+import { APP_NAME, PageTitle, TextField } from '../shared/ui/index.ts';
 
 /** "LT" -> 🇱🇹 (regional indicator letters). */
 export function flag(countryCode: string): string {
@@ -42,7 +42,9 @@ export function HomePage() {
     <>
       <section className="hero" aria-labelledby="hero-title">
         <p className="eyebrow">Public transport vs car, hexagon by hexagon</p>
-        <h1 id="hero-title">How much slower is public transport than a car?</h1>
+        <PageTitle title={APP_NAME} visible id="hero-title">
+          How much slower is public transport than a car?
+        </PageTitle>
         <p className="lead">
           Pick a city and an address. Every part of the city is coloured by how long the trip takes by public transport
           compared with driving.

@@ -181,7 +181,7 @@ test.describe('map performance', () => {
     await expect(page.getByRole('link', { name: 'Places' })).toBeVisible(); // signed in
     scripts.length = 0;
     await page.goto('/places'); // a fresh load of the places route
-    await expect(page.getByRole('heading', { name: /Saved places/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /Saved places/ })).toBeVisible();
     expect(scripts.some((path) => path.includes('PlacesPage'))).toBe(true);
     expect(mapEngine(scripts)).toEqual([]);
   });

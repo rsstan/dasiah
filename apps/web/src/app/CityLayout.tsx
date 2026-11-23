@@ -5,7 +5,8 @@ import { Link, Outlet, useParams } from 'react-router';
 import { MapView, MapStateProvider, useMapState } from '../features/map/index.ts';
 import { useCityData } from '../features/cities/index.ts';
 import { Brand, SiteNav } from './SiteNav.tsx';
-import { Button, ButtonLink } from '../shared/ui/index.ts';
+import { Button, ButtonLink, PageTitle } from '../shared/ui/index.ts';
+import { SkipLink } from './SkipLink.tsx';
 
 export function CityLayout() {
   const { code } = useParams();
@@ -32,6 +33,7 @@ function Workspace() {
   );
   return (
     <div className={mapOnly ? 'app map-only' : 'app'}>
+      <SkipLink target="content" />
       <aside className="panel">
         <header className="panel-header">
           <Brand />
@@ -44,9 +46,9 @@ function Workspace() {
           <Link to="/" className="back-link">
             ← All cities
           </Link>
-          <h1>
+          <PageTitle title={city.name} visible id="content">
             {city.name} <span className="country">{city.countryCode}</span>
-          </h1>
+          </PageTitle>
         </div>
         <Outlet />
       </aside>
@@ -77,14 +79,15 @@ function MapLoading() {
 function CityNotFound({ code }: { code: string }) {
   return (
     <div className="site">
+      <SkipLink target="content" />
       <header className="site-header">
         <Brand />
         <SiteNav />
       </header>
-      <main className="site-main page">
+      <main id="content" tabIndex={-1} className="site-main page">
         <section className="status-page" aria-labelledby="city-not-found">
           <p className="status-code">404</p>
-          <h2 id="city-not-found">City not found</h2>
+          <PageTitle title="City not found" visible id="city-not-found" />
           <p className="hint">
             This instance has no city with the code <code>{code}</code>.
           </p>

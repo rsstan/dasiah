@@ -1,13 +1,13 @@
 // Any unknown address.
 import { useLocation } from 'react-router';
-import { ButtonLink } from '../shared/ui/index.ts';
+import { ButtonLink, PageTitle } from '../shared/ui/index.ts';
 
 export function NotFoundPage() {
   const location = useLocation();
   return (
     <section className="status-page" aria-labelledby="not-found-title">
       <p className="status-code">404</p>
-      <h2 id="not-found-title">Page not found</h2>
+      <PageTitle title="Page not found" visible id="not-found-title" />
       <p className="hint">
         There is nothing at <code>{location.pathname}</code>.
       </p>

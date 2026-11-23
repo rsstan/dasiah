@@ -1,5 +1,8 @@
 // Address box: searches 400 ms after the user stops typing (3+ characters); the candidates are
 // inside the chosen city. When search is unavailable the map can still be clicked.
+// Keyboard (WAI-ARIA combobox with a list box): Down/Up move through the suggestions (the focus
+// stays in the box, aria-activedescendant names the active one), Enter picks the active one or
+// the first, Escape closes the list.
 import { useId, useState } from 'react';
 import { describeError } from '../../shared/api/client.ts';
 import { useDebounced } from '../../shared/lib/useDebounced.ts';
@@ -23,6 +26,8 @@ export function AddressSearch({ cityCode, selected, onSelect }: Props) {
   const [text, setText] = useState(selected ?? '');
   const [dirty, setDirty] = useState(false);
   const [previous, setPrevious] = useState(selected);
+  /** Index of the highlighted suggestion; -1 for none. */
+  const [active, setActive] = useState(-1);
   const listId = useId();
 
   // A new pick from outside (map click, shared link) replaces the text.
@@ -45,7 +50,18 @@ export function AddressSearch({ cityCode, selected, onSelect }: Props) {
           ? { kind: 'error', message: describeError(geocode.error) }
           : { kind: 'results', items: uniqueByName(geocode.data) };
 
+  const items = search?.kind === 'results' ? search.items : [];
+  const open = items.length > 0;
+  // New suggestions start without a highlight.
+  const [shownFor, setShownFor] = useState(items);
+  if (shownFor !== items && (shownFor.length !== items.length || shownFor.some((c, i) => c !== items[i]))) {
+    setShownFor(items);
+    setActive(-1);
+  }
+  const optionId = (index: number) => `${listId}-option-${index}`;
+
   const pick = (candidate: GeocodeCandidate) => {
+    setActive(-1);
     setDirty(false);
     setText(candidate.displayName);
     onSelect(candidate);
@@ -59,17 +75,31 @@ export function AddressSearch({ cityCode, selected, onSelect }: Props) {
         autoComplete="off"
         placeholder="Street and number, or click the map"
         value={text}
+        role="combobox"
+        aria-autocomplete="list"
         aria-controls={listId}
-        aria-expanded={search?.kind === 'results'}
+        aria-expanded={open}
+        aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
         onChange={(e) => {
           setText(e.target.value);
           setDirty(true);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && search?.kind === 'results' && search.items[0] !== undefined) {
-            pick(search.items[0]);
-          }
-          if (e.key === 'Escape') {
+          if (e.key === 'ArrowDown' && open) {
+            e.preventDefault();
+            setActive((i) => Math.min(items.length - 1, i + 1));
+          } else if (e.key === 'ArrowUp' && open) {
+            e.preventDefault();
+            setActive((i) => Math.max(0, i - 1));
+          } else if (e.key === 'Enter' && open) {
+            e.preventDefault();
+            const chosen = items[active] ?? items[0];
+            if (chosen !== undefined) {
+              pick(chosen);
+            }
+          } else if (e.key === 'Escape' && open) {
+            e.preventDefault();
+            setActive(-1);
             setDirty(false);
           }
         }}
@@ -83,13 +113,19 @@ export function AddressSearch({ cityCode, selected, onSelect }: Props) {
       {search?.kind === 'results' && search.items.length === 0 && (
         <p className="hint">No address found in this city.</p>
       )}
-      {search?.kind === 'results' && search.items.length > 0 && (
-        <ul id={listId} className="candidates" role="listbox">
-          {search.items.map((c) => (
-            <li key={`${c.lat},${c.lon},${c.displayName}`} role="option" aria-selected={false}>
-              <button type="button" onClick={() => pick(c)}>
-                {c.displayName}
-              </button>
+      {open && (
+        <ul id={listId} className="candidates" role="listbox" aria-label="Addresses found">
+          {items.map((c, i) => (
+            <li
+              key={`${c.lat},${c.lon},${c.displayName}`}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === active}
+              // Keep the focus in the box while clicking a suggestion.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(c)}
+            >
+              {c.displayName}
             </li>
           ))}
         </ul>

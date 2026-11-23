@@ -1,7 +1,9 @@
 // The site menu, the same on every page: brand, cities, and for a signed-in user places,
-// history, admin (admins) and the account; otherwise "Sign in", which returns to the current page.
+// history, admin (admins) and the account; otherwise "Sign in", which returns to the current page;
+// last the theme button.
 import { Link, NavLink, useLocation } from 'react-router';
 import { useSession } from '../features/auth/index.ts';
+import { ThemeToggle } from './ThemeToggle.tsx';
 
 export function Brand() {
   return (
@@ -37,6 +39,7 @@ export function SiteNav() {
           Sign in
         </Link>
       )}
+      <ThemeToggle />
     </nav>
   );
 }

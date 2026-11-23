@@ -112,12 +112,13 @@ Testing Library.
       Done when: an ESLint import rule enforces the module boundaries; the production build has one chunk per lazy route.
 - [x] 8A.9 Direction 3, performance: code splitting (map engine, admin and account loaded on demand), hexagon polygons and zoom merging in a Web Worker, memoisation of expensive components and selectors, bundle analysis report, Lighthouse >= 90 on desktop and mobile.
       Done when: the initial JavaScript of the sign-in and places routes does not include MapLibre; the map stays responsive while 5 000 cells are prepared; bundle report and Lighthouse results (desktop and mobile) are in `docs/evidence/frontend-performance.md`.
-- [ ] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
+- [x] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
 
 ## Phase 9 — Hardening and evidence
 
 - [x] 9.1 Compose profile `full`; Playwright end-to-end suite.
       Known flaky (to look at later): `services/accessibility/src/timetables/loader.itest.ts` "switches to a newly activated feed atomically" failed once in about ten runs (2026-11-15).
+      Known flaky (to look at later): `tests/e2e/src/account.spec.ts` once stayed on the home page after registering instead of returning to the city (2026-11-24, full run); not reproduced in the next four runs, the trace was lost.
       Known issue (to fix before running more than one accessibility instance): on start-up `failInterrupted` marks every `running` calculation failed, including those of another live instance, whose result then fails with "already failed" (500). Found 2026-11-15.
 - [ ] 9.2 Failure drills, each with a short note in `docs/evidence/resilience.md`: OSRM stopped (breaker opens, cached maps still served), RabbitMQ stopped (outbox drains after restart), geocoder timeout (cache fallback), poison message (DLQ).
 - [ ] 9.3 Trace screenshot and cross-service log excerpt for one calculation in `docs/evidence/`.

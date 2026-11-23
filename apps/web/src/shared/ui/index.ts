@@ -4,6 +4,7 @@ export { Button, ButtonLink, buttonClass, type ButtonProps, type ButtonSize, typ
 export { Card } from './Card.tsx';
 export { Dialog } from './Dialog.tsx';
 export { Checkbox, Select, TextField, type SelectProps, type TextFieldProps } from './Field.tsx';
+export { APP_NAME, PageTitle } from './PageTitle.tsx';
 export { Skeleton } from './Skeleton.tsx';
 export { Table, type Column } from './Table.tsx';
 export { Tabs, type TabItem } from './Tabs.tsx';

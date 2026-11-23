@@ -13,6 +13,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { HomePage } from '../pages/HomePage.tsx';
 import { NotFoundPage } from '../pages/NotFoundPage.tsx';
+import { requestPageFocus } from '../shared/lib/pageFocus.ts';
 import { Skeleton } from '../shared/ui/index.ts';
 import { RootLayout } from './AppData.tsx';
 import { CityLayout } from './CityLayout.tsx';
@@ -73,3 +74,14 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
+
+// After a move to another page (not on the first load, not when only the query changes) the new
+// page's heading takes the focus (shared/ui/PageTitle.tsx). The router notifies before React
+// renders the new page, so the request is there when the page mounts, lazy or not.
+let lastPath = router.state.location.pathname;
+router.subscribe((state) => {
+  if (state.location.pathname !== lastPath) {
+    lastPath = state.location.pathname;
+    requestPageFocus();
+  }
+});

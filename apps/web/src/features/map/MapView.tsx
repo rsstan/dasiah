@@ -3,7 +3,7 @@
 // class, merged into larger hexagons when zoomed out, a popup per cell and a marker at the start.
 // Clicking outside the cells (or "Start here" in a popup) picks a new start point.
 import * as maplibregl from 'maplibre-gl';
-import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl';
+import type { GeoJSONSource, LayerSpecification, MapMouseEvent, StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // MapLibre finds its worker next to its own module, which is not where Vite serves the
 // pre-bundled copy from; point it at the worker file explicitly (also emitted by the build).
@@ -14,15 +14,49 @@ import { formatDuration, resolutionForZoom } from './display.ts';
 import type { CellCollection, MapCell } from './hexagons.ts';
 import { useHexagons } from './useHexagons.ts';
 import { logger } from '../../shared/lib/logger.ts';
+import { useTheme, type Theme } from '../../shared/lib/theme.ts';
 
 maplibregl.setWorkerUrl(workerUrl);
 
-export const MAP_STYLE_URL: string =
-  (import.meta.env['VITE_MAP_STYLE_URL'] as string | undefined) || 'https://tiles.openfreemap.org/styles/positron';
+/** Basemap per theme; both OpenFreeMap styles credit OpenStreetMap. */
+export const MAP_STYLE_URL: Record<Theme, string> = {
+  light:
+    (import.meta.env['VITE_MAP_STYLE_URL'] as string | undefined) || 'https://tiles.openfreemap.org/styles/positron',
+  dark:
+    (import.meta.env['VITE_MAP_STYLE_URL_DARK'] as string | undefined) || 'https://tiles.openfreemap.org/styles/dark',
+};
 
 const SOURCE = 'cells';
 const FILL = 'cells-fill';
 const EMPTY: CellCollection = { type: 'FeatureCollection', features: [] };
+
+const CELL_LAYER: LayerSpecification = {
+  id: FILL,
+  type: 'fill',
+  source: SOURCE,
+  paint: {
+    'fill-color': ['get', 'color'],
+    'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.72, 15, 0.5],
+    'fill-outline-color': 'rgba(255, 255, 255, 0.25)',
+  },
+};
+
+/** The cell layer goes below the first label layer, so street and place names stay readable. */
+function firstLabel(style: StyleSpecification): string | undefined {
+  return style.layers.find((l) => l.type === 'symbol')?.id;
+}
+
+/** A new basemap (theme change) keeps the cells: their source and layer move into the new style. */
+function keepCells(previous: StyleSpecification | undefined, next: StyleSpecification): StyleSpecification {
+  const cells = previous?.sources[SOURCE];
+  if (cells === undefined) {
+    return next;
+  }
+  const layers = [...next.layers];
+  const at = layers.findIndex((l) => l.type === 'symbol');
+  layers.splice(at < 0 ? layers.length : at, 0, CELL_LAYER);
+  return { ...next, sources: { ...next.sources, [SOURCE]: cells }, layers };
+}
 
 interface Props {
   bounds: BoundingBox;
@@ -43,6 +77,8 @@ export const MapView = memo(function MapView({ bounds, results, legend, origin, 
   const [loaded, setLoaded] = useState(false);
   const [zoom, setZoom] = useState(11);
   const [mapError, setMapError] = useState<string | undefined>(undefined);
+  const { theme } = useTheme();
+  const themeRef = useRef(theme);
   useEffect(() => {
     pickRef.current = onPick;
     legendRef.current = legend;
@@ -55,7 +91,7 @@ export const MapView = memo(function MapView({ bounds, results, legend, origin, 
     }
     const map = new maplibregl.Map({
       container: container.current,
-      style: MAP_STYLE_URL,
+      style: MAP_STYLE_URL[themeRef.current],
       bounds: [bounds.west, bounds.south, bounds.east, bounds.north],
       // The style's sources credit OpenFreeMap, OpenMapTiles and OpenStreetMap (ODbL).
       // Compact (an ⓘ button) automatically when the map is narrow, e.g. on phones.
@@ -75,21 +111,7 @@ export const MapView = memo(function MapView({ bounds, results, legend, origin, 
     });
     map.on('load', () => {
       map.addSource(SOURCE, { type: 'geojson', data: EMPTY });
-      // Below the first label layer, so street and place names stay readable over the cells.
-      const firstLabel = map.getStyle().layers.find((l) => l.type === 'symbol')?.id;
-      map.addLayer(
-        {
-          id: FILL,
-          type: 'fill',
-          source: SOURCE,
-          paint: {
-            'fill-color': ['get', 'color'],
-            'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.72, 15, 0.5],
-            'fill-outline-color': 'rgba(255, 255, 255, 0.25)',
-          },
-        },
-        firstLabel,
-      );
+      map.addLayer(CELL_LAYER, firstLabel(map.getStyle()));
       setZoom(map.getZoom());
       setLoaded(true);
     });
@@ -117,6 +139,16 @@ export const MapView = memo(function MapView({ bounds, results, legend, origin, 
     // The bounds of the first city only; later changes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Theme switch: the basemap of the theme, with the cells carried over.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map === undefined || themeRef.current === theme) {
+      return;
+    }
+    themeRef.current = theme;
+    map.setStyle(MAP_STYLE_URL[theme], { transformStyle: keepCells });
+  }, [theme]);
 
   // City switch: fly to the new city.
   useEffect(() => {

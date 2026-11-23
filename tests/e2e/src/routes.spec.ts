@@ -36,7 +36,7 @@ test.describe('routes', () => {
     await page.getByLabel('Password').fill(e2eEnv('SEED_DEMO_PASSWORD'));
     await page.locator('form.auth-form').getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/places$/);
-    await expect(page.getByRole('heading', { name: /Saved places/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /Saved places/ })).toBeVisible();
 
     const nav = page.getByRole('navigation', { name: 'Sections' });
     await nav.getByRole('link', { name: 'History' }).click();
@@ -58,7 +58,7 @@ test.describe('routes', () => {
     await page.goto('/account');
     await page.reload();
     await expect(page).toHaveURL(/\/account$/);
-    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Account', exact: true })).toBeVisible();
   });
 
   test('a saved place opens its city with the point, and the menu leads back', async ({ page }) => {

@@ -1,10 +1,10 @@
 // "/cities/:code": the controls of the map (start address, the user's saved places in this
-// city, departure, status, legend). The start point and departure are mirrored into the query
+// city, departure, status, legend, the split of the current map over the classes). The start point and departure are mirrored into the query
 // string, so the address bar always holds a link to the current map.
 import { useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { SavePlaceForm, usePlaces, type SavedPlace } from '../features/places/index.ts';
-import { useMapState, AddressSearch, Legend, Status, toSearch } from '../features/map/index.ts';
+import { useMapState, AddressSearch, ClassChart, Legend, Status, toSearch } from '../features/map/index.ts';
 import { useSession } from '../features/auth/index.ts';
 import { Button, TextField } from '../shared/ui/index.ts';
 
@@ -72,6 +72,7 @@ export function MapPage() {
       )}
       <Status state={calculation} onRetry={retry} />
       <Legend classes={legend} />
+      {calculation.kind === 'done' && <ClassChart results={calculation.results} legend={legend} />}
     </>
   );
 }
