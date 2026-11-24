@@ -30,7 +30,7 @@ function hashingStream(maxBytes: number, onDone: (sha: Buffer, bytes: number) =>
   return new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       bytes += chunk.length;
-      if (bytes > maxBytes) {
+      if (maxBytes > 0 && bytes > maxBytes) {
         callback(new DownloadError(`archive larger than ${maxBytes} bytes`));
         return;
       }
@@ -47,6 +47,7 @@ function hashingStream(maxBytes: number, onDone: (sha: Buffer, bytes: number) =>
 export async function downloadToFile(
   url: string,
   file: string,
+  /** timeoutMs: without any data from the publisher, not for the whole download. maxBytes: 0 = no limit. */
   options: { timeoutMs: number; maxBytes: number; logger: Logger; attempts?: number },
 ): Promise<Downloaded> {
   const attempts = options.attempts ?? 3;
@@ -95,7 +96,7 @@ export async function hashFile(file: string): Promise<Downloaded> {
   let result: Downloaded | undefined;
   await pipeline(
     createReadStream(file),
-    hashingStream(Number.MAX_SAFE_INTEGER, (sha256, bytes) => (result = { sha256, bytes })),
+    hashingStream(0, (sha256, bytes) => (result = { sha256, bytes })),
     new Writable({
       write(_chunk, _encoding, callback) {
         callback(); // only hashing

@@ -1,6 +1,7 @@
 // GTFS import, raw -> staging -> core -> mart:
-//   1. download (or take a local file) and hash; the same archive of a source is a no-op;
-//   2. store the zip under raw/<source>/<sha256>.zip; feed_versions row `downloaded`;
+//   1. feed_versions row `downloading`; download in the background and hash (a local file is hashed
+//      at once); the same archive of a source is not imported twice;
+//   2. store the zip under raw/<source>/<sha256>.zip; `downloaded`;
 //   3. COPY the files into transit_staging; `staged`;
 //   4. quality checks on staging; then in ONE transaction promote_feed (typed core tables and
 //      quality gates), rebuild_transfers, rebuild_hex_stop_access; `validated`.
@@ -57,27 +58,100 @@ export class Importer {
     const result = await this.ctx.db
       .updateTable('transit.feed_versions')
       .set({ status: 'failed', error_message: 'import interrupted (service restarted)' })
-      .where('status', 'in', ['downloaded', 'staged'])
+      .where('status', 'in', ['downloading', 'downloaded', 'staged'])
       .executeTakeFirst();
     return Number(result.numUpdatedRows);
   }
 
+  /** Answers at once; the download and the import run in the background. */
   async importFromUrl(sourceCode: string): Promise<ImportStarted> {
     const source = await this.source(sourceCode);
-    return this.withArchive(source, async (file) => {
-      this.ctx.logger.info({ source: source.code }, 'downloading feed');
-      const started = Date.now();
-      const downloaded = await downloadToFile(source.url, file, {
-        timeoutMs: this.ctx.config.DOWNLOAD_TIMEOUT_MS,
-        maxBytes: this.ctx.config.MAX_DOWNLOAD_BYTES,
-        logger: this.ctx.logger,
-      });
-      this.ctx.logger.info(
-        { source: source.code, bytes: downloaded.bytes, ms: Date.now() - started },
-        'feed downloaded',
-      );
-      return downloaded;
+    this.lock(source);
+    let feedVersionId: number;
+    let dir: string;
+    try {
+      dir = await mkdtemp(join(tmpdir(), 'gtfs-'));
+      const row = await this.ctx.db
+        .insertInto('transit.feed_versions')
+        .values({ feed_source_id: source.feedSourceId, sha256: null, storage_key: null, status: 'downloading' })
+        .returning('feed_version_id')
+        .executeTakeFirstOrThrow();
+      feedVersionId = row.feed_version_id;
+    } catch (error) {
+      this.running.delete(source.feedSourceId);
+      throw error;
+    }
+    const done = this.downloadAndProcess(feedVersionId, source, join(dir, 'feed.zip')).finally(async () => {
+      this.running.delete(source.feedSourceId);
+      await rm(dir, { recursive: true, force: true });
     });
+    return { feedVersionId, status: 'downloading', duplicate: false, done };
+  }
+
+  private async downloadAndProcess(feedVersionId: number, source: Source, file: string): Promise<void> {
+    const { logger, config } = this.ctx;
+    try {
+      logger.info({ source: source.code, feed_version_id: feedVersionId }, 'downloading feed');
+      const started = Date.now();
+      const { sha256, bytes } = await downloadToFile(source.url, file, {
+        timeoutMs: config.DOWNLOAD_TIMEOUT_MS,
+        maxBytes: config.MAX_DOWNLOAD_BYTES,
+        logger,
+      });
+      logger.info({ source: source.code, bytes, ms: Date.now() - started }, 'feed downloaded');
+      const existing = await this.sameArchive(source, sha256);
+      if (existing !== undefined) {
+        throw new ImportError(
+          `Nothing new: the same archive as version ${existing.feedVersionId} (${existing.status}).`,
+        );
+      }
+      const key = `raw/${source.code}/${sha256.toString('hex')}.zip`;
+      await this.ctx.storage.putFile(key, file);
+      await this.ctx.db
+        .updateTable('transit.feed_versions')
+        .set({ sha256, storage_key: key, status: 'downloaded' })
+        .where('feed_version_id', '=', feedVersionId)
+        .execute();
+      logger.info({ source: source.code, feed_version_id: feedVersionId, bytes }, 'feed registered');
+    } catch (error) {
+      const reason = (error instanceof Error ? error.message : String(error)).slice(0, 2_000);
+      logger.warn({ source: source.code, feed_version_id: feedVersionId, err: error }, 'feed not imported');
+      await this.markFailed(feedVersionId, reason);
+      return;
+    }
+    await this.process(feedVersionId, source, file);
+  }
+
+  /** The usable version of this archive, if it was imported before; a failed attempt is removed. */
+  private async sameArchive(
+    source: Source,
+    sha256: Buffer,
+  ): Promise<{ feedVersionId: number; status: string } | undefined> {
+    const existing = await this.ctx.db
+      .selectFrom('transit.feed_versions')
+      .select(['feed_version_id', 'status'])
+      .where('feed_source_id', '=', source.feedSourceId)
+      .where('sha256', '=', sha256)
+      .executeTakeFirst();
+    if (existing === undefined) {
+      return undefined;
+    }
+    if (existing.status !== 'failed') {
+      return { feedVersionId: existing.feed_version_id, status: existing.status };
+    }
+    // A failed attempt of the same archive is replaced (it left nothing in the core tables).
+    await this.ctx.db
+      .deleteFrom('transit.feed_versions')
+      .where('feed_version_id', '=', existing.feed_version_id)
+      .execute();
+    return undefined;
+  }
+
+  private lock(source: Source): void {
+    if (this.running.has(source.feedSourceId)) {
+      throw new ConflictError(`An import of ${source.code} is already running.`, { type: '/problems/import-running' });
+    }
+    this.running.add(source.feedSourceId);
   }
 
   async importFromFile(sourceCode: string, path: string): Promise<ImportStarted> {
@@ -110,10 +184,7 @@ export class Importer {
     fetch: (file: string) => Promise<{ sha256: Buffer; bytes: number }>,
     origin?: string,
   ): Promise<ImportStarted> {
-    if (this.running.has(source.feedSourceId)) {
-      throw new ConflictError(`An import of ${source.code} is already running.`, { type: '/problems/import-running' });
-    }
-    this.running.add(source.feedSourceId);
+    this.lock(source);
     const dir = await mkdtemp(join(tmpdir(), 'gtfs-'));
     const file = join(dir, 'feed.zip');
     let handedOver = false;
@@ -151,21 +222,9 @@ export class Importer {
     file: string,
     origin: string | undefined,
   ): Promise<{ feedVersionId: number; status: string; duplicate: boolean }> {
-    const existing = await this.ctx.db
-      .selectFrom('transit.feed_versions')
-      .select(['feed_version_id', 'status'])
-      .where('feed_source_id', '=', source.feedSourceId)
-      .where('sha256', '=', sha256)
-      .executeTakeFirst();
-    if (existing !== undefined && existing.status !== 'failed') {
-      return { feedVersionId: existing.feed_version_id, status: existing.status, duplicate: true };
-    }
+    const existing = await this.sameArchive(source, sha256);
     if (existing !== undefined) {
-      // A failed attempt of the same archive is replaced (it left nothing in the core tables).
-      await this.ctx.db
-        .deleteFrom('transit.feed_versions')
-        .where('feed_version_id', '=', existing.feed_version_id)
-        .execute();
+      return { ...existing, duplicate: true };
     }
     const key = `raw/${source.code}/${sha256.toString('hex')}.zip`;
     await this.ctx.storage.putFile(key, file);

@@ -83,15 +83,96 @@ when" holds and the `verify` skill passes. Phases 1 and 3–7 each end with a ro
 - [x] 8.3 Admin page: feed versions, import, activate.
 - [x] 8.4 Responsive layout for phones.
 
+## Phase 8A — Front-end architecture (task "Front-End")
+
+Brings `apps/web` up to the front-end grading requirements (`docs/07-requirements-matrix.md#front-end-minimum`).
+Decisions (2026-11-23): own component kit instead of a UI library; for the maximum, direction 1
+(advanced architecture: feature modules, lazy routes) and direction 3 (performance) in full,
+direction 4 (advanced UI/UX) as a reserve. Libraries: React Router, TanStack Query, Zustand,
+Testing Library.
+
+- [x] 8A.1 Routing and pages: React Router with `/` (map), `/places`, `/history`, `/account`, `/admin` (admin only), `/sign-in`, not-found page; `App.tsx` split into `pages/` and a layout component (`AppShell`); shared map links (`?city=&lat=&lon=`) keep working.
+      Done when: every route renders by its URL and through the navigation, browser back/forward work, an unknown URL shows the 404 page, `/admin` as a non-admin shows the 403 page; e2e suite green.
+- [x] 8A.1b Home page and city routes (concept change, 2026-11-23): `/` is a home page with the site menu and the cities of this instance as floating buttons in the centre (search to filter them; any number of cities, built from `GET /cities`, none hard-coded); every city has its route `/cities/:code` with the map workspace (start address, departure, status, legend, map); the city switch in the side panel is replaced by a link back to all cities. Places and history stay common pages with a city filter; "show on map" opens `/cities/<code>?lat=..&lon=..`. Two layouts: the site layout (menu + content: home, sign-in, places, history, account, admin, 404) and the city layout (panel + map). Old links `/?city=..&lat=..` redirect to the city route.
+      Done when: the home page lists every city from the API and filters them by name; `/cities/<code>` opens that city, an unknown code shows a not-found message; places and history filter by city and open the city route; e2e suite green.
+      Found here and fixed in identity (2026-11-23): reloading a page while it refreshed the access token presented the just-rotated refresh token again and reuse detection revoked every session of the user. Now the previous token is accepted once within `REFRESH_REUSE_GRACE_S` (30 s) while its successor is unused.
+- [x] 8A.2 Structure and state: folders `app/` (router, providers), `pages/`, `features/` (map, places, history, auth, admin), `shared/ui`, `shared/api`, `models/`, `styles/`; server data (cities, legend, places, history, admin) through TanStack Query; client global state (session, theme, notifications) in Zustand stores, keeping one-at-a-time token refresh (Web Lock).
+      Done when: no component calls `fetch` or the API client directly except through `shared/api` and query hooks; the session tests still pass; lint rule or test guards the layer boundaries.
+- [x] 8A.3 Own component kit in `shared/ui`: Button, TextField, Select, Checkbox, Card, Badge, Tabs, Table, Skeleton, Toast, Dialog, with CSS per component and design tokens (colours, spacing, radii, typography) as CSS variables; existing screens rebuilt from it.
+      Done when: screens use kit components instead of repeated markup; no inline styles except the documented ones (legend swatch colour from the API, map cursor through MapLibre).
+- [x] 8A.4 Error handling and loading: error boundary for the app and per route; toast notifications; explicit handling of 401 (sign in again), 403 (forbidden page), 404 (not-found page or message), 5xx (toast with the reference id); skeletons for every async load; central logger (console, with correlation id, level by environment).
+      Done when: a thrown render error shows the fallback instead of a blank page; each of 401/403/404/500 has a test; no async view without a loading state.
+- [x] 8A.5 Forms and lists: field-level validation with messages (sign-in and registration, save and rename place, profile, feed import); sorting and filtering of saved places (name, date, city) and sorting of feed versions.
+      Done when: invalid input shows a message at the field and is not sent; sort and filter state survive navigation.
+- [x] 8A.6 Component tests: Vitest + Testing Library (jsdom) for the auth form (validation, server error), the places list (sort, filter, delete), the error boundary, the router guards (404, admin-only); one e2e scenario for navigation between routes.
+      Done when: at least 4 component test files pass in CI next to the existing unit and e2e tests.
+- [x] 8A.7 Documentation `specs/frontend.md`: architecture diagram (modules, components, routes, state), approach (component-based, feature modules, server state vs client state), API used by the client (schemas, methods, request/response examples, from the contracts), user flows / navigation diagram, tech stack justification (React, Vite, React Router, TanStack Query, Zustand, own kit, MapLibre), justified exceptions (inline styles).
+      Done when: every required documentation section exists and links to the code; the requirements matrix front-end rows point to it.
+- [x] 8A.8 Direction 1, advanced architecture: feature modules with public entry points (`features/*/index.ts`) and no cross-feature imports except through them; lazy-loaded routes (`React.lazy` + `Suspense` with skeletons).
+      Done when: an ESLint import rule enforces the module boundaries; the production build has one chunk per lazy route.
+- [x] 8A.9 Direction 3, performance: code splitting (map engine, admin and account loaded on demand), hexagon polygons and zoom merging in a Web Worker, memoisation of expensive components and selectors, bundle analysis report, Lighthouse >= 90 on desktop and mobile.
+      Done when: the initial JavaScript of the sign-in and places routes does not include MapLibre; the map stays responsive while 5 000 cells are prepared; bundle report and Lighthouse results (desktop and mobile) are in `docs/evidence/frontend-performance.md`.
+- [x] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
+
+## Phase T — Automated tests (separate module, task "Auto Tests")
+
+Independent of the front-end module (phase 8A). Scope: gateway, services, shared packages, and the
+suite as a whole (integration, cross-service, end-to-end). The UI clause ("if the application
+includes a frontend") is met by the component and Playwright tests of 8A; more web tests are optional (T.9).
+
+Baseline measured on 2026-11-24 (Vitest v8 coverage, unit + integration, all source files counted,
+generated code and test support excluded). Back end (gateway, services, `packages/common`,
+`packages/contracts`): lines about 87.6 %, branches 74.3 %, functions 88 %. For information, with
+`apps/web`: 76.2 / 66.5 / 71.0 %; `apps/web` alone: 54.5 / 56.2 / 49.7 %. 251 tests in 57 files,
+16 end-to-end tests.
+
+- [x] T.1 Stability: (a) `MapPage` rewrites the query after the user already left for `/sign-in`, so `?next=` is lost (reproduced: `/sign-in?next=%2Fcities%2Fwaw` becomes `/sign-in?time=08%3A00`); (b) `loader.itest.ts` "switches to a newly activated feed atomically"; (c) `grid.test.ts` "covers Vilnius" times out (5 s) under load; (d) the e2e helper `register` returns before the registration is answered.
+      Done when: each cause is found and fixed with a regression test (a) or a deterministic wait; unit and integration suites pass 10 times and the e2e suite 5 times in a row without retries; the known-flaky notes in 9.1 are gone.
+- [x] T.2 Coverage: `@vitest/coverage-v8`, `pnpm test:cov` (unit + integration in one report: text, HTML, lcov), explicit include/exclude list with reasons, back end and web reported separately, thresholds on the back end (first at the baseline).
+      Done when: one command prints the numbers and writes the report; a drop below a threshold fails the command.
+- [x] T.3 Edge cases in services: branches of transit-data (import, download, storage, artifacts) and accessibility (request validation, calculation errors); unit tests of pure logic now covered only through integration tests (token domain, stored-places rules, geocoder response mapping, proxy and upstream).
+      Done when: every back-end workspace at least 80 % lines and 70 % branches; back end overall at least 88 % lines, 78 % branches; thresholds raised to that.
+- [x] T.4 CI quality gates: coverage job with thresholds and the HTML report as artifact, JUnit results and a summary table in the run, CI also on pushes to `develop`, Playwright flaky results reported as failures (`failOnFlakyTests`), CI badge in the README.
+      Done when: a pull request with lower coverage or a failing test is red; a green run of every job is linked in `docs/evidence/tests.md` (the link is added after the next push).
+- [x] T.5 Test design techniques: property-based tests (fast-check) for RAPTOR against a brute-force oracle, the ratio and legend classification and the GTFS time parsing; mutation testing (Stryker) on the RAPTOR, ratio/legend, password and token modules.
+      Done when: properties run in CI; mutation score at least 70 % on the chosen modules, surviving mutants reviewed in `docs/evidence/tests.md`.
+- [x] T.6 Migration and asynchronous workflow tests: up/down/up of every service as an integration test that also keeps existing rows; one cross-service flow import -> activation event -> new timetable -> calculation -> history.
+      Done when: both run in the integration job.
+- [x] T.7 Load and stress: k6 scenarios for `POST /calculations` (cached, uncached), geocoding and sign-in, with thresholds (this is step 9.4, done here).
+      Changed 2026-11-24 (user): no thresholds on speed, behaviour only, so tests do not depend on the machine.
+      Done when: results and the rate-limit demonstration are in `docs/evidence/load.md`; a short smoke run of the scripts works in CI.
+- [x] T.8 Documentation `specs/testing.md`: strategy and pyramid, tools and why, how to run locally, naming and directories, coverage numbers with screenshot, known gaps with reasons, test doubles used and why, defects found by tests, recommendations; a separate "Auto Tests" section in the requirements matrix.
+      Done when: every required section exists and links to the code and evidence.
+- [ ] T.9 Optional, web tests: admin, account, save-place form, history, map state, `MapView` with a MapLibre test double.
+      Done when: `apps/web` at least 70 % lines.
+
 ## Phase 9 — Hardening and evidence
 
 - [x] 9.1 Compose profile `full`; Playwright end-to-end suite.
-      Known flaky (to look at later): `services/accessibility/src/timetables/loader.itest.ts` "switches to a newly activated feed atomically" failed once in about ten runs (2026-11-15).
       Known issue (to fix before running more than one accessibility instance): on start-up `failInterrupted` marks every `running` calculation failed, including those of another live instance, whose result then fails with "already failed" (500). Found 2026-11-15.
 - [ ] 9.2 Failure drills, each with a short note in `docs/evidence/resilience.md`: OSRM stopped (breaker opens, cached maps still served), RabbitMQ stopped (outbox drains after restart), geocoder timeout (cache fallback), poison message (DLQ).
 - [ ] 9.3 Trace screenshot and cross-service log excerpt for one calculation in `docs/evidence/`.
-- [ ] 9.4 k6 load test; rate-limit demonstration.
+- [x] 9.4 k6 load test; rate-limit demonstration. (Done in T.7.)
 - [ ] 9.5 Security pass: dependency audit, headers, secrets scan, no personal data in logs.
+
+## Phase D — Deployment to a VPS (Terraform)
+
+Target: an existing VPS and an own domain, `infra/terraform/vps`. Decided 2026-11-24.
+
+- [ ] D.1 Make the module safe (demo accounts stay for now, decision 2026-11-24): own OSRM without published ports (Docker bypasses ufw); every container restarts after a reboot (before, the databases and OSRM did not); memory limit for Jaeger traces; swap file; clean-up of old images; Ubuntu 26.04.
+      Done when: from outside only 22, 80 and 443 answer; the stack comes back after a reboot of a test machine.
+- [ ] D.2 Prepare: DNS A record, SSH key without a passphrase, `develop` merged into `main` with a green CI run, `terraform.tfvars`.
+      Done when: the domain resolves to the VPS and `ssh` with the key works.
+- [ ] D.3 First deployment with stand-ins for OSRM and the geocoder.
+      Done when: `https://<domain>/health` is ok with a valid certificate, sign-in survives a reload, a second `terraform apply` changes nothing.
+- [ ] D.4 Real data: import and activate Warsaw and Vilnius in the admin view; public geocoder.
+      Done when: a map of each city covers the city; an address is found.
+- [ ] D.5 Own OSRM for Warsaw (then Vilnius): data built on the server, memory measured.
+      Done when: a map uses real driving times; memory and times are in `docs/evidence/deployment.md`.
+- [ ] D.6 Operation: nightly backup with a copy off the server and one tested restore; monthly feed import (Warsaw is valid for one month); uptime check.
+      Done when: a restore into an empty database is demonstrated; the reminder or job for the import exists.
+- [ ] D.7 Update and rollback: redeploy a new commit, then the previous one; notes in `specs/microservices.md`.
+      Done when: both are demonstrated without data loss.
 
 ## Phase 10 — Cloud deployment
 

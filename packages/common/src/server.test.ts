@@ -38,6 +38,9 @@ function build(readiness: Record<string, () => Promise<void>> = {}) {
   app.get('/busy', async () => {
     throw new ServiceUnavailableError('queue full', 7);
   });
+  app.get('/db-busy', async () => {
+    throw Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' });
+  });
   app.get('/boom', async () => {
     throw new Error('SELECT secret FROM users failed');
   });
@@ -45,6 +48,16 @@ function build(readiness: Record<string, () => Promise<void>> = {}) {
 }
 
 describe('server factory', () => {
+  it('answers 503 with Retry-After, without details, while the database is overloaded', async () => {
+    const { app, lines } = build();
+    const res = await app.inject('/db-busy');
+    expect(res.statusCode).toBe(503);
+    expect(res.headers['retry-after']).toBe('5');
+    expect(res.json()).toMatchObject({ type: '/problems/database-busy', detail: 'The service is busy right now.' });
+    expect(res.body).not.toContain('statement');
+    expect(JSON.stringify(lines)).toContain('canceling statement'); // the cause stays in the log
+  });
+
   it('answers liveness and readiness', async () => {
     const { app } = build({ database: async () => undefined });
     expect((await app.inject('/health/live')).json()).toEqual({ status: 'ok' });

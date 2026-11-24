@@ -35,7 +35,8 @@ export const configSchema = baseConfigSchema
     CAR_TIME_FACTOR: z.coerce.number().min(0.1).max(5).default(1),
     CAR_OVERHEAD_S: z.coerce.number().int().min(0).default(0),
     /** Bump when the method changes, so old cached maps are not reused (docs/05-algorithms.md#8). */
-    ALGO_VERSION: z.coerce.number().int().min(1).default(1),
+    // 2: one footpath after a trip, never two (RAPTOR fix of 2026-11-24).
+    ALGO_VERSION: z.coerce.number().int().min(1).default(2),
     /** Bulkhead: calculations at once (default: CPU cores) and waiting in the queue. */
     MAX_PARALLEL_CALCS: z.coerce.number().int().min(1).default(availableParallelism()),
     MAX_QUEUED_CALCS: z.coerce

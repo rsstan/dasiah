@@ -26,12 +26,15 @@ let rawChannel: amqp.Channel;
 const outcomes: { outcome: Outcome; messageId: string | undefined }[] = [];
 const seenCorrelationIds: (string | undefined)[] = [];
 const failuresLeft = new Map<string, number>();
+/** Events whose transaction fails at COMMIT (a deferred constraint). */
+const commitFails = new Set<string>();
+const committedEffects: string[] = [];
 const ALWAYS_FAILS = '00000000-0000-4000-8000-0000000000ff';
 
 const waitFor = async (
   what: string,
   condition: () => Promise<boolean> | boolean,
-  timeoutMs = 30_000,
+  timeoutMs = 120_000,
 ): Promise<void> => {
   const deadline = Date.now() + timeoutMs;
   while (!(await condition())) {
@@ -68,8 +71,14 @@ async function deadLetters(): Promise<amqp.GetMessage[]> {
 
 beforeAll(async () => {
   [pg16, rabbit] = await Promise.all([
-    new PostgreSqlContainer('postgres:16-alpine').start(),
-    new RabbitMQContainer('rabbitmq:4.3.7-management-alpine').withStartupTimeout(120_000).start(),
+    new PostgreSqlContainer('postgres:16-alpine')
+      .withTmpFs({ '/var/lib/postgresql/data': 'rw' })
+      .withCommand(['postgres', '-c', 'fsync=off'])
+      .start(),
+    new RabbitMQContainer('rabbitmq:4.3.7-management-alpine')
+      .withTmpFs({ '/var/lib/rabbitmq': 'rw' })
+      .withStartupTimeout(300_000)
+      .start(),
   ]);
   pool = createPool({ connectionString: pg16.getConnectionUri(), applicationName: 'messaging-itest', max: 5 });
   // Same shape as <schema>.outbox and <schema>.processed_messages in the service migrations.
@@ -85,6 +94,9 @@ beforeAll(async () => {
       traceparent text DEFAULT nullif(current_setting('app.traceparent', true), ''));
     CREATE TABLE demo.processed_messages (
       message_id uuid PRIMARY KEY, event_type text NOT NULL, processed_at timestamptz NOT NULL DEFAULT now());
+    CREATE TABLE demo.parents (id uuid PRIMARY KEY);
+    CREATE TABLE demo.children (
+      parent_id uuid NOT NULL REFERENCES demo.parents (id) DEFERRABLE INITIALLY DEFERRED);
     CREATE TABLE demo.erased (user_id uuid NOT NULL, at timestamptz NOT NULL DEFAULT now());
   `);
 
@@ -114,7 +126,7 @@ beforeAll(async () => {
     logger,
     retryDelayMs: 10,
     handlers: {
-      'identity.user.deleted.v1': async (event, tx) => {
+      'identity.user.deleted.v1': async (event, tx, afterCommit) => {
         seenCorrelationIds.push(currentCorrelationId());
         const left = failuresLeft.get(event.data.userId) ?? 0;
         if (event.data.userId === ALWAYS_FAILS || left > 0) {
@@ -122,6 +134,10 @@ beforeAll(async () => {
           throw new Error('transient failure');
         }
         await tx.query('INSERT INTO demo.erased (user_id) VALUES ($1)', [event.data.userId]);
+        if (commitFails.has(event.data.userId)) {
+          await tx.query('INSERT INTO demo.children (parent_id) VALUES ($1)', [event.data.userId]);
+        }
+        afterCommit(() => committedEffects.push(event.data.userId));
       },
     },
   });
@@ -145,6 +161,7 @@ afterAll(async () => {
 beforeEach(async () => {
   outcomes.length = 0;
   seenCorrelationIds.length = 0;
+  committedEffects.length = 0;
   await deadLetters();
 });
 
@@ -164,7 +181,10 @@ describe('messaging', () => {
     expect(row).toEqual({ correlation_id: 'it-corr-1' });
 
     expect(await publisher.publishBatch()).toBe(1);
-    await waitFor('the effect', async () => (await erasedCount(userId)) === 1);
+    // The outcome is reported after commit and ack; the row alone is visible a moment earlier.
+    await waitFor('the outcome', () => outcomes.length === 1);
+    expect(await erasedCount(userId)).toBe(1);
+    expect(committedEffects).toEqual([userId]);
     const published = await pool.query(`SELECT published_at FROM demo.outbox WHERE payload->>'userId' = $1`, [userId]);
     expect(published.rows[0]?.published_at).not.toBeNull();
     expect(seenCorrelationIds).toEqual(['it-corr-1']);
@@ -178,6 +198,21 @@ describe('messaging', () => {
     await publisher.publishBatch();
     await waitFor('processing after retries', () => outcomes.some((o) => o.outcome === 'processed'));
     expect(outcomes.map((o) => o.outcome)).toEqual(['failed', 'failed', 'processed']);
+    expect(await erasedCount(userId)).toBe(1);
+  });
+
+  it('runs after-commit effects only when the commit succeeds', async () => {
+    const userId = randomUUID();
+    commitFails.add(userId);
+    await writeUserDeleted(userId, 'it-corr-commit');
+    await publisher.publishBatch();
+    await waitFor('the first failure', () => outcomes.some((o) => o.outcome === 'failed'));
+    expect(committedEffects).toEqual([]);
+    expect(await erasedCount(userId)).toBe(0);
+
+    commitFails.delete(userId); // the next attempt commits
+    await waitFor('the retry', () => outcomes.some((o) => o.outcome === 'processed'));
+    expect(committedEffects).toEqual([userId]);
     expect(await erasedCount(userId)).toBe(1);
   });
 

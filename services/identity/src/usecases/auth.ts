@@ -1,16 +1,20 @@
 // Registration, sign-in, refresh-token rotation, sign-out.
 import { randomBytes } from 'node:crypto';
+import type { Kysely } from 'kysely';
 import { ConflictError, TooManyRequestsError, transaction, UnauthorizedError, ValidationError } from '@heatmap/common';
 import type { AppContext, ClientInfo } from '../context.ts';
 import { hashPassword, verifyPassword } from '../domain/password.ts';
 import { hashRefreshToken } from '../domain/tokens.ts';
 import { recentFailures, recordAudit } from '../repositories/audit.ts';
 import {
+  findRefreshTokenByIdForUpdate,
   findRefreshTokenForUpdate,
   markReplaced,
   revokeAllRefreshTokens,
   revokeRefreshToken,
+  type StoredRefreshToken,
 } from '../repositories/refresh-tokens.ts';
+import type { IdentityDb } from '../repositories/schema.ts';
 import { findActiveUserByEmail, findUserById, insertUser } from '../repositories/users.ts';
 import { toProfile, type Profile } from './profile.ts';
 import { startSession, type IssuedTokens } from './sessions.ts';
@@ -98,12 +102,16 @@ export async function login(
 
 type RefreshOutcome =
   | { kind: 'rotated'; tokens: IssuedTokens }
+  | { kind: 'grace'; tokens: IssuedTokens; userId: string }
   | { kind: 'unknown' | 'revoked' | 'expired' | 'account-gone' }
   | { kind: 'reused'; userId: string; revoked: number };
 
 /**
  * Rotation: the presented token is revoked and replaced. A token that was already replaced
- * is a stolen copy or a replay: every session of the user ends.
+ * is a stolen copy or a replay: every session of the user ends. One exception (grace): within
+ * REFRESH_REUSE_GRACE_S of the rotation, while its successor has never been used, the client
+ * evidently did not receive the successor (page reloaded or response lost during the refresh):
+ * the successor is revoked and a new pair is issued, once.
  */
 export async function refresh(ctx: AppContext, token: string | undefined, client: ClientInfo): Promise<IssuedTokens> {
   if (token === undefined || token === '') {
@@ -117,6 +125,10 @@ export async function refresh(ctx: AppContext, token: string | undefined, client
     if (stored.revokedAt !== null) {
       if (stored.replacedBy === null) {
         return { kind: 'revoked' };
+      }
+      const graceTokens = await withinGrace(ctx, trx, stored, client);
+      if (graceTokens !== undefined) {
+        return { kind: 'grace', tokens: graceTokens, userId: stored.userId };
       }
       const revoked = await revokeAllRefreshTokens(trx, stored.userId);
       await recordAudit(trx, { code: 'refresh_token_reused', userId: stored.userId, ip: client.ip });
@@ -137,6 +149,10 @@ export async function refresh(ctx: AppContext, token: string | undefined, client
   if (outcome.kind === 'rotated') {
     return outcome.tokens;
   }
+  if (outcome.kind === 'grace') {
+    ctx.logger.info({ user_id: outcome.userId }, 'refresh token presented again within the grace period');
+    return outcome.tokens;
+  }
   if (outcome.kind === 'reused') {
     ctx.logger.warn(
       { user_id: outcome.userId, revoked_sessions: outcome.revoked },
@@ -151,6 +167,34 @@ export async function refresh(ctx: AppContext, token: string | undefined, client
       : 'The session is no longer valid. Sign in again.',
     INVALID_REFRESH,
   );
+}
+
+/** New pair for a just-rotated token whose successor was never used; undefined otherwise. */
+async function withinGrace(
+  ctx: AppContext,
+  trx: Kysely<IdentityDb>,
+  stored: StoredRefreshToken,
+  client: ClientInfo,
+): Promise<IssuedTokens | undefined> {
+  const graceMs = ctx.config.REFRESH_REUSE_GRACE_S * 1000;
+  if (graceMs === 0 || stored.replacedBy === null || stored.revokedAt === null) {
+    return undefined;
+  }
+  if (Date.now() - stored.revokedAt.getTime() > graceMs) {
+    return undefined;
+  }
+  const successor = await findRefreshTokenByIdForUpdate(trx, stored.replacedBy);
+  if (successor === undefined || successor.revokedAt !== null || successor.expiresAt.getTime() <= Date.now()) {
+    return undefined; // the successor was used (or ended): a genuine replay
+  }
+  const user = await findUserById(trx, stored.userId);
+  if (user === undefined || user.deletedAt !== null) {
+    return undefined;
+  }
+  const tokens = await startSession(ctx, trx, user, client);
+  await markReplaced(trx, successor.tokenId, tokens.refreshTokenId);
+  await recordAudit(trx, { code: 'refresh_token_grace', userId: stored.userId, ip: client.ip });
+  return tokens;
 }
 
 export async function logout(ctx: AppContext, userId: string, token: string | undefined): Promise<void> {

@@ -82,10 +82,14 @@ export class TimetableLoader {
     return () => clearInterval(timer);
   }
 
-  /** Consumer of transit.feed.activated.v1: build, record (same transaction as the inbox row), install. */
+  /**
+   * Consumer of transit.feed.activated.v1: build, record (same transaction as the inbox row) and,
+   * once that is committed, install. Installing earlier would serve a feed version that has no
+   * snapshot row yet, or never gets one when the commit fails.
+   */
   handlers(cities: readonly string[]): EventHandlers {
     return {
-      'transit.feed.activated.v1': async (event, tx) => {
+      'transit.feed.activated.v1': async (event, tx, afterCommit) => {
         const feed = event.data;
         if (!cities.includes(feed.cityCode)) {
           this.logger.info({ city: feed.cityCode }, 'feed of a city this instance does not serve; ignored');
@@ -99,7 +103,7 @@ export class TimetableLoader {
         // On failure this throws: the message is retried and the previous snapshot keeps serving.
         const snapshot = await this.store.build(feed);
         await record(tx, snapshot);
-        this.store.install(snapshot);
+        afterCommit(() => this.store.install(snapshot));
       },
     };
   }

@@ -35,3 +35,11 @@
 		-Server
 	}
 }
+
+# For the container's health check only (not published): independent of SITE_ADDRESS, because with a
+# domain port 80 redirects to HTTPS, which has no certificate for 127.0.0.1.
+http://127.0.0.1:2020 {
+	bind 127.0.0.1
+	root * /srv
+	file_server
+}

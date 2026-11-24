@@ -1,5 +1,7 @@
 # DASIAH (Transit Accessibility Heatmap)
 
+[![ci](https://github.com/rsstan/dasiah/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/rsstan/dasiah/actions/workflows/ci.yml)
+
 Web service that shows, for an address, where in the city public transport is about as fast as a
 car and where it is not. The city is split into H3 hexagons; each one is coloured by the ratio of
 travel time by public transport to travel time by car. Pilot cities: Warsaw and Vilnius. Data:
@@ -11,6 +13,9 @@ open GTFS timetables and OpenStreetMap.
   a simple diagram, how to run (Docker, development, tests, a VPS with Terraform).
 - `specs/database.md` — the database in one page: schemas, design, integrity, roles, masking,
   layers, migrations, test data, and commands to check it.
+- `specs/frontend.md` — the web client in one page: layers, routes, state, navigation, the API it
+  uses, error handling, component kit, tests, why this stack.
+- `specs/testing.md` — automated tests: strategy, how to run, coverage, quality gates, defects found.
 - `docs/` — product scope, architecture, database design, contracts, algorithms, runtime, plan.
 - `db/` — bootstrap (roles and schemas), reference and test data, SQL smoke test.
 - `services/*/migrations/` — schema of each service.

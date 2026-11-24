@@ -4,7 +4,8 @@
 // 2. restore the correlation id and the trace context of the publisher;
 // 3. in one transaction: record the message id in <schema>.processed_messages and apply the
 //    handler's effect; if the id was already recorded, skip (duplicate delivery);
-// 4. ack after commit. A handler error rolls back; the message is published again to the same
+// 4. after the commit run what the handler registered with `afterCommit` (changes outside the
+//    database, such as swapping something in memory), then ack. A handler error rolls back; the message is published again to the same
 //    queue with `x-retry-count` + 1 after a backoff (confirmed before the original is acked).
 //    After `maxAttempts` (default 5) it is rejected without requeue, i.e. dead-lettered.
 //    RabbitMQ 4 does not count `nack` with requeue towards the quorum queue's delivery limit,
@@ -27,8 +28,14 @@ import type { Logger } from '../logger.ts';
 import { withExtractedContext, withSpan } from '../tracing.ts';
 import type { BrokerAttachment } from './broker.ts';
 
+/**
+ * Registers a synchronous effect outside the database. It runs once the transaction is committed
+ * and never when it is rolled back, so nobody sees a change the database does not have.
+ */
+export type AfterCommit = (effect: () => void) => void;
+
 export type EventHandlers = {
-  readonly [T in EventType]?: (event: EventOf<T>, tx: pg.PoolClient) => Promise<void>;
+  readonly [T in EventType]?: (event: EventOf<T>, tx: pg.PoolClient, afterCommit: AfterCommit) => Promise<void>;
 };
 
 export interface EventConsumerOptions {
@@ -215,21 +222,26 @@ export class EventConsumer implements BrokerAttachment {
 
   private async process(event: HeatmapEvent): Promise<'processed' | 'duplicate'> {
     const handler = this.options.handlers[event.type] as
-      ((e: HeatmapEvent, tx: pg.PoolClient) => Promise<void>) | undefined;
+      ((e: HeatmapEvent, tx: pg.PoolClient, afterCommit: AfterCommit) => Promise<void>) | undefined;
     if (handler === undefined) {
       throw new Error(`no handler for ${event.type}`);
     }
-    return withTransaction(this.options.pool, async (tx) => {
+    const effects: (() => void)[] = [];
+    const outcome = await withTransaction(this.options.pool, async (tx) => {
       const { rowCount } = await tx.query(
         `INSERT INTO ${this.options.schema}.processed_messages (message_id, event_type) VALUES ($1, $2)
          ON CONFLICT (message_id) DO NOTHING`,
         [event.id, event.type],
       );
       if (rowCount === 0) {
-        return 'duplicate';
+        return 'duplicate' as const;
       }
-      await handler(event, tx);
-      return 'processed';
+      await handler(event, tx, (effect) => effects.push(effect));
+      return 'processed' as const;
     });
+    for (const effect of effects) {
+      effect();
+    }
+    return outcome;
   }
 }

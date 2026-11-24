@@ -58,7 +58,16 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
     outbox,
     storage: new FsStorage(config.STORAGE_PATH),
   };
-  const importer = new Importer(ctx);
+  // Imports have connections of their own, without the time limits of a request: a city-size feed
+  // takes many minutes and must neither be cut off nor take connections from the API.
+  const importPool = createPool({
+    connectionString: config.DATABASE_URL,
+    applicationName: `${config.SERVICE_NAME}-import`,
+    max: 4,
+    statementTimeoutMs: config.IMPORT_STATEMENT_TIMEOUT_MS,
+    connectTimeoutMs: 120_000,
+  });
+  const importer = new Importer({ ...ctx, pool: importPool, db: createKysely<TransitDb>(importPool) });
   const interrupted = await importer.failInterrupted();
   if (interrupted > 0) {
     logger.warn({ feed_versions: interrupted }, 'imports interrupted by a restart marked failed');
@@ -75,6 +84,7 @@ export async function createService(config: Config, logger: Logger): Promise<Ser
   app.addHook('onClose', async () => {
     await outbox.stop();
     await broker.close();
+    await importPool.end();
     await pool.end();
   });
   return { app, ctx, importer, artifacts };

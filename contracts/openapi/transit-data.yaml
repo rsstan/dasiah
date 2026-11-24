@@ -155,22 +155,16 @@ paths:
       operationId: importFeed
       summary: Download the feed of a source and import it
       description: |
-        Downloads the archive and computes its SHA-256 before answering. A new archive gets a
-        `downloaded` feed version and the rest of the pipeline (staging, promotion, transfers,
-        access stops) continues in the background: poll `GET /admin/feed-versions/{id}`.
-        An archive that was already imported is a no-op answered with `200`.
+        Answers at once with a `downloading` feed version; everything else (download, staging,
+        promotion, transfers, access stops) runs in the background, however long it takes: poll
+        `GET /admin/feed-versions/{id}`. A download that fails, or an archive that was imported before,
+        ends as `failed` with the reason in `errorMessage`.
       tags: [admin]
       x-access: admin
       x-rate-limit: { perMinute: 6 }
       responses:
-        '200':
-          description: The same archive was imported before; nothing changed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportAccepted'
         '202':
-          description: New archive stored; the import runs in the background.
+          description: The import runs in the background.
           headers:
             Location:
               $ref: './common.yaml#/components/headers/Location'
@@ -184,12 +178,6 @@ paths:
           $ref: './common.yaml#/components/responses/NotFound'
         '409':
           $ref: './common.yaml#/components/responses/Conflict'
-        '502':
-          description: The publisher could not be reached or returned an error.
-          content:
-            application/problem+json:
-              schema:
-                $ref: './common.yaml#/components/schemas/Problem'
         '500':
           $ref: './common.yaml#/components/responses/InternalError'
 
@@ -355,7 +343,7 @@ components:
       examples: [waw_ztm]
     FeedStatus:
       type: string
-      enum: [downloaded, staged, validated, active, archived, failed]
+      enum: [downloading, downloaded, staged, validated, active, archived, failed]
     BoundingBox:
       type: object
       description: West, south, east, north in degrees (WGS 84).
@@ -462,8 +450,9 @@ components:
         status:
           $ref: '#/components/schemas/FeedStatus'
         sha256:
-          type: string
+          type: [string, 'null']
           pattern: '^[0-9a-f]{64}$'
+          description: null until the archive is downloaded.
         fetchedAt:
           type: string
           format: date-time

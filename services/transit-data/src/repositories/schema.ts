@@ -27,8 +27,8 @@ export interface FeedSourcesTable {
 export interface FeedVersionsTable {
   feed_version_id: Generated<number>;
   feed_source_id: number;
-  sha256: Buffer;
-  storage_key: string;
+  sha256: Buffer | null;
+  storage_key: string | null;
   fetched_at: Generated<Date>;
   valid_from: string | null;
   valid_to: string | null;

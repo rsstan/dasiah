@@ -169,7 +169,7 @@ healthy and returns only when the whole stack works (or names the container that
 
 | What | Where |
 | --- | --- |
-| The map | <http://localhost:8000>: choose **Warsaw** (the small synthetic timetable "testville"), type `Central Station`, pick the suggestion |
+| The map | <http://localhost:8000>: the home page lists the cities; open **Warsaw** (<http://localhost:8000/cities/waw>, the small synthetic timetable "testville"), type `Central Station`, pick the suggestion |
 | Health of the gateway and every service | <http://localhost:8000/health> (JSON: Redis and each service `ok` or not) |
 | Containers and their state | `docker compose ps` |
 | Logs of a service (JSON, with `correlation_id`) | `docker compose logs -f accessibility` |
@@ -200,10 +200,11 @@ Databases and broker in Docker, services with hot reload on the host: see the
 ### C. Terraform on a VPS (production)
 
 [infra/terraform/vps/](../infra/terraform/vps/) deploys the stack to **an existing VPS** from any
-provider (Ubuntu 24.04 or Debian 12, at least 2 vCPU and 4 GB RAM, more for own OSRM; SSH access
+provider (Ubuntu 24.04 or 26.04, or Debian 12, at least 2 vCPU and 4 GB RAM, more for own OSRM; SSH access
 with a key). Terraform connects over SSH, installs Docker and a firewall that lets in only SSH,
 HTTP and HTTPS, checks out the repository, generates all passwords and the token-signing key,
-builds the images on the server and starts them. Only the web container is reachable from
+builds the images on the server and starts them (with a 4 GB swap file if the server has none).
+Every container starts again after a reboot. Only the web container is reachable from
 outside; the database, broker, Redis, Jaeger and the gateway stay on the internal network.
 
 ```bash

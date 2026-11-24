@@ -69,6 +69,10 @@ export interface paths {
          * Exchange the refresh token for a new pair (rotation)
          * @description The presented token is revoked and replaced. Presenting a token that was already
          *     replaced is treated as theft: every session of the user is revoked and `401` is returned.
+         *     Exception: within `REFRESH_REUSE_GRACE_S` (30 s) of the rotation, while its successor has
+         *     never been used (the client did not receive it, e.g. the page was reloaded during the
+         *     refresh), the previous token is accepted once: the successor is revoked and a new pair is
+         *     returned.
          */
         post: operations["refresh"];
         delete?: never;
@@ -272,10 +276,10 @@ export interface paths {
         put?: never;
         /**
          * Download the feed of a source and import it
-         * @description Downloads the archive and computes its SHA-256 before answering. A new archive gets a
-         *     `downloaded` feed version and the rest of the pipeline (staging, promotion, transfers,
-         *     access stops) continues in the background: poll `GET /admin/feed-versions/{id}`.
-         *     An archive that was already imported is a no-op answered with `200`.
+         * @description Answers at once with a `downloading` feed version; everything else (download, staging,
+         *     promotion, transfers, access stops) runs in the background, however long it takes: poll
+         *     `GET /admin/feed-versions/{id}`. A download that fails, or an archive that was imported before,
+         *     ends as `failed` with the reason in `errorMessage`.
          */
         post: operations["importFeed"];
         delete?: never;
@@ -679,13 +683,14 @@ export interface components {
         /** @example waw_ztm */
         FeedSourceCode: string;
         /** @enum {string} */
-        FeedStatus: "downloaded" | "staged" | "validated" | "active" | "archived" | "failed";
+        FeedStatus: "downloading" | "downloaded" | "staged" | "validated" | "active" | "archived" | "failed";
         FeedVersion: {
             feedVersionId: components["schemas"]["FeedVersionId"];
             sourceCode: components["schemas"]["FeedSourceCode"];
             cityCode: components["schemas"]["CityCode"];
             status: components["schemas"]["FeedStatus"];
-            sha256: string;
+            /** @description null until the archive is downloaded. */
+            sha256: string | null;
             /** Format: date-time */
             fetchedAt: string;
             /** Format: date */
@@ -1431,16 +1436,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The same archive was imported before; nothing changed. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportAccepted"];
-                };
-            };
-            /** @description New archive stored; the import runs in the background. */
+            /** @description The import runs in the background. */
             202: {
                 headers: {
                     Location: components["headers"]["Location"];
@@ -1456,15 +1452,6 @@ export interface operations {
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
-            /** @description The publisher could not be reached or returned an error. */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };

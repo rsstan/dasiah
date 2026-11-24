@@ -9,3 +9,8 @@ packages/contracts/src/generated
 contracts/openapi/gateway.yaml
 db/seed/reference/boundaries/*.geojson
 fixtures/gtfs/testville/artifacts/*.json
+# Generated bundle report (rollup-plugin-visualizer)
+docs/evidence/frontend-bundle.html
+.lighthouse
+reports
+.stryker-tmp

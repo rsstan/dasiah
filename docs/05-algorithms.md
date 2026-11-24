@@ -5,10 +5,10 @@ Online part (per request, `accessibility`): steps 5 to 9.
 
 ## 1. GTFS import (`transit-data`)
 
-1. Download the zip from `feed_sources.url` (timeout, retry). Compute SHA-256. If
-   `(feed_source_id, sha256)` exists, stop: nothing new.
-2. Store the zip in object storage under `raw/<source>/<sha256>.zip`; insert `feed_versions`
-   (`downloaded`).
+1. Insert `feed_versions` (`downloading`) and answer; everything else runs in the background.
+   Download the zip from `feed_sources.url` (retry). Compute SHA-256. If `(feed_source_id, sha256)`
+   was imported before, the new version ends as `failed`: nothing new.
+2. Store the zip in object storage under `raw/<source>/<sha256>.zip`; `downloaded`.
 3. Stream each needed file (`agency`, `routes`, `stops`, `trips`, `stop_times`, `calendar`,
    `calendar_dates`) into its `transit_staging` table with `COPY ... FROM STDIN`, selecting
    only the staged columns by header name and adding `feed_version_id`. Missing optional files
@@ -21,14 +21,14 @@ Checks done by `promote_feed`: every staged trip and stop_time lands in core (no
 references), at least one service date, typed conversion of times and coordinates. Extra checks
 in the service before promotion: stops more than 1 500 m outside the city boundary and trips
 with fewer than two stop_times are logged as warnings; the import fails when more than
-`MAX_STOPS_OUTSIDE_SHARE` (25 %) of the stops are outside (wrong feed for the city).
+`MAX_STOPS_OUTSIDE_SHARE` (default 100 %: never, a warning is logged) of the stops are outside (wrong feed for the city).
 
 Implementation (`services/transit-data/src/import/`): download with redirects, retries for
-network errors and 5xx, timeout and size limit, SHA-256 computed while writing; a failed
-attempt of the same archive is replaced, any other repeat is a no-op (`200`, `duplicate`).
+network errors and 5xx, optional size limit (`MAX_DOWNLOAD_BYTES`, 0 = none), SHA-256 computed while
+writing; a failed attempt of the same archive is replaced.
 Files are streamed from the zip (yauzl) through a CSV parser into `COPY ... FROM STDIN`; the
-promotion transaction raises `statement_timeout` (`IMPORT_STATEMENT_TIMEOUT_MS`) and
-`work_mem`. Versions left `downloaded`/`staged` by a restart are marked `failed` at start-up.
+promotion transaction sets `statement_timeout` (`IMPORT_STATEMENT_TIMEOUT_MS`, 0 = none) and
+`work_mem`. Imports use their own connections without time limits. Versions left `downloading`/`downloaded`/`staged` by a restart are marked `failed` at start-up.
 Timings per stage (`copy_ms`, `checks_ms`, `promote_ms`) and core row counts are logged in the
 "feed validated" line. Outside the API: `pnpm transit:import --source <code> (--file <zip> |
 --download) [--activate]`.
@@ -102,8 +102,8 @@ city bounds.
 
 Loading (`services/accessibility/src/timetables/`): at start-up the active feed of every city in
 `CITIES` and its hex access are fetched from transit-data; on `transit.feed.activated.v1` the new
-snapshot is built completely, recorded in `feed_snapshots` (same transaction as the inbox row) and
-then swapped in with one assignment; a failed load leaves the previous snapshot serving and the
+snapshot is built completely, recorded in `feed_snapshots` (same transaction as the inbox row) and,
+after the commit, swapped in with one assignment; a failed load leaves the previous snapshot serving and the
 message is retried. Readiness requires at least one loaded city.
 
 In-memory structures per `(feedVersionId, date)`, typed arrays, built once and kept in an LRU:
@@ -194,8 +194,10 @@ thresholds, the walking model, K, the horizon or the car factors requires bumpin
   canvas-interpolated layer is an optional later improvement.
 - Clicking a cell opens a popup with both times, the ratio and, for merged cells, how many cells
   the median covers; clicking outside the cells (or "Start here") picks a new start point.
-- City, start point (rounded to 4 decimals, about 10 m; never the address text) and departure
-  are kept in the query string, so a map can be shared and reloaded.
+- Every city has its route `/cities/<code>` (the home page `/` lists the cities of the instance,
+  from `GET /cities`); the start point (rounded to 4 decimals, about 10 m; never the address
+  text) and the departure are kept in its query string, so a map can be shared and reloaded.
+  Links of the earlier format `/?city=<code>&lat=..` are forwarded to the city route.
 - Layout: side panel and map on screens 768 px and wider; below that the map takes the top half
   and the panel scrolls underneath, with "Full map" folding the panel down to its header and the
   status line. Inputs use 16 px text (no zoom on focus in iOS), buttons are at least 40 px high.

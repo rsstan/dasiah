@@ -1,7 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App.tsx';
-import './styles.css';
+import { RouterProvider } from 'react-router';
+import { AppProviders } from './app/providers.tsx';
+import { router } from './app/router.tsx';
+import { watchTheme } from './shared/lib/theme.ts';
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/index.css';
+
+watchTheme();
 
 const root = document.getElementById('root');
 if (root === null) {
@@ -9,6 +16,8 @@ if (root === null) {
 }
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>
   </StrictMode>,
 );

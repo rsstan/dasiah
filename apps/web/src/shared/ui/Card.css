@@ -1,0 +1,28 @@
+.ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ui-card__title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 767px) {
+  .ui-card {
+    padding: var(--space-4);
+  }
+}

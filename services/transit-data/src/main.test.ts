@@ -12,8 +12,8 @@ describe('transit-data configuration', () => {
     });
     expect(config).toMatchObject({
       STORAGE_DRIVER: 'fs',
-      IMPORT_STATEMENT_TIMEOUT_MS: 1_800_000,
-      MAX_STOPS_OUTSIDE_SHARE: 0.25,
+      IMPORT_STATEMENT_TIMEOUT_MS: 0,
+      MAX_STOPS_OUTSIDE_SHARE: 1,
     });
   });
 });

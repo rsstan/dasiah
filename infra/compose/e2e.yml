@@ -2,6 +2,10 @@
 # own and no host ports except the web page, so it runs next to a development stack.
 services:
   postgres:
+    # In memory: results must not depend on the disk of the machine.
+    volumes: !override
+      - type: tmpfs
+        target: /var/lib/postgresql/data
     ports: !reset []
   rabbitmq:
     ports: !reset []

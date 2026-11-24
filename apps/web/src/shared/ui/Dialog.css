@@ -1,0 +1,28 @@
+.ui-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+}
+
+.ui-dialog::backdrop {
+  background: var(--color-backdrop);
+}
+
+.ui-dialog__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.ui-dialog__body {
+  color: var(--color-text-muted);
+}
+
+.ui-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}

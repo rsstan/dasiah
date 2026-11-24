@@ -9,7 +9,8 @@ export interface FeedVersionView {
   sourceCode: string;
   cityCode: string;
   status: string;
-  sha256: string;
+  /** null until the archive is downloaded. */
+  sha256: string | null;
   fetchedAt: string;
   validFrom: string | null;
   validTo: string | null;
@@ -28,7 +29,7 @@ function selectVersions(db: Kysely<TransitDb>) {
       's.code as sourceCode',
       'c.code as cityCode',
       'v.status',
-      sql<string>`encode(v.sha256, 'hex')`.as('sha256'),
+      sql<string | null>`encode(v.sha256, 'hex')`.as('sha256'),
       'v.fetched_at as fetchedAt',
       'v.valid_from as validFrom',
       'v.valid_to as validTo',

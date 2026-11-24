@@ -13,5 +13,6 @@ INSERT INTO identity.audit_event_types (event_type_id, code, description) VALUES
   (6, 'role_changed',     'Role assigned by an administrator'),
   (7, 'user_anonymized',  'Personal data erased'),
   (8, 'refresh_token_reused', 'A rotated refresh token was presented again; every session revoked'),
-  (9, 'login_locked',     'Sign-in refused because of too many failed attempts')
+  (9, 'login_locked',     'Sign-in refused because of too many failed attempts'),
+  (10, 'refresh_token_grace', 'A just-rotated refresh token was presented again within the grace period; answered with a new pair')
 ON CONFLICT (event_type_id) DO UPDATE SET code = EXCLUDED.code, description = EXCLUDED.description;

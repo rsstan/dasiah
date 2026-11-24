@@ -55,10 +55,13 @@ Map page locally (services and gateway running, see the README): `pnpm web:dev`,
 http://localhost:5173. The dev server proxies `/api` to `GATEWAY_URL` (default
 http://localhost:8080), so the browser sees one origin: no CORS preflight, and the refresh cookie
 (path `/api/v1/auth`) works as in production, where Caddy does the same. `pnpm web:build` writes
-static files to `apps/web/dist`. The Admin tab (coverage, import, feed versions, activation) is
+static files to `apps/web/dist`; `pnpm web:analyze` also writes a bundle report
+(`apps/web/dist/stats.html`). `scripts/lighthouse.sh [base-url]` runs Lighthouse (desktop and
+mobile) against a running production build, by default the end-to-end stack; results in
+`docs/evidence/frontend-performance.md`. The Admin tab (coverage, import, feed versions, activation) is
 shown to accounts with role `admin`, e.g. `demo.admin@example.com` from `pnpm db:seed:test`.
 
-Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`, `web:dev`, `web:build`,
+Root scripts (`package.json`): `dev`, `build`, `lint`, `typecheck`, `test`, `test:int`, `web:dev`, `web:build`, `web:analyze`,
 `db:bootstrap`, `db:migrate`, `db:seed`, `db:seed:test`, `db:smoke`, `db:dict`,
 `contracts:lint`, `contracts:gen`, `e2e`.
 
@@ -72,12 +75,12 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `DATABASE_URL` | services | Connection as `svc_<name>`; never `postgres` or `app_admin` |
 | `AMQP_URL` | services | RabbitMQ |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all | Jaeger OTLP endpoint |
-| `JWT_PRIVATE_KEY` (Ed25519, PKCS#8 PEM, `\n`-escaped), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE`, `ACCESS_TTL_S`, `REFRESH_TTL_S`, `COOKIE_SECURE`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_WINDOW_S`, `TRUST_PROXY` | identity | Token signing (EdDSA), refresh cookie, lockout after repeated failed sign-ins |
+| `JWT_PRIVATE_KEY` (Ed25519, PKCS#8 PEM, `\n`-escaped), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE`, `ACCESS_TTL_S`, `REFRESH_TTL_S`, `REFRESH_REUSE_GRACE_S` (default 30), `COOKIE_SECURE`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_WINDOW_S`, `TRUST_PROXY` | identity | Token signing (EdDSA), refresh cookie, lockout after repeated failed sign-ins |
 | `IDENTITY_URL`, `TRANSIT_URL`, `ACCESSIBILITY_URL`, `PLACES_URL`, `REDIS_URL`, `WEB_ORIGIN` (comma-separated), `JWT_ISSUER`, `JWT_AUDIENCE`, `UPSTREAM_TIMEOUT_MS`, `ACCESSIBILITY_TIMEOUT_MS`, `BREAKER_THRESHOLD`, `BREAKER_HALF_OPEN_MS`, `RATE_LIMIT_WINDOW_S`, `BODY_LIMIT_BYTES`, `TRUST_PROXY` | gateway | Upstreams, token checks, limits store, CORS, resilience |
 | `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL`, `OSRM_MIN_INTERVAL_MS` (pacing, 1000 for the public demo server), `MAX_QUEUED_CALCS`, `PURGE_INTERVAL_MS`, `TIMETABLE_RETRY_MS` (default 30 s) | accessibility | Upstreams, timetables in memory, method parameters |
 | `TRANSIT_URL`, `GEOCODER_PROVIDER` (`photon` default, `nominatim`), `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` (default 1000), `GEOCODER_TIMEOUT_MS`, `GEOCODE_CACHE_TTL_S` (default 30 days), `TRUST_PROXY` | places | City bounding boxes, geocoder selection, throttling and cache lifetime |
-| `GATEWAY_URL` (dev server only), `VITE_MAP_STYLE_URL` (basemap style; default OpenFreeMap Positron, must credit OpenStreetMap) | web | API target and basemap |
-| `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |
+| `GATEWAY_URL` (dev server only), `VITE_MAP_STYLE_URL`, `VITE_MAP_STYLE_URL_DARK` (basemap styles of the light and the dark theme; default OpenFreeMap Positron and Dark, must credit OpenStreetMap) | web | API target and basemap |
+| `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts; import limits, all off by default |
 
 ## Platform package (`packages/common`, `@heatmap/common`)
 
@@ -111,7 +114,8 @@ One Dockerfile for every Node service: `infra/docker/service.Dockerfile`, build 
 `SERVICE` (e.g. `services/identity`). Stage 1 installs production dependencies of that service
 and its workspace packages only (`pnpm install --prod --filter "{./$SERVICE}..."`); stage 2 copies
 them with the sources, runs as user `node` with root-owned read-only files, and checks
-`/health/ready`. There is no build step: Node strips the types at run time, so the workspace
+`/health/ready` (start period 60 s and 5 retries, so a slow start on a busy machine or CI runner
+is not taken for a failure). There is no build step: Node strips the types at run time, so the workspace
 layout is kept (Node does not strip types under `node_modules`).
 
 `infra/docker/web.Dockerfile`: Vite build, then `caddy` serving the files (hashed assets cached
@@ -139,22 +143,24 @@ root's development tools; it is never deployed.
 
 ## Tests
 
+Strategy, commands, coverage and gates: [specs/testing.md](../specs/testing.md).
+
 | Level | Tool | Scope |
 | --- | --- | --- |
-| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out) |
+| Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter, error policy and toasts, logger; component tests in jsdom (`*.test.tsx`, Testing Library, helpers in `apps/web/src/shared/test/render.tsx`: memory router, fresh query client, fetch answered from a table): sign-in form, places list, route guards, home page, error boundaries |
 | Database | `db/tests/smoke.sql` | Constraints, triggers, procedures, masking, privileges |
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
-| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
-| Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |
+| End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; routes (cities on the home page and their routes, unknown city, old links, 404, sign-in and return, back/forward, 403 on `/admin`, a saved place opening its city); register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
+| Load | k6 (`scripts/load.sh`, `tests/load`) | Success or a deliberate 503/429 under load, recovery; results in `docs/evidence/load.md` |
 
 ## CI (GitHub Actions)
 
-On pull request: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
+On push to `develop` or `main`: lint only. On pull request: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
 migrate up/down/up, seeds, smoke test, data dictionary diff), integration tests, end-to-end job
 (builds every image, `pnpm e2e:up`, `pnpm e2e`; on failure the Playwright report, traces and
 container logs are kept as an artifact for 7 days).
-On main: the same plus push images tagged with the commit SHA. On tag: deploy.
+Planned (phase 10): image publishing and deployment.
 
 ## Deployment (phase 10)
 

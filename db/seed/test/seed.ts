@@ -355,7 +355,7 @@ function syntheticResult(distM: number, hasStop: boolean): { transit: number | n
 }
 
 async function seedAccessibility(client: Client, fv: number): Promise<void> {
-  const algoVersion = Number(env('ALGO_VERSION', '1'));
+  const algoVersion = Number(env('ALGO_VERSION', '2'));
   await client.query(
     `INSERT INTO accessibility.feed_snapshots (feed_version_id, city_code, valid_from, valid_to, is_current)
      SELECT feed_version_id, $2, valid_from, valid_to, true FROM transit.feed_versions WHERE feed_version_id = $1

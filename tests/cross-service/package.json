@@ -5,10 +5,15 @@
   "type": "module",
   "description": "Tests that run several services together against one database and broker",
   "devDependencies": {
+    "@heatmap/accessibility": "workspace:*",
     "@heatmap/common": "workspace:*",
+    "@heatmap/contracts": "workspace:*",
     "@heatmap/identity": "workspace:*",
     "@heatmap/places": "workspace:*",
     "@heatmap/testing": "workspace:*",
-    "fastify": "5.12.8"
+    "@heatmap/transit-data": "workspace:*",
+    "@types/yazl": "3.3.1",
+    "fastify": "5.12.8",
+    "yazl": "3.3.1"
   }
 }

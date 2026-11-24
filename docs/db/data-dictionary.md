@@ -464,8 +464,8 @@ One row per downloaded GTFS archive. At most one active version per source.
 | --- | --- | --- | --- | --- | --- |
 | feed_version_id | integer | no | identity | PK | Surrogate key; part of the key of every core GTFS row. |
 | feed_source_id | smallint | no |  | FK, UQ | Source the archive was downloaded from. |
-| sha256 | bytea | no |  | UQ | Hash of the zip; the same archive is never imported twice. |
-| storage_key | text | no |  |  | Object-storage key of the original zip (raw layer). |
+| sha256 | bytea | yes |  | UQ | Hash of the zip; the same archive is never imported twice. NULL until it is downloaded. |
+| storage_key | text | yes |  |  | Object-storage key of the original zip (raw layer). NULL until it is stored. |
 | fetched_at | timestamp with time zone | no | now() |  | When the archive was downloaded. |
 | valid_from | date | yes |  |  | First service date; set by promote_feed(). |
 | valid_to | date | yes |  |  | Last service date; set by promote_feed(). |
@@ -478,7 +478,8 @@ Constraints:
 
 - `feed_versions_error`: CHECK (((status = 'failed'::text) = (error_message IS NOT NULL)))
 - `feed_versions_sha256_check`: CHECK ((octet_length(sha256) = 32))
-- `feed_versions_status`: CHECK ((status = ANY (ARRAY['downloaded'::text, 'staged'::text, 'validated'::text, 'active'::text, 'archived'::text, 'failed'::text])))
+- `feed_versions_status`: CHECK ((status = ANY (ARRAY['downloading'::text, 'downloaded'::text, 'staged'::text, 'validated'::text, 'active'::text, 'archived'::text, 'failed'::text])))
+- `feed_versions_stored`: CHECK (((status = ANY (ARRAY['downloading'::text, 'failed'::text])) OR ((sha256 IS NOT NULL) AND (storage_key IS NOT NULL))))
 - `feed_versions_validity`: CHECK ((valid_to >= valid_from))
 - `feed_versions_feed_source_id_fkey`: FOREIGN KEY (feed_source_id) REFERENCES transit.feed_sources(feed_source_id)
 - `feed_versions_content_uq`: UNIQUE (feed_source_id, sha256)

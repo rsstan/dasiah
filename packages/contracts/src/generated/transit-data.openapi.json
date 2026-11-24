@@ -653,6 +653,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "downloading",
                 "downloaded",
                 "staged",
                 "validated",
@@ -736,6 +737,7 @@
                           "status": {
                             "type": "string",
                             "enum": [
+                              "downloading",
                               "downloaded",
                               "staged",
                               "validated",
@@ -745,8 +747,12 @@
                             ]
                           },
                           "sha256": {
-                            "type": "string",
-                            "pattern": "^[0-9a-f]{64}$"
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "null until the archive is downloaded."
                           },
                           "fetchedAt": {
                             "type": "string",
@@ -1137,6 +1143,7 @@
                     "status": {
                       "type": "string",
                       "enum": [
+                        "downloading",
                         "downloaded",
                         "staged",
                         "validated",
@@ -1146,8 +1153,12 @@
                       ]
                     },
                     "sha256": {
-                      "type": "string",
-                      "pattern": "^[0-9a-f]{64}$"
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "null until the archive is downloaded."
                     },
                     "fetchedAt": {
                       "type": "string",
@@ -1478,7 +1489,7 @@
       "post": {
         "operationId": "importFeed",
         "summary": "Download the feed of a source and import it",
-        "description": "Downloads the archive and computes its SHA-256 before answering. A new archive gets a\n`downloaded` feed version and the rest of the pipeline (staging, promotion, transfers,\naccess stops) continues in the background: poll `GET /admin/feed-versions/{id}`.\nAn archive that was already imported is a no-op answered with `200`.\n",
+        "description": "Answers at once with a `downloading` feed version; everything else (download, staging,\npromotion, transfers, access stops) runs in the background, however long it takes: poll\n`GET /admin/feed-versions/{id}`. A download that fails, or an archive that was imported before,\nends as `failed` with the reason in `errorMessage`.\n",
         "tags": [
           "admin"
         ],
@@ -1487,45 +1498,8 @@
           "perMinute": 6
         },
         "responses": {
-          "200": {
-            "description": "The same archive was imported before; nothing changed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "feedVersionId",
-                    "status",
-                    "duplicate"
-                  ],
-                  "properties": {
-                    "feedVersionId": {
-                      "type": "integer",
-                      "minimum": 1
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "downloaded",
-                        "staged",
-                        "validated",
-                        "active",
-                        "archived",
-                        "failed"
-                      ]
-                    },
-                    "duplicate": {
-                      "type": "boolean",
-                      "description": "true = this archive had been imported before (no-op)."
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
           "202": {
-            "description": "New archive stored; the import runs in the background.",
+            "description": "The import runs in the background.",
             "headers": {
               "Location": {
                 "description": "URL of the created or running resource.",
@@ -1551,6 +1525,7 @@
                     "status": {
                       "type": "string",
                       "enum": [
+                        "downloading",
                         "downloaded",
                         "staged",
                         "validated",
@@ -1872,74 +1847,6 @@
                 }
               }
             }
-          },
-          "502": {
-            "description": "The publisher could not be reached or returned an error.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "type": "object",
-                  "description": "RFC 9457 problem details. Every error response of every service uses it.",
-                  "required": [
-                    "type",
-                    "title",
-                    "status"
-                  ],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "format": "uri-reference",
-                      "description": "Problem kind, e.g. `/problems/validation`. `about:blank` when only the status matters.",
-                      "examples": [
-                        "/problems/validation"
-                      ]
-                    },
-                    "title": {
-                      "type": "string",
-                      "description": "Short, human-readable summary of the problem kind."
-                    },
-                    "status": {
-                      "type": "integer",
-                      "minimum": 400,
-                      "maximum": 599
-                    },
-                    "detail": {
-                      "type": "string",
-                      "description": "Explanation specific to this occurrence. Never contains SQL, stack traces or personal data."
-                    },
-                    "instance": {
-                      "type": "string",
-                      "description": "Request path that produced the problem."
-                    },
-                    "correlationId": {
-                      "type": "string",
-                      "description": "Same value as the `X-Correlation-Id` response header."
-                    },
-                    "errors": {
-                      "type": "array",
-                      "description": "Field errors of a validation problem.",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "JSON pointer of the invalid field, e.g. `/origin/lat`."
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "additionalProperties": true
-                }
-              }
-            }
           }
         }
       }
@@ -2046,6 +1953,7 @@
                     "status": {
                       "type": "string",
                       "enum": [
+                        "downloading",
                         "downloaded",
                         "staged",
                         "validated",
@@ -2055,8 +1963,12 @@
                       ]
                     },
                     "sha256": {
-                      "type": "string",
-                      "pattern": "^[0-9a-f]{64}$"
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "null until the archive is downloaded."
                     },
                     "fetchedAt": {
                       "type": "string",
@@ -3647,6 +3559,7 @@
       "FeedStatus": {
         "type": "string",
         "enum": [
+          "downloading",
           "downloaded",
           "staged",
           "validated",
@@ -3909,6 +3822,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "downloading",
               "downloaded",
               "staged",
               "validated",
@@ -3918,8 +3832,12 @@
             ]
           },
           "sha256": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$"
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "null until the archive is downloaded."
           },
           "fetchedAt": {
             "type": "string",
@@ -3978,6 +3896,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "downloading",
               "downloaded",
               "staged",
               "validated",

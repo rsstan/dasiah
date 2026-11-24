@@ -15,6 +15,12 @@ export const configSchema = baseConfigSchema
     JWT_AUDIENCE: z.string().default('heatmap'),
     ACCESS_TTL_S: z.coerce.number().int().min(60).max(3_600).default(900),
     REFRESH_TTL_S: z.coerce.number().int().min(3_600).default(2_592_000),
+    /**
+     * Seconds after a rotation in which the previous refresh token is accepted once more, as
+     * long as its successor was never used (the client did not receive it: a reload or a lost
+     * response during the refresh). 0 turns the grace off.
+     */
+    REFRESH_REUSE_GRACE_S: z.coerce.number().int().min(0).max(300).default(30),
     /** false only for plain-HTTP development outside localhost. */
     COOKIE_SECURE: z.stringbool().default(true),
     /** Failed sign-ins (since the last success) within the window that lock an account. */

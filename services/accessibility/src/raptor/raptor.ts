@@ -136,10 +136,11 @@ export function raptor(tt: Timetable, origin: Origin, departureS: number, option
       }
     }
 
-    // One footpath hop from the stops improved by riding in this round.
-    const rode = marked.slice();
-    for (const s of rode) {
-      const from = best[s] ?? UNREACHED;
+    // One footpath hop from the stops improved by riding in this round, starting at the arrival by
+    // trip: read all of them first, since a hop may improve another of these stops and walking on
+    // from there would be a second hop.
+    const rode = marked.map((s) => [s, best[s] ?? UNREACHED] as const);
+    for (const [s, from] of rode) {
       for (let j = tt.transferStart[s] ?? 0; j < (tt.transferStart[s + 1] ?? 0); j++) {
         const to = tt.transferTo[j] ?? 0;
         const t = from + (tt.transferWalk[j] ?? 0);

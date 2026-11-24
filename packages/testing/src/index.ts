@@ -22,6 +22,22 @@ export const POSTGIS_IMAGE = 'postgis/postgis:16-3.7';
 export const RABBITMQ_IMAGE = 'rabbitmq:4.3.7-management-alpine';
 export const REDIS_IMAGE = 'redis:8.8.4-alpine';
 
+/**
+ * Containers keep their data in memory and PostgreSQL does not wait for the disk: nothing has to
+ * survive a test run, and a busy disk must not decide whether a container starts in time.
+ */
+export const POSTGRES_TMPFS = { '/var/lib/postgresql/data': 'rw' };
+export const POSTGRES_COMMAND = [
+  'postgres',
+  '-c',
+  'fsync=off',
+  '-c',
+  'full_page_writes=off',
+  '-c',
+  'synchronous_commit=off',
+];
+export const RABBITMQ_TMPFS = { '/var/lib/rabbitmq': 'rw' };
+
 /** Only for throw-away test containers. */
 const TEST_PASSWORD = 'test-only-password';
 const DATABASE = 'heatmap';
@@ -69,10 +85,12 @@ export async function startDatabase({ services, referenceData = [] }: StartDatab
     .withDatabase(DATABASE)
     .withUsername('postgres')
     .withPassword(TEST_PASSWORD)
+    .withTmpFs(POSTGRES_TMPFS)
+    .withCommand(POSTGRES_COMMAND)
     .withCopyFilesToContainer([
       { source: resolve(ROOT, 'db/bootstrap/001_roles_schemas.sql'), target: '/bootstrap/001_roles_schemas.sql' },
     ])
-    .withStartupTimeout(120_000)
+    .withStartupTimeout(300_000)
     .start();
   const bootstrap = await container
     .exec([
@@ -142,7 +160,10 @@ export interface TestBroker {
 }
 
 export async function startBroker(): Promise<TestBroker> {
-  const container = await new RabbitMQContainer(RABBITMQ_IMAGE).withStartupTimeout(120_000).start();
+  const container = await new RabbitMQContainer(RABBITMQ_IMAGE)
+    .withTmpFs(RABBITMQ_TMPFS)
+    .withStartupTimeout(300_000)
+    .start();
   const url = container.getAmqpUrl();
   const connection = await amqp.connect(url);
   const channel = await connection.createChannel();
@@ -155,7 +176,7 @@ export async function startBroker(): Promise<TestBroker> {
       await channel.bindQueue(queue, topology.exchange.name, routingKey);
       const received: amqp.ConsumeMessage[] = [];
       await channel.consume(queue, (msg) => msg && received.push(msg), { noAck: true });
-      return async (timeoutMs = 15_000) => {
+      return async (timeoutMs = 120_000) => {
         const deadline = Date.now() + timeoutMs;
         while (received.length === 0) {
           if (Date.now() > deadline) {
@@ -198,7 +219,7 @@ export async function startRedis(): Promise<TestRedis> {
 export async function eventually(
   what: string,
   condition: () => Promise<boolean> | boolean,
-  timeoutMs = 15_000,
+  timeoutMs = 120_000,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!(await condition())) {

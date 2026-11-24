@@ -147,7 +147,7 @@ A thin Fastify application: no business logic, no database.
 | Storage | The access token (15 min) lives only in memory; the refresh token is an httpOnly, `SameSite=Strict` cookie with path `/api/v1/auth`, invisible to scripts. Nothing about the session is kept in `localStorage`. |
 | Restore | On page load `POST /auth/refresh`: a valid cookie signs the user in again; `401` means signed out. |
 | Refresh | A minute before the access token expires, and once after a `401` on a request that carried a token (that request is then retried once). |
-| No overlapping refreshes | `identity` rotates the refresh token and treats a reused one as theft (all sessions revoked). Refreshes therefore run one at a time: a single shared promise in the tab and a Web Lock (`navigator.locks`) across tabs, so each refresh sends the cookie the previous one set. |
+| No overlapping refreshes | `identity` rotates the refresh token and treats a reused one as theft (all sessions revoked), except once within 30 s of the rotation while the successor is unused, which covers a reload or a lost response during the refresh (`REFRESH_REUSE_GRACE_S`). Refreshes therefore run one at a time: a single shared promise in the tab and a Web Lock (`navigator.locks`) across tabs, so each refresh sends the cookie the previous one set. |
 | Failures | A refused refresh (`401`/`403`) signs the user out; a network or `5xx` failure keeps the session and the next call tries again. Sign-out clears the token even if the server cannot be reached. |
 | Account deletion | `DELETE /users/me` after an explicit confirmation; `identity` anonymises the account and `places` erases places and history on `identity.user.deleted.v1`. |
 
@@ -172,6 +172,8 @@ A thin Fastify application: no business logic, no database.
 | Retry with backoff and jitter | Idempotent GETs to `transit-data`, OSRM and the geocoder; GTFS download. Never on POST without an idempotency key. |
 | Circuit breaker | `accessibility` -> OSRM, `places` -> geocoder, gateway -> each service. |
 | Bulkhead | `accessibility` runs at most N calculations at once (N = CPU cores); extra requests wait in a bounded queue, then get `503` with `Retry-After`. |
+| Database overload | No free connection, statement timeout or a closed connection: `503 /problems/database-busy` with `Retry-After` instead of 500 (`packages/common/src/db.ts`, `server.ts`); a connection closed during a transaction does not end the process. |
+| After commit | Event handlers change memory only after their transaction is committed (`afterCommit` of the consumer). |
 | Fallback | Geocoder down: answer from `geocode_cache`, even from an expired entry; `503 /problems/geocoder-unavailable` only when nothing is cached. OSRM down: calculation fails with a clear error instead of showing wrong car times; cached maps keep working. New timetable fails to load: keep serving the previous snapshot. A city whose timetable could not be loaded at start-up (for example `transit-data` was not up yet) is retried every `TIMETABLE_RETRY_MS`; readiness stays `503` until one city is loaded. |
 | Transactional outbox | A state change and its event are written in one database transaction (with the request's correlation id and `traceparent`); a publisher loop sends unpublished rows with publisher confirms and marks them in the same transaction; rows that violate the contract are never sent. |
 | Idempotent consumer | `processed_messages` table: message id inserted in the same transaction as the effect; duplicates are acknowledged and skipped. |
