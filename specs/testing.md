@@ -128,8 +128,8 @@ not break them.
 
 ## CI and quality gates
 
-[.github/workflows/ci.yml](../.github/workflows/ci.yml), on pull requests and pushes to `develop` and
-`main`:
+[.github/workflows/ci.yml](../.github/workflows/ci.yml), on pull requests and on demand. A push to
+`develop` or `main` runs only the linter.
 
 | Gate | Fails when |
 | --- | --- |
@@ -138,7 +138,7 @@ not break them.
 | Contracts | invalid, or generated code is out of date |
 | Database | migrations up/down/up, seeds or smoke test fail |
 | End to end | a test fails, or passes only on the second try; load scripts see an unexpected error |
-| Mutation (`main`, on demand) | score below 85 % |
+| Mutation (on demand) | score below 85 % |
 
 Reports (coverage HTML, JUnit, mutation) are artifacts of the run; the coverage table is on its
 summary page.

@@ -14,8 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: lint, typecheck, unit tests, web build
+  # A push runs only this job; everything else runs on pull requests (and on demand).
+  lint:
+    name: lint
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -25,12 +26,25 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+
+  check:
+    name: typecheck, unit tests, web build
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm web:build
 
   integration:
     name: unit and integration tests with coverage (Testcontainers)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -58,8 +72,8 @@ jobs:
 
   mutation:
     name: mutation tests (Stryker)
-    # Minutes long: on main and on demand, not for every push.
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # Minutes long: only on demand.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -80,6 +94,7 @@ jobs:
 
   contracts:
     name: contracts (lint, generated code up to date)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -97,6 +112,7 @@ jobs:
 
   database:
     name: database (bootstrap, up/down/up, seeds, smoke, dictionary)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -146,6 +162,7 @@ jobs:
 
   e2e:
     name: end-to-end (Compose profile full, Playwright)
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
