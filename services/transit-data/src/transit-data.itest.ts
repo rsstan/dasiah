@@ -11,6 +11,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import yazl from 'yazl';
 import { createService, type Service } from './app.ts';
+import { gridCommand } from './cli/grid.ts';
+import { importCommand } from './cli/import.ts';
 import { loadServiceConfig } from './config.ts';
 import { replaceGrid } from './repositories/cities.ts';
 import { gridCells } from './domain/grid.ts';
@@ -67,14 +69,10 @@ async function finalStatus(
   id: number,
 ): Promise<{ status: string; errorMessage: string | null; validFrom: string | null; validTo: string | null }> {
   let version = { status: 'downloaded', errorMessage: null, validFrom: null, validTo: null };
-  await eventually(
-    'the import to finish',
-    async () => {
-      version = (await call('GET', `/admin/feed-versions/${id}`, ADMIN)).json();
-      return !['downloaded', 'staged'].includes(version.status);
-    },
-    60_000,
-  );
+  await eventually('the import to finish', async () => {
+    version = (await call('GET', `/admin/feed-versions/${id}`, ADMIN)).json();
+    return !['downloaded', 'staged'].includes(version.status);
+  });
   return version;
 }
 
@@ -386,5 +384,146 @@ describe('internal API', () => {
       expect(cell.stops.length).toBeLessThanOrEqual(5);
       expect(cell.stops.map((s) => s[1])).toEqual([...cell.stops.map((s) => s[1])].sort((a, b) => a - b));
     }
+  });
+});
+
+describe('unusual archives', () => {
+  const imported = async (files: Record<string, string>) => {
+    served = { status: 200, body: await zipOf(files) };
+    const started = await importServed();
+    return { id: started.body.feedVersionId, ...(await finalStatus(started.body.feedVersionId)) };
+  };
+
+  it('reads files in a sub-folder with Windows line ends, blank lines, quotes and other columns', async () => {
+    const files = Object.fromEntries(
+      Object.entries(await testvilleFiles()).map(([name, text]) => [
+        `feed/${name}`,
+        `${text.replace(/\r?\n/g, '\r\n')}\r\n\r\n`,
+      ]),
+    );
+    const [header = '', first = '', ...rest] = (files['feed/agency.txt'] ?? '').split('\r\n');
+    files['feed/agency.txt'] = [`${header},note`, `${first},"a ""quoted"", note"`, ...rest].join('\r\n');
+    files['feed/unknown.txt'] = 'x';
+    const version = await imported(files);
+    expect(version).toMatchObject({ status: 'validated', errorMessage: null });
+    expect(await coreRows(version.id)).toEqual(await coreRows(good));
+  });
+
+  it('needs calendar.txt or calendar_dates.txt, but not both', async () => {
+    const files = await testvilleFiles();
+    const { 'calendar.txt': _calendar, 'calendar_dates.txt': _dates, ...neither } = files;
+    expect((await imported(neither)).errorMessage).toBe('required files missing: calendar.txt');
+    const { 'calendar_dates.txt': _only, ...one } = files;
+    expect((await imported(one)).status).toBe('validated');
+  });
+
+  it('refuses an empty file and text where a number belongs', async () => {
+    const files = await testvilleFiles();
+    expect((await imported({ ...files, 'trips.txt': '' })).errorMessage).toContain('trips.txt is empty');
+    const broken = (files['stops.txt'] ?? '').replace(/52\.2\d*/, 'north');
+    expect((await imported({ ...files, 'stops.txt': broken })).status).toBe('failed');
+  });
+
+  it('tries an archive again after it failed, as a new version', async () => {
+    const { 'routes.txt': _routes, ...files } = await testvilleFiles();
+    const first = await imported(files);
+    const again = await importServed(); // byte for byte the same archive
+    expect(again).toMatchObject({ status: 202, body: { duplicate: false } });
+    expect(again.body.feedVersionId).toBeGreaterThan(first.id);
+    expect([first.status, (await finalStatus(again.body.feedVersionId)).status]).toEqual(['failed', 'failed']);
+    expect((await call('GET', `/admin/feed-versions/${first.id}`, ADMIN)).statusCode).toBe(404);
+  });
+
+  it('runs one import of a source at a time', async () => {
+    const files = await testvilleFiles();
+    served = { status: 200, body: await zipOf({ ...files, 'agency.txt': `${files['agency.txt'] ?? ''}\n` }) };
+    const answers = await Promise.all([importServed(), importServed()]);
+    expect(answers.map((a) => a.status).sort()).toEqual([202, 409]);
+    await finalStatus(answers.find((a) => a.status === 202)?.body.feedVersionId ?? -1);
+  });
+});
+
+describe('command line', () => {
+  let dir: string;
+  let env: NodeJS.ProcessEnv;
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'transit-cli-'));
+    env = {
+      SERVICE_NAME: 'transit-data',
+      PORT: '3002',
+      LOG_LEVEL: 'fatal',
+      DATABASE_URL: db.url('svc_transit'),
+      AMQP_URL: broker.url,
+      STORAGE_PATH: storageDir,
+      INIT_CWD: dir,
+    };
+  });
+  afterAll(() => rm(dir, { recursive: true, force: true }));
+
+  it('imports and activates a local archive', async () => {
+    const files = await testvilleFiles();
+    files['agency.txt'] = (files['agency.txt'] ?? '').replace('Testville Transit', 'Testville by hand');
+    await writeFile(join(dir, 'feed.zip'), await zipOf(files));
+    expect(await importCommand(['--source', 'waw_ztm', '--file', 'feed.zip', '--activate'], env)).toBe(0);
+    const { rows } = await db.admin.query<{ name: string }>(
+      `SELECT a.name FROM transit.agencies a JOIN transit.feed_versions v USING (feed_version_id) WHERE v.status = 'active'`,
+    );
+    expect(rows).toEqual([{ name: 'Testville by hand' }]);
+    // The same archive again: nothing to do, still a success.
+    expect(await importCommand(['--source', 'waw_ztm', '--file', 'feed.zip'], env)).toBe(0);
+  });
+
+  it('downloads from the publisher and reports a refused feed with exit code 2', async () => {
+    served = { status: 200, body: Buffer.from('still not a zip') };
+    expect(await importCommand(['--source', 'waw_ztm', '--download'], env)).toBe(2);
+  });
+
+  it.each([[[]], [['--source', 'waw_ztm']], [['--source', 'waw_ztm', '--download', '--file', 'x.zip']]])(
+    'refuses the arguments %j',
+    async (args) => {
+      await expect(importCommand(args, env)).rejects.toThrow(/usage/);
+    },
+  );
+
+  it('refuses an unknown source', async () => {
+    await expect(importCommand(['--source', 'nope', '--download'], env)).rejects.toThrow(/Unknown feed source/);
+  });
+
+  it('replaces the grid of a city and rebuilds the access stops of its feeds', async () => {
+    const cellCount = async () =>
+      (await db.admin.query<{ n: number }>('SELECT count(*)::int AS n FROM transit.hex_cells WHERE city_id = 1'))
+        .rows[0]?.n;
+    const before = (await cellCount()) ?? 0;
+    const ring = [
+      [20.99, 52.19],
+      [21.02, 52.19],
+      [21.02, 52.21],
+      [20.99, 52.21],
+      [20.99, 52.19],
+    ];
+    const geometry = { type: 'Polygon', coordinates: [ring] };
+    const file = join(dir, 'square.geojson');
+    await writeFile(file, JSON.stringify({ type: 'Feature', geometry }));
+    await gridCommand(['--city', 'waw', '--boundary', file], env);
+    const feature = await cellCount();
+    expect(feature).toBeGreaterThan(10);
+    expect(feature).toBeLessThan(before);
+    await writeFile(file, JSON.stringify(geometry)); // a bare geometry is the same boundary
+    await gridCommand(['--city', 'waw', '--boundary', file], env);
+    expect(await cellCount()).toBe(feature);
+    const { rows } = await db.admin.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM transit.hex_stop_access a
+        WHERE NOT EXISTS (SELECT 1 FROM transit.hex_cells c WHERE c.h3_index = a.h3_index)`,
+    );
+    expect(rows[0]?.n).toBe(0);
+  });
+
+  it('refuses a grid without a city, for an unknown city or from a missing file', async () => {
+    await expect(gridCommand([], env)).rejects.toThrow(/usage/);
+    await expect(gridCommand(['--city', 'xxx'], env)).rejects.toThrow(/ENOENT/);
+    await writeFile(join(dir, 'b.geojson'), JSON.stringify({ type: 'Polygon', coordinates: [[]] }));
+    await expect(gridCommand(['--city', 'xxx', '--boundary', join(dir, 'b.geojson')], env)).rejects.toThrow(
+      /unknown city xxx/,
+    );
   });
 });

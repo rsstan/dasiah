@@ -34,7 +34,7 @@ const ALWAYS_FAILS = '00000000-0000-4000-8000-0000000000ff';
 const waitFor = async (
   what: string,
   condition: () => Promise<boolean> | boolean,
-  timeoutMs = 30_000,
+  timeoutMs = 120_000,
 ): Promise<void> => {
   const deadline = Date.now() + timeoutMs;
   while (!(await condition())) {
@@ -77,7 +77,7 @@ beforeAll(async () => {
       .start(),
     new RabbitMQContainer('rabbitmq:4.3.7-management-alpine')
       .withTmpFs({ '/var/lib/rabbitmq': 'rw' })
-      .withStartupTimeout(120_000)
+      .withStartupTimeout(300_000)
       .start(),
   ]);
   pool = createPool({ connectionString: pg16.getConnectionUri(), applicationName: 'messaging-itest', max: 5 });

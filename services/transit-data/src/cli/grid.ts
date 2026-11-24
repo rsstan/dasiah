@@ -16,13 +16,13 @@ import type { TransitDb } from '../repositories/schema.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
 
-async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { city: { type: 'string' }, boundary: { type: 'string' } } });
+export async function gridCommand(args: string[], env: NodeJS.ProcessEnv = process.env): Promise<void> {
+  const { values } = parseArgs({ args, options: { city: { type: 'string' }, boundary: { type: 'string' } } });
   const code = values.city;
   if (code === undefined) {
     throw new Error('usage: pnpm transit:grid --city <code> [--boundary <file.geojson>]');
   }
-  const config = loadServiceConfig();
+  const config = loadServiceConfig(env);
   const logger = createLogger({ service: 'transit-grid', level: config.LOG_LEVEL });
   const file = values.boundary ?? resolve(ROOT, 'db/seed/reference/boundaries', `${code}.geojson`);
   const feature = JSON.parse(readFileSync(file, 'utf8')) as { geometry?: GeoJsonPolygon } & GeoJsonPolygon;
@@ -55,7 +55,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] === import.meta.filename) {
+  try {
+    await gridCommand(process.argv.slice(2));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
+}

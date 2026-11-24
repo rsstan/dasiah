@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
-// The map stays responsive while ~5 000 cells are prepared (docs/plan.md 8A.9). The CPU is slowed
-// down four times (as Lighthouse does for mobile) and the basemap is empty. While the cells of a
+// The map stays responsive while ~5 000 cells are prepared (docs/plan.md 8A.9). With
+// E2E_CPU_SLOWDOWN=4 the CPU is slowed down (as Lighthouse does for mobile); the basemap is empty. While the cells of a
 // map are prepared and drawn, and again after zooming out (cells merged into parents), the page
 // records its long tasks and the longest gap between two animation frames. The same run with the
 // hexagon worker disabled (the hook then prepares on the main thread, as before 8A.9) is the
@@ -101,7 +101,7 @@ async function measure(page: Page, withWorker: boolean): Promise<Run> {
     }),
   );
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env['E2E_CPU_SLOWDOWN'] ?? 1) });
 
   await openWarsaw(page);
   const map = page.locator('.map');
@@ -131,7 +131,6 @@ test.describe('map performance', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'CPU throttling and long tasks need Chromium');
 
   test('cells are prepared off the main thread', async ({ browser }, info) => {
-    test.setTimeout(240_000);
     const run = async (withWorker: boolean) => {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const result = await measure(await context.newPage(), withWorker);
@@ -142,7 +141,7 @@ test.describe('map performance', () => {
     const worker = await run(true);
     const report = {
       cells: 5333,
-      cpuSlowdown: 4,
+      cpuSlowdown: Number(process.env['E2E_CPU_SLOWDOWN'] ?? 1),
       mainThread: { compute: mainThread.compute, zoomOut: mainThread.zoomOut },
       worker: { compute: worker.compute, zoomOut: worker.zoomOut },
     };

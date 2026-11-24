@@ -83,6 +83,31 @@ describe('buildPatterns', () => {
     expect(patterns).toEqual([{ routeId: 4, stops: [2, 11, 6, 3, 2], trips: [circle.times] }]);
   });
 
+  it('keeps trips of two stops and drops trips whose times do not fit their stops', () => {
+    const two = { routeId: 1, stops: [1, 2], times: [0, 0, 60, 60] };
+    expect(buildPatterns([two, { routeId: 1, stops: [1, 2], times: [0, 0] }])).toEqual([
+      { routeId: 1, stops: [1, 2], trips: [two.times] },
+    ]);
+  });
+
+  it('puts identical trips, and trips that leave together, into one pattern, the faster one first', () => {
+    const fast = { routeId: 1, stops: [1, 2], times: [0, 0, 60, 60] };
+    const slower = { routeId: 1, stops: [1, 2], times: [0, 0, 90, 90] };
+    expect(buildPatterns([slower, fast, fast])).toEqual([
+      { routeId: 1, stops: [1, 2], trips: [fast.times, fast.times, slower.times] },
+    ]);
+  });
+
+  it('orders patterns by route number, then by stops', () => {
+    const of = (routeId: number, stops: number[]) => ({ routeId, stops, times: stops.flatMap(() => [0, 0]) });
+    const order = buildPatterns([of(10, [1, 2]), of(2, [3, 4]), of(2, [1, 2])]).map((p) => [p.routeId, p.stops[0]]);
+    expect(order).toEqual([
+      [2, 1],
+      [2, 3],
+      [10, 1],
+    ]);
+  });
+
   it('accepts negative times of a previous-day trip running after midnight', () => {
     const night = trip(t(23, 50) - 86_400, normal);
     const [pattern] = buildPatterns([trip(t(8, 0), normal), night]);

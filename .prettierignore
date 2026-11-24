@@ -12,3 +12,5 @@ fixtures/gtfs/testville/artifacts/*.json
 # Generated bundle report (rollup-plugin-visualizer)
 docs/evidence/frontend-bundle.html
 .lighthouse
+reports
+.stryker-tmp

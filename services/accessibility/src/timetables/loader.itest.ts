@@ -139,7 +139,7 @@ describe('timetable loading', () => {
     expect((await snapshotRows()).find((r) => r.is_current)?.feed_version_id).toBe(2);
 
     transit.broken.delete(3); // the publisher's next retry succeeds
-    await eventually('the retried load', () => service.ctx.timetables.current('waw')?.feedVersionId === 3, 30_000);
+    await eventually('the retried load', () => service.ctx.timetables.current('waw')?.feedVersionId === 3);
   });
 
   it('skips a duplicate delivery of the activation', async () => {

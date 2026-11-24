@@ -8,6 +8,8 @@ import { boundaries } from './apps/web/eslint/boundaries.js';
 export default tseslint.config(
   {
     ignores: [
+      'reports/**',
+      '.stryker-tmp/**',
       '**/node_modules/**',
       '**/dist/**',
       '**/coverage/**',
@@ -69,6 +71,12 @@ export default tseslint.config(
   },
   {
     files: ['**/*.config.{js,ts}', 'eslint.config.js'],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
+    // k6 runs these, not Node: the scenario is the default export.
+    files: ['tests/load/*.js'],
+    languageOptions: { globals: { __ENV: 'readonly' } },
     rules: { 'no-restricted-syntax': 'off' },
   },
   prettier,

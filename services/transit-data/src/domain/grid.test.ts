@@ -35,8 +35,7 @@ describe('city grid', () => {
     expect(a.length).toBeGreaterThan(4_100);
     expect(a.length).toBeLessThan(4_600);
     expect(gridCells(boundary('vno'), 9)).toEqual(a);
-    // 0.2 s normally, but h3-js runs some 30 times slower under V8 coverage.
-  }, 60_000);
+  });
 
   it('refuses anything but a polygon', () => {
     expect(() => gridCells({ type: 'Point', coordinates: [] } as unknown as GeoJsonPolygon, 9)).toThrow(/Polygon/);

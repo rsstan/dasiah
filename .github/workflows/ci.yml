@@ -2,8 +2,9 @@ name: ci
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -29,7 +30,7 @@ jobs:
       - run: pnpm web:build
 
   integration:
-    name: integration tests (Testcontainers)
+    name: unit and integration tests with coverage (Testcontainers)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -38,7 +39,44 @@ jobs:
           node-version-file: .nvmrc
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:int
+      # Fails below the coverage thresholds of vitest.config.ts.
+      - run: pnpm test:cov
+      - name: Coverage table on the summary page
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            { echo '## Coverage'; echo; node scripts/coverage-summary.ts; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-and-test-results
+          path: |
+            coverage
+            reports/junit.xml
+          retention-days: 90
+
+  mutation:
+    name: mutation tests (Stryker)
+    # Minutes long: on main and on demand, not for every push.
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      # Fails below the mutation score of stryker.config.json.
+      - run: pnpm test:mutation
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation
+          retention-days: 90
 
   contracts:
     name: contracts (lint, generated code up to date)
@@ -123,6 +161,10 @@ jobs:
         run: grep -E '^(POSTGRES_PASSWORD|DB_PASSWORD_|RABBITMQ_PASSWORD|SEED_DEMO_PASSWORD)' .e2e/.env | cut -d= -f2- | sed 's/^/::add-mask::/'
       # Uses the Chrome preinstalled on the runner (channel chrome), no browser download.
       - run: pnpm e2e
+      - name: Load test scripts (short run) and rate limits
+        run: |
+          pnpm load capacity smoke
+          pnpm load rate-limit
       - name: Container logs
         if: failure()
         run: scripts/e2e.sh logs > e2e-containers.log
