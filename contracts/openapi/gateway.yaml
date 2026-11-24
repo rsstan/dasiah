@@ -499,24 +499,18 @@ paths:
       operationId: importFeed
       summary: Download the feed of a source and import it
       description: |
-        Downloads the archive and computes its SHA-256 before answering. A new archive gets a
-        `downloaded` feed version and the rest of the pipeline (staging, promotion, transfers,
-        access stops) continues in the background: poll `GET /admin/feed-versions/{id}`.
-        An archive that was already imported is a no-op answered with `200`.
+        Answers at once with a `downloading` feed version; everything else (download, staging,
+        promotion, transfers, access stops) runs in the background, however long it takes: poll
+        `GET /admin/feed-versions/{id}`. A download that fails, or an archive that was imported before,
+        ends as `failed` with the reason in `errorMessage`.
       tags:
         - admin
       x-access: admin
       x-rate-limit:
         perMinute: 6
       responses:
-        "200":
-          description: The same archive was imported before; nothing changed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ImportAccepted"
         "202":
-          description: New archive stored; the import runs in the background.
+          description: The import runs in the background.
           headers:
             Location:
               $ref: "#/components/headers/Location"
@@ -536,12 +530,6 @@ paths:
           $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
-        "502":
-          description: The publisher could not be reached or returned an error.
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
       x-service: transit-data
@@ -1557,6 +1545,7 @@ components:
     FeedStatus:
       type: string
       enum:
+        - downloading
         - downloaded
         - staged
         - validated
@@ -1587,8 +1576,11 @@ components:
         status:
           $ref: "#/components/schemas/FeedStatus"
         sha256:
-          type: string
+          type:
+            - string
+            - "null"
           pattern: ^[0-9a-f]{64}$
+          description: null until the archive is downloaded.
         fetchedAt:
           type: string
           format: date-time

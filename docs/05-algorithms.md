@@ -5,10 +5,10 @@ Online part (per request, `accessibility`): steps 5 to 9.
 
 ## 1. GTFS import (`transit-data`)
 
-1. Download the zip from `feed_sources.url` (timeout, retry). Compute SHA-256. If
-   `(feed_source_id, sha256)` exists, stop: nothing new.
-2. Store the zip in object storage under `raw/<source>/<sha256>.zip`; insert `feed_versions`
-   (`downloaded`).
+1. Insert `feed_versions` (`downloading`) and answer; everything else runs in the background.
+   Download the zip from `feed_sources.url` (retry). Compute SHA-256. If `(feed_source_id, sha256)`
+   was imported before, the new version ends as `failed`: nothing new.
+2. Store the zip in object storage under `raw/<source>/<sha256>.zip`; `downloaded`.
 3. Stream each needed file (`agency`, `routes`, `stops`, `trips`, `stop_times`, `calendar`,
    `calendar_dates`) into its `transit_staging` table with `COPY ... FROM STDIN`, selecting
    only the staged columns by header name and adding `feed_version_id`. Missing optional files
@@ -21,14 +21,14 @@ Checks done by `promote_feed`: every staged trip and stop_time lands in core (no
 references), at least one service date, typed conversion of times and coordinates. Extra checks
 in the service before promotion: stops more than 1 500 m outside the city boundary and trips
 with fewer than two stop_times are logged as warnings; the import fails when more than
-`MAX_STOPS_OUTSIDE_SHARE` (25 %) of the stops are outside (wrong feed for the city).
+`MAX_STOPS_OUTSIDE_SHARE` (default 100 %: never, a warning is logged) of the stops are outside (wrong feed for the city).
 
 Implementation (`services/transit-data/src/import/`): download with redirects, retries for
-network errors and 5xx, timeout and size limit, SHA-256 computed while writing; a failed
-attempt of the same archive is replaced, any other repeat is a no-op (`200`, `duplicate`).
+network errors and 5xx, optional size limit (`MAX_DOWNLOAD_BYTES`, 0 = none), SHA-256 computed while
+writing; a failed attempt of the same archive is replaced.
 Files are streamed from the zip (yauzl) through a CSV parser into `COPY ... FROM STDIN`; the
-promotion transaction raises `statement_timeout` (`IMPORT_STATEMENT_TIMEOUT_MS`) and
-`work_mem`. Versions left `downloaded`/`staged` by a restart are marked `failed` at start-up.
+promotion transaction sets `statement_timeout` (`IMPORT_STATEMENT_TIMEOUT_MS`, 0 = none) and
+`work_mem`. Imports use their own connections without time limits. Versions left `downloading`/`downloaded`/`staged` by a restart are marked `failed` at start-up.
 Timings per stage (`copy_ms`, `checks_ms`, `promote_ms`) and core row counts are logged in the
 "feed validated" line. Outside the API: `pnpm transit:import --source <code> (--file <zip> |
 --download) [--activate]`.

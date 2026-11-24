@@ -31,7 +31,15 @@ import { sortVersions, VERSION_SORT_LABEL, VERSION_SORTS, type VersionSort } fro
 
 export type { FeedVersion } from './api.ts';
 
-const STATUSES: readonly FeedStatus[] = ['downloaded', 'staged', 'validated', 'active', 'archived', 'failed'];
+const STATUSES: readonly FeedStatus[] = [
+  'downloading',
+  'downloaded',
+  'staged',
+  'validated',
+  'active',
+  'archived',
+  'failed',
+];
 
 export function sourcesOf(versions: readonly FeedVersion[]): string[] {
   return [...new Set(versions.map((v) => v.sourceCode))].sort();
@@ -100,6 +108,7 @@ export function AdminView({ cities }: { cities: readonly City[] }) {
 export const STATUS_TONE: Record<FeedStatus, BadgeTone> = {
   active: 'success',
   validated: 'info',
+  downloading: 'warning',
   downloaded: 'warning',
   staged: 'warning',
   archived: 'neutral',
@@ -169,7 +178,7 @@ function ImportForm({ sources }: { sources: readonly string[] }) {
         error: false,
         text: accepted.duplicate
           ? `The publisher still serves the archive of version ${accepted.feedVersionId}; nothing changed.`
-          : `Downloaded as version ${accepted.feedVersionId}; the import runs in the background.`,
+          : `Version ${accepted.feedVersionId} is being downloaded and imported in the background.`,
       });
     } catch (err) {
       setMessage({ error: true, text: describeError(err) });
@@ -241,9 +250,11 @@ function VersionItem({ version: v, cityName }: { version: FeedVersion; cityName:
         </span>
       )}
       {v.activatedAt !== null && <span className="meta">activated {new Date(v.activatedAt).toLocaleString()}</span>}
-      <span className="meta mono" title={v.sha256}>
-        sha256 {v.sha256.slice(0, 12)}…
-      </span>
+      {v.sha256 !== null && (
+        <span className="meta mono" title={v.sha256}>
+          sha256 {v.sha256.slice(0, 12)}…
+        </span>
+      )}
       {v.errorMessage !== null && <span className="form-error">{v.errorMessage}</span>}
       {v.status === 'validated' && (
         <Button variant="primary" size="sm" onClick={() => setConfirming(true)}>

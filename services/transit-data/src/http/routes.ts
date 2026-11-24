@@ -5,14 +5,12 @@ import {
   ForbiddenError,
   NotFoundError,
   routeSchema,
-  UpstreamError,
   type FastifyInstance,
   type FastifyReply,
   type FastifyRequest,
 } from '@heatmap/common';
 import { openApiDocuments } from '@heatmap/contracts';
 import type { AppContext } from '../context.ts';
-import { DownloadError } from '../import/download.ts';
 import type { Importer } from '../import/importer.ts';
 import { findCity, findCoverage, listEnabledCities, type CityRow } from '../repositories/cities.ts';
 import type { ArtifactStore, Artifact } from '../timetable/artifacts.ts';
@@ -103,23 +101,8 @@ export async function registerRoutes(
     async (req, reply) => {
       requireAdmin();
       const { code } = req.params as { code: string };
-      let started;
-      try {
-        started = await importer.importFromUrl(code);
-      } catch (error) {
-        if (error instanceof DownloadError) {
-          throw new UpstreamError(
-            `The feed of ${code} could not be downloaded: ${error.message}`,
-            code,
-            error.status ?? 502,
-          );
-        }
-        throw error;
-      }
+      const started = await importer.importFromUrl(code);
       const body = { feedVersionId: started.feedVersionId, status: started.status, duplicate: started.duplicate };
-      if (started.duplicate) {
-        return reply.status(200).send(body);
-      }
       return reply.status(202).header('location', `/api/v1/admin/feed-versions/${started.feedVersionId}`).send(body);
     },
   );

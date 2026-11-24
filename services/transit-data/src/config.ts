@@ -9,15 +9,15 @@ export const configSchema = baseConfigSchema
     STORAGE_DRIVER: z.enum(['fs']).default('fs'),
     STORAGE_PATH: z.string().default('./data/storage'),
     DOWNLOAD_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(300_000),
-    MAX_DOWNLOAD_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1_024)
-      .default(500 * 1_048_576),
-    /** Promotion of a city-size feed runs far longer than an API statement. */
-    IMPORT_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(1_800_000),
-    /** Share of stops outside the city bounds above which an import fails (wrong feed for the city). */
-    MAX_STOPS_OUTSIDE_SHARE: z.coerce.number().min(0).max(1).default(0.25),
+    /** Largest archive that is accepted; 0 = no limit. */
+    MAX_DOWNLOAD_BYTES: z.coerce.number().int().min(0).default(0),
+    /** Limit of one statement of an import; 0 = none (a city-size feed takes many minutes). */
+    IMPORT_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(0).default(0),
+    /**
+     * Share of stops outside the city bounds above which an import is refused (wrong feed for the
+     * city?); 1 = never, the share is only logged as a warning.
+     */
+    MAX_STOPS_OUTSIDE_SHARE: z.coerce.number().min(0).max(1).default(1),
     TRUST_PROXY: z.stringbool().default(true),
   });
 

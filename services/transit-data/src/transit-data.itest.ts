@@ -71,7 +71,7 @@ async function finalStatus(
   let version = { status: 'downloaded', errorMessage: null, validFrom: null, validTo: null };
   await eventually('the import to finish', async () => {
     version = (await call('GET', `/admin/feed-versions/${id}`, ADMIN)).json();
-    return !['downloaded', 'staged'].includes(version.status);
+    return !['downloading', 'downloaded', 'staged'].includes(version.status);
   });
   return version;
 }
@@ -170,7 +170,7 @@ describe('import', () => {
     served = { status: 200, body: await zipOf(await testvilleFiles()) };
     const started = await importServed();
     expect(started.status).toBe(202);
-    expect(started.body).toMatchObject({ status: 'downloaded', duplicate: false });
+    expect(started.body).toMatchObject({ status: 'downloading', duplicate: false });
     good = started.body.feedVersionId;
 
     const version = await finalStatus(good);
@@ -205,15 +205,18 @@ describe('import', () => {
 
   it('treats a second import of the same archive as a no-op', async () => {
     const again = await importServed();
-    expect(again.status).toBe(200);
-    expect(again.body).toEqual({ feedVersionId: good, status: 'validated', duplicate: true });
+    expect(again.status).toBe(202);
+    expect(await finalStatus(again.body.feedVersionId)).toMatchObject({
+      status: 'failed',
+      errorMessage: `Nothing new: the same archive as version ${good} (validated).`,
+    });
     const fromFile = await service.importer.importFromFile(
       'waw_ztm',
       join(storageDir, `raw/waw_ztm`, (await readdir(join(storageDir, 'raw/waw_ztm')))[0] ?? ''),
     );
     expect(fromFile).toMatchObject({ feedVersionId: good, duplicate: true });
     const { rows } = await db.admin.query<{ n: number }>('SELECT count(*)::int AS n FROM transit.feed_versions');
-    expect(rows[0]?.n).toBe(1);
+    expect(rows[0]?.n).toBe(2); // the imported one and the attempt that found nothing new
   });
 
   it('ends a feed with dangling references as failed with nothing in the core tables', async () => {
@@ -242,11 +245,11 @@ describe('import', () => {
     expect((await finalStatus(missing.body.feedVersionId)).errorMessage).toBe('required files missing: stop_times.txt');
   });
 
-  it('answers 502 when the publisher fails, 404 for an unknown source, 403 without the admin role', async () => {
+  it('ends as failed when the publisher fails; 404 for an unknown source, 403 without the admin role', async () => {
     served = { status: 404, body: Buffer.from('gone') };
-    const res = await call('POST', '/admin/feed-sources/waw_ztm/import', ADMIN);
-    expect(res.statusCode).toBe(502);
-    expect(res.json().detail).toContain('publisher answered 404');
+    const gone = await importServed();
+    expect(gone.status).toBe(202);
+    expect((await finalStatus(gone.body.feedVersionId)).errorMessage).toContain('publisher answered 404');
     expect((await call('POST', '/admin/feed-sources/nope/import', ADMIN)).statusCode).toBe(404);
     expect((await call('POST', '/admin/feed-sources/waw_ztm/import', { 'x-user-role': 'user' })).statusCode).toBe(403);
     expect((await call('GET', '/admin/feed-versions', { 'x-user-role': 'user' })).statusCode).toBe(403);

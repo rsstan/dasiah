@@ -15,7 +15,7 @@ export type ImportAccepted = Schemas['ImportAccepted'];
 export type CityCoverage = Schemas['CityCoverage'];
 
 /** Statuses of an import still in progress: the list is polled while one is present. */
-export const IN_PROGRESS: readonly FeedStatus[] = ['downloaded', 'staged'];
+export const IN_PROGRESS: readonly FeedStatus[] = ['downloading', 'downloaded', 'staged'];
 export const POLL_MS = 3_000;
 
 export interface VersionFilter {

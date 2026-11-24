@@ -10,7 +10,15 @@ export const VERSION_SORT_LABEL: Record<VersionSort, string> = {
 };
 
 /** Live versions first: what an administrator acts on. */
-const STATUS_ORDER: readonly FeedStatus[] = ['active', 'validated', 'staged', 'downloaded', 'failed', 'archived'];
+const STATUS_ORDER: readonly FeedStatus[] = [
+  'active',
+  'validated',
+  'staged',
+  'downloaded',
+  'downloading',
+  'failed',
+  'archived',
+];
 
 export function sortVersions(versions: readonly FeedVersion[], sort: VersionSort): FeedVersion[] {
   const newest = (a: FeedVersion, b: FeedVersion) => b.feedVersionId - a.feedVersionId;

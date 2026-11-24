@@ -80,7 +80,7 @@ Environment variables, validated at start with a schema; `.env.example` lists al
 | `TRANSIT_URL`, `TRANSIT_TIMEOUT_MS`, `CITIES` (default `waw,vno`), `TIMETABLE_CACHE_SIZE`, `OSRM_URL_WAW`, `OSRM_URL_VNO`, `ALGO_VERSION`, `MAX_PARALLEL_CALCS`, `CAR_TIME_FACTOR`, `CAR_OVERHEAD_S`, `OSRM_TIMEOUT_MS`, `OSRM_CHUNK_SIZE`, `OSRM_PARALLEL`, `OSRM_MIN_INTERVAL_MS` (pacing, 1000 for the public demo server), `MAX_QUEUED_CALCS`, `PURGE_INTERVAL_MS`, `TIMETABLE_RETRY_MS` (default 30 s) | accessibility | Upstreams, timetables in memory, method parameters |
 | `TRANSIT_URL`, `GEOCODER_PROVIDER` (`photon` default, `nominatim`), `GEOCODER_URL`, `GEOCODER_MIN_INTERVAL_MS` (default 1000), `GEOCODER_TIMEOUT_MS`, `GEOCODE_CACHE_TTL_S` (default 30 days), `TRUST_PROXY` | places | City bounding boxes, geocoder selection, throttling and cache lifetime |
 | `GATEWAY_URL` (dev server only), `VITE_MAP_STYLE_URL`, `VITE_MAP_STYLE_URL_DARK` (basemap styles of the light and the dark theme; default OpenFreeMap Positron and Dark, must credit OpenStreetMap) | web | API target and basemap |
-| `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts, import limits |
+| `STORAGE_DRIVER` (`fs`; `s3` in phase 10), `STORAGE_PATH` or `S3_BUCKET`, `DOWNLOAD_TIMEOUT_MS`, `MAX_DOWNLOAD_BYTES`, `IMPORT_STATEMENT_TIMEOUT_MS`, `MAX_STOPS_OUTSIDE_SHARE` | transit-data | Raw GTFS and artifacts; import limits, all off by default |
 
 ## Platform package (`packages/common`, `@heatmap/common`)
 
@@ -156,11 +156,11 @@ Strategy, commands, coverage and gates: [specs/testing.md](../specs/testing.md).
 
 ## CI (GitHub Actions)
 
-On pull request and push to `develop` or `main`: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
+On push to `develop` or `main`: lint only. On pull request: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
 migrate up/down/up, seeds, smoke test, data dictionary diff), integration tests, end-to-end job
 (builds every image, `pnpm e2e:up`, `pnpm e2e`; on failure the Playwright report, traces and
 container logs are kept as an artifact for 7 days).
-On main: the same plus push images tagged with the commit SHA. On tag: deploy.
+Planned (phase 10): image publishing and deployment.
 
 ## Deployment (phase 10)
 

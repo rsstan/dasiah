@@ -43,7 +43,7 @@ Access: P = public, U = signed-in user, A = admin. Limits are per minute, per us
 | GET `/cities/{code}/coverage` | transit-data | P | 60 | Numbers from `mv_city_coverage` |
 | GET `/admin/feed-versions` | transit-data | A | 60 | List with status, filter by `source`, `status` |
 | GET `/admin/feed-versions/{id}` | transit-data | A | 60 | One version with import status and error (poll after import) |
-| POST `/admin/feed-sources/{code}/import` | transit-data | A | 6 | Download and hash, then import in the background -> 202 `{feedVersionId, status, duplicate}`; same archive again -> 200 no-op; 409 import running; 502 publisher error |
+| POST `/admin/feed-sources/{code}/import` | transit-data | A | 6 | Answers 202 `{feedVersionId, status: downloading, duplicate}` at once; download and import run in the background; a failed download or an archive imported before ends as `failed` with the reason; 409 import running |
 | POST `/admin/feed-versions/{id}/activate` | transit-data | A | 6 | Activate a validated version; 409 if not validated |
 | GET `/geocode?city=&q=` | places | P | 30 | Up to 5 candidates `{displayName, lat, lon}` |
 | GET `/places` | places | U | 60 | Saved places |
