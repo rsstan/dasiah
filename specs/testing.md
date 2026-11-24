@@ -5,6 +5,7 @@
 
 ## Contents
 
+- [Where to look](#where-to-look)
 - [At a glance](#at-a-glance)
 - [Strategy](#strategy)
 - [Tools and why](#tools-and-why)
@@ -18,14 +19,26 @@
 - [Known gaps](#known-gaps)
 - [Recommendations](#recommendations)
 
+## Where to look
+
+| What | Link |
+| --- | --- |
+| The application under test | <https://dasiah.app> |
+| State of every service, live | <https://dasiah.app/health> |
+| Results of the test runs | [GitHub Actions, workflow ci](https://github.com/rsstan/dasiah/actions/workflows/ci.yml): open a run of a pull request; coverage table on its summary page, reports under Artifacts |
+| Numbers and screenshots | [docs/evidence/tests.md](../docs/evidence/tests.md), [docs/evidence/load.md](../docs/evidence/load.md) |
+
+The tests never run against dasiah.app: they start their own databases and services, locally and in
+CI, so they need no account and change no real data.
+
 ## At a glance
 
 | | |
 | --- | --- |
 | Unit, component and integration tests | 417 in 75 files |
 | End-to-end tests | 16 (Playwright) |
-| Back-end coverage | 91.6 % lines, 80.5 % branches, 91.9 % functions |
-| Whole repository | 79.0 % lines, 70.4 % branches, 73.3 % functions |
+| Back-end coverage | 91.9 % lines, 80.6 % branches, 92.2 % functions |
+| Whole repository | 79.2 % lines, 70.4 % branches, 73.5 % functions |
 | Mutation score (9 critical modules) | 89.7 % |
 | Evidence | [docs/evidence/tests.md](../docs/evidence/tests.md), [docs/evidence/load.md](../docs/evidence/load.md) |
 
@@ -93,14 +106,14 @@ next to the code they test. Whole-system tests are in `tests/cross-service`, `te
 | --- | --- | --- | --- |
 | gateway | 92.5 % | 92.4 % | 91.7 % |
 | identity | 91.8 % | 83.0 % | 95.7 % |
-| transit-data | 92.2 % | 78.3 % | 96.4 % |
-| accessibility | 93.2 % | 75.6 % | 93.3 % |
+| transit-data | 92.5 % | 77.9 % | 97.2 % |
+| accessibility | 93.9 % | 76.4 % | 93.3 % |
 | places | 90.4 % | 87.8 % | 90.7 % |
-| packages/common | 89.1 % | 81.2 % | 85.3 % |
+| packages/common | 89.1 % | 80.9 % | 85.3 % |
 | packages/contracts | 100 % | 90.0 % | 100 % |
-| **Back end** | **91.6 %** | **80.5 %** | **91.9 %** |
-| web (unit and component only) | 55.1 % | 56.8 % | 50.0 % |
-| Everything | 79.0 % | 70.4 % | 73.3 % |
+| **Back end** | **91.9 %** | **80.6 %** | **92.2 %** |
+| web (unit and component only) | 55.1 % | 56.7 % | 50.0 % |
+| Everything | 79.2 % | 70.4 % | 73.5 % |
 
 Every source file counts, also files no test imports. Left out: generated code, the tests and
 their helpers. Thresholds: [vitest.config.ts](../vitest.config.ts).
@@ -170,6 +183,6 @@ summary page.
 ## Recommendations
 
 1. Merge Playwright coverage into the report.
-2. Load test with real Warsaw data on the production server.
+2. Load test with real Warsaw data, on a separate server like the one of dasiah.app.
 3. Failure drills as tests (stop RabbitMQ and OSRM during a run).
 4. Visual regression of the map and the home page.

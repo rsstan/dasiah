@@ -88,7 +88,7 @@ Plan: phase 8A in `docs/plan.md`. Status as of 2026-11-23.
 
 | Requirement | Where | Evidence | Status |
 | --- | --- | --- | --- |
-| Coverage of at least 70 %, with report | `pnpm test:cov`, `vitest.config.ts` | `docs/evidence/tests.md`: back end 91.6 / 80.5 / 91.9 %, everything 79.0 / 70.4 / 73.3 % (lines, branches, functions) | ready |
+| Coverage of at least 70 %, with report | `pnpm test:cov`, `vitest.config.ts` | `docs/evidence/tests.md`: back end 91.9 / 80.6 / 92.2 %, everything 79.2 / 70.4 / 73.5 % (lines, branches, functions) | ready |
 | Unit tests, FIRST, edge cases | `*.test.ts` next to the code | `pnpm test` | ready |
 | Integration tests (endpoints, database, authorization, configuration) | `*.itest.ts` with Testcontainers | `pnpm test:int` | ready |
 | UI tests | Component tests and Playwright (`tests/e2e`) | 16 e2e tests, 5 of 5 runs | ready |

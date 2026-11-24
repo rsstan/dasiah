@@ -6,6 +6,7 @@
 
 ## Contents
 
+- [Live application](#live-application)
 - [At a glance](#at-a-glance)
 - [Architecture diagram](#architecture-diagram)
 - [Architecture approach](#architecture-approach)
@@ -23,6 +24,22 @@
 - [Tech stack and why](#tech-stack-and-why)
 - [How to run](#how-to-run)
 
+## Live application
+
+**<https://dasiah.app>**
+
+| Page | Link | What to look at |
+| --- | --- | --- |
+| Home | [dasiah.app](https://dasiah.app/) | Cities, search, light and dark theme (button in the menu) |
+| Warsaw | [/cities/waw](https://dasiah.app/cities/waw) | Click the map to choose a start point: coloured cells, class chart, cell details |
+| A shared map | [/cities/waw?lat=52.2297&lon=21.0122](https://dasiah.app/cities/waw?lat=52.2297&lon=21.0122) | A map opened by its address alone (centre of Warsaw) |
+| Sign in, create an account | [/sign-in](https://dasiah.app/sign-in) | Field validation, keyboard use |
+| Saved places (protected) | [/places](https://dasiah.app/places) | Without signing in it leads to sign-in and back |
+| 404 | [/no/such/page](https://dasiah.app/no/such/page) | Not-found page |
+
+Warsaw uses the real timetable and real roads (own OSRM); Vilnius has no timetable yet. Address
+search may still be a stand-in there: choose the start point by a click on the map.
+
 ## At a glance
 
 | | |
@@ -34,7 +51,8 @@
 | State | Server state in TanStack Query, client global state in Zustand, view settings in the URL, the rest local |
 | UI | Own component kit (`shared/ui`) on design tokens; MapLibre GL for the map |
 | API | The gateway's REST API; types generated from the OpenAPI contracts |
-| Tests | 30 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
+| Live | <https://dasiah.app> |
+| Tests | 31 unit and component test files (Vitest, Testing Library in jsdom), Playwright end-to-end tests |
 
 ## Architecture diagram
 
@@ -441,6 +459,7 @@ POST /api/v1/places
 
 ## How to run
 
+- **Nothing to install:** <https://dasiah.app>.
 - **Everything in Docker** (the built page on <http://localhost:8000>):
   [specs/microservices.md](microservices.md#a-docker-compose-recommended).
 - **Development with live reload** (needs Node.js and pnpm): start the stack as above, then
