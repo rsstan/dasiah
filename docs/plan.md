@@ -114,15 +114,46 @@ Testing Library.
       Done when: the initial JavaScript of the sign-in and places routes does not include MapLibre; the map stays responsive while 5 000 cells are prepared; bundle report and Lighthouse results (desktop and mobile) are in `docs/evidence/frontend-performance.md`.
 - [x] 8A.10 Reserve, direction 4 (only if time allows): dark/light theme (tokens and basemap), accessibility (keyboard navigation in suggestions and lists, focus management on route change, contrast check, axe check in Playwright), a chart of the class distribution of the current map.
 
+## Phase T — Automated tests (separate module, task "Auto Tests")
+
+Independent of the front-end module (phase 8A). Scope: gateway, services, shared packages, and the
+suite as a whole (integration, cross-service, end-to-end). The UI clause ("if the application
+includes a frontend") is met by the component and Playwright tests of 8A; more web tests are optional (T.9).
+
+Baseline measured on 2026-11-24 (Vitest v8 coverage, unit + integration, all source files counted,
+generated code and test support excluded). Back end (gateway, services, `packages/common`,
+`packages/contracts`): lines about 87.6 %, branches 74.3 %, functions 88 %. For information, with
+`apps/web`: 76.2 / 66.5 / 71.0 %; `apps/web` alone: 54.5 / 56.2 / 49.7 %. 251 tests in 57 files,
+16 end-to-end tests.
+
+- [ ] T.1 Stability: (a) `MapPage` rewrites the query after the user already left for `/sign-in`, so `?next=` is lost (reproduced: `/sign-in?next=%2Fcities%2Fwaw` becomes `/sign-in?time=08%3A00`); (b) `loader.itest.ts` "switches to a newly activated feed atomically"; (c) `grid.test.ts` "covers Vilnius" times out (5 s) under load; (d) the e2e helper `register` returns before the registration is answered.
+      Done when: each cause is found and fixed with a regression test (a) or a deterministic wait; unit and integration suites pass 10 times and the e2e suite 5 times in a row without retries; the known-flaky notes in 9.1 are gone.
+- [ ] T.2 Coverage: `@vitest/coverage-v8`, `pnpm test:cov` (unit + integration in one report: text, HTML, lcov), explicit include/exclude list with reasons, back end and web reported separately, thresholds on the back end (first at the baseline).
+      Done when: one command prints the numbers and writes the report; a drop below a threshold fails the command.
+- [ ] T.3 Edge cases in services: branches of transit-data (import, download, storage, artifacts) and accessibility (request validation, calculation errors); unit tests of pure logic now covered only through integration tests (token domain, stored-places rules, geocoder response mapping, proxy and upstream).
+      Done when: every back-end workspace at least 80 % lines and 70 % branches; back end overall at least 88 % lines, 78 % branches; thresholds raised to that.
+- [ ] T.4 CI quality gates: coverage job with thresholds and the HTML report as artifact, JUnit results and a summary table in the run, CI also on pushes to `develop`, Playwright flaky results reported as failures (`failOnFlakyTests`), CI badge in the README.
+      Done when: a pull request with lower coverage or a failing test is red; a green run of every job is linked in `docs/evidence/tests.md`.
+- [ ] T.5 Test design techniques: property-based tests (fast-check) for RAPTOR against a brute-force oracle, the ratio and legend classification and the GTFS time parsing; mutation testing (Stryker) on the RAPTOR, ratio/legend, password and token modules.
+      Done when: properties run in CI; mutation score at least 70 % on the chosen modules, surviving mutants reviewed in `docs/evidence/tests.md`.
+- [ ] T.6 Migration and asynchronous workflow tests: up/down/up of every service as an integration test that also keeps existing rows; one cross-service flow import -> activation event -> new timetable -> calculation -> history.
+      Done when: both run in the integration job.
+- [ ] T.7 Load and stress: k6 scenarios for `POST /calculations` (cached, uncached), geocoding and sign-in, with thresholds (this is step 9.4, done here).
+      Done when: results and the rate-limit demonstration are in `docs/evidence/load.md`; a short smoke run of the scripts works in CI.
+- [ ] T.8 Documentation `specs/testing.md`: strategy and pyramid, tools and why, how to run locally, naming and directories, coverage numbers with screenshot, known gaps with reasons, test doubles used and why, defects found by tests, recommendations; a separate "Auto Tests" section in the requirements matrix.
+      Done when: every required section exists and links to the code and evidence.
+- [ ] T.9 Optional, web tests: admin, account, save-place form, history, map state, `MapView` with a MapLibre test double.
+      Done when: `apps/web` at least 70 % lines.
+
 ## Phase 9 — Hardening and evidence
 
 - [x] 9.1 Compose profile `full`; Playwright end-to-end suite.
       Known flaky (to look at later): `services/accessibility/src/timetables/loader.itest.ts` "switches to a newly activated feed atomically" failed once in about ten runs (2026-11-15).
-      Known flaky (to look at later): `tests/e2e/src/account.spec.ts` once stayed on the home page after registering instead of returning to the city (2026-11-24, full run); not reproduced in the next four runs, the trace was lost.
+      Known flaky (to look at later): `tests/e2e/src/account.spec.ts` once stayed on the home page after registering instead of returning to the city (2026-11-24, full run); not reproduced in the next four runs, the trace was lost. Likely cause found: a lost `?next=`, see T.1.
       Known issue (to fix before running more than one accessibility instance): on start-up `failInterrupted` marks every `running` calculation failed, including those of another live instance, whose result then fails with "already failed" (500). Found 2026-11-15.
 - [ ] 9.2 Failure drills, each with a short note in `docs/evidence/resilience.md`: OSRM stopped (breaker opens, cached maps still served), RabbitMQ stopped (outbox drains after restart), geocoder timeout (cache fallback), poison message (DLQ).
 - [ ] 9.3 Trace screenshot and cross-service log excerpt for one calculation in `docs/evidence/`.
-- [ ] 9.4 k6 load test; rate-limit demonstration.
+- [ ] 9.4 k6 load test; rate-limit demonstration. (Moved to T.7.)
 - [ ] 9.5 Security pass: dependency audit, headers, secrets scan, no personal data in logs.
 
 ## Phase 10 — Cloud deployment
