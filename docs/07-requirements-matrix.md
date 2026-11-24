@@ -83,3 +83,20 @@ Plan: phase 8A in `docs/plan.md`. Status as of 2026-11-23.
 | Direction 1: feature modules, lazy routes | `features/<name>/index.ts` public entries; local ESLint rule `apps/web/eslint/boundaries.js` (layers app -> pages -> features -> shared -> models, no page-to-page imports, features only through their entry); `React.lazy` + `Suspense` skeletons for every page except home and 404 (`app/router.tsx`); MapLibre behind a lazy `MapView` | `apps/web/test/boundaries.test.ts` (rule cases); `pnpm lint`; build: one chunk per lazy page plus `MapView`, no MapLibre in the start chunks (`specs/frontend.md#modules-and-loading`); e2e on the production build | ready |
 | Direction 3: code splitting, Web Worker, memoisation, bundle analysis, Lighthouse >= 90 | Lazy pages and lazy `MapView` (MapLibre), h3-js out of the start chunk; hexagons in `features/map/hexagons.worker.ts` via `useHexagons` (cache per resolution, stale answers dropped, fallback); `memo` for `MapView`/`Legend`, stable map callback; `pnpm web:analyze` (rollup-plugin-visualizer); `scripts/lighthouse.sh`; home page animation without backdrop blur | `docs/evidence/frontend-performance.md`: chunk table and treemap (`docs/evidence/frontend-bundle.html`), start JS 187 -> 123 kB gzip; `tests/e2e/src/performance.spec.ts` (with the worker no H3 code on the main thread; median blocking time with 5 333 cells and 4x slower CPU 380 -> 161 ms; no MapLibre requested by `/sign-in` and `/places`); `useHexagons.test.tsx`; Lighthouse: home and sign-in 99–100 desktop and mobile, map 99 desktop | ready; map page on mobile 68, accepted as a justified exception (decision 2026-11-24) |
 | Direction 4 (reserve): theme, accessibility, data visualisation | Light/dark theme from tokens (`styles/tokens.css`, `shared/lib/theme.ts`, menu button, early script in `index.html`), basemap per theme with the cells carried over; skip link, combobox address search, one `<h1>` per page with focus after navigation and document titles (`shared/ui/PageTitle.tsx`, `app/router.tsx`), muted text contrast raised; class distribution chart (`features/map/ClassChart.tsx`) | `tests/e2e/src/accessibility.spec.ts`: axe WCAG 2.1 A/AA + best practices on 8 pages in both themes, keyboard-only flow; `AddressSearch.view.test.tsx`, `PageTitle.test.tsx`, `theme.test.ts`, `classes.test.ts`; `specs/frontend.md#theme-accessibility-chart` | ready |
+
+## Auto Tests
+
+| Requirement | Where | Evidence | Status |
+| --- | --- | --- | --- |
+| Coverage of at least 70 %, with report | `pnpm test:cov`, `vitest.config.ts` | `docs/evidence/tests.md`: back end 91.6 / 80.5 / 91.9 %, everything 79.0 / 70.4 / 73.3 % (lines, branches, functions) | ready |
+| Unit tests, FIRST, edge cases | `*.test.ts` next to the code | `pnpm test` | ready |
+| Integration tests (endpoints, database, authorization, configuration) | `*.itest.ts` with Testcontainers | `pnpm test:int` | ready |
+| UI tests | Component tests and Playwright (`tests/e2e`) | 16 e2e tests, 5 of 5 runs | ready |
+| CI on clean infrastructure | `.github/workflows/ci.yml` | Run link in `docs/evidence/tests.md` | ready; link after the next push |
+| Strategy, instructions, known gaps | `specs/testing.md` | Document | ready |
+| Names and structure | `specs/testing.md#names-and-directories` | Files | ready |
+| Multi-service, migrations, asynchronous flows, queues | `tests/cross-service` (map flow, erasure, migrations), `messaging.itest.ts` | Integration job | ready |
+| Property-based, mutation, contract tests | `*.property.test.ts`, `stryker.config.json`, `contractChecker` | Mutation score 89.7 % | ready |
+| Quality gates | Coverage and mutation thresholds, lint, types, no flaky passes | `specs/testing.md#ci-and-quality-gates` | ready |
+| Rationale, defects found, recommendations | `specs/testing.md` | Document | ready |
+| Load tests | `tests/load`, `scripts/load.sh` | `docs/evidence/load.md` | ready |

@@ -143,6 +143,8 @@ root's development tools; it is never deployed.
 
 ## Tests
 
+Strategy, commands, coverage and gates: [specs/testing.md](../specs/testing.md).
+
 | Level | Tool | Scope |
 | --- | --- | --- |
 | Unit | Vitest | RAPTOR, walking model, GTFS parsing, validation, policies; web: hexagon merging by zoom, legend classes, API client and polling, query retry policy, URL state, session (restore, refresh once on 401, no overlapping refreshes, sign-out), city filter, error policy and toasts, logger; component tests in jsdom (`*.test.tsx`, Testing Library, helpers in `apps/web/src/shared/test/render.tsx`: memory router, fresh query client, fetch answered from a table): sign-in form, places list, route guards, home page, error boundaries |
@@ -150,11 +152,11 @@ root's development tools; it is never deployed.
 | Integration | Vitest + Testcontainers (PostGIS, RabbitMQ) | Repositories, outbox/inbox, import of `testville`, endpoints of one service; several services together in `tests/cross-service` (account erasure) |
 | Contract | OpenAPI response validation in integration tests; AsyncAPI schema validation of published events | Code matches contracts |
 | End to end | Playwright (`tests/e2e`, installed Chrome, one worker) against the `full` profile with `testville`, the OSRM stub and the geocoder stub | Address search, heatmap, cell popup, shareable URL from the cache, origin outside the city, city without a timetable; routes (cities on the home page and their routes, unknown city, old links, 404, sign-in and return, back/forward, 403 on `/admin`, a saved place opening its city); register, save place, session after reload, history, delete account (credentials then refused); admin coverage, versions, unknown source |
-| Load | k6 | p95 of `POST /calculations` for Warsaw, cached and uncached |
+| Load | k6 (`scripts/load.sh`, `tests/load`) | Success or a deliberate 503/429 under load, recovery; results in `docs/evidence/load.md` |
 
 ## CI (GitHub Actions)
 
-On pull request: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
+On pull request and push to `develop` or `main`: install, lint, typecheck, unit tests, contracts lint, database job (bootstrap,
 migrate up/down/up, seeds, smoke test, data dictionary diff), integration tests, end-to-end job
 (builds every image, `pnpm e2e:up`, `pnpm e2e`; on failure the Playwright report, traces and
 container logs are kept as an artifact for 7 days).
