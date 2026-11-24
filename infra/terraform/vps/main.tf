@@ -91,6 +91,8 @@ resource "terraform_data" "deploy" {
       "sudo apt-get install -y -q docker.io docker-compose-v2 docker-buildx git ufw",
       "sudo systemctl enable --now docker",
       "sudo ufw allow OpenSSH && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw --force enable",
+      # Building images and OSRM data needs memory in peaks; a swap file absorbs them.
+      "if [ ! -f /swapfile ] && [ -z \"$(swapon --show --noheadings)\" ]; then sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null; fi",
       "sudo mkdir -p ${var.app_dir} && sudo chown ${var.ssh_user} ${var.app_dir}",
     ]
   }
@@ -115,6 +117,8 @@ resource "terraform_data" "deploy" {
       # service started by name (profile osrm is not active, naming a service starts it anyway).
       "for city in ${join(" ", var.osrm_cities)}; do [ -f infra/osrm/data/$city/.ready ] || sudo infra/osrm/build.sh $city; sudo ${local.compose} up -d osrm-$city; done",
       "sudo ${local.compose} up -d --build --wait --wait-timeout 900",
+      # Images and build cache of earlier deployments.
+      "sudo docker image prune -f > /dev/null && sudo docker builder prune -f --filter until=168h > /dev/null",
       "sudo ${local.compose} ps --format '{{.Service}} {{.Status}}'",
     ]
   }

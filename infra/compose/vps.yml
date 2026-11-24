@@ -4,12 +4,30 @@
 services:
   postgres:
     ports: !reset []
+    restart: unless-stopped
   rabbitmq:
     ports: !reset []
+    restart: unless-stopped
   redis:
     ports: !reset []
+    restart: unless-stopped
   jaeger:
     ports: !reset []
+    # Traces are kept in memory; at the limit it restarts empty instead of taking the server's memory.
+    mem_limit: 1g
+    restart: unless-stopped
+  # Own car routing (osrm_cities): reachable inside only. Published ports would bypass the firewall,
+  # because Docker writes its own rules in front of ufw.
+  osrm-waw:
+    ports: !reset []
+    restart: unless-stopped
+  osrm-vno:
+    ports: !reset []
+    restart: unless-stopped
+  osrm-stub:
+    restart: unless-stopped
+  geocoder-stub:
+    restart: unless-stopped
   gateway:
     ports: !reset []
   web:

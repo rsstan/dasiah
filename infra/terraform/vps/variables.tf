@@ -1,5 +1,5 @@
 variable "host" {
-  description = "Public IP address or host name of the VPS (Ubuntu 24.04 or Debian 12, reachable over SSH)."
+  description = "Public IP address or host name of the VPS (Ubuntu 24.04 or 26.04, or Debian 12, reachable over SSH)."
   type        = string
 }
 

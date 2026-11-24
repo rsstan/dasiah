@@ -155,6 +155,25 @@ generated code and test support excluded). Back end (gateway, services, `package
 - [x] 9.4 k6 load test; rate-limit demonstration. (Done in T.7.)
 - [ ] 9.5 Security pass: dependency audit, headers, secrets scan, no personal data in logs.
 
+## Phase D — Deployment to a VPS (Terraform)
+
+Target: an existing VPS and an own domain, `infra/terraform/vps`. Decided 2026-11-24.
+
+- [ ] D.1 Make the module safe (demo accounts stay for now, decision 2026-11-24): own OSRM without published ports (Docker bypasses ufw); every container restarts after a reboot (before, the databases and OSRM did not); memory limit for Jaeger traces; swap file; clean-up of old images; Ubuntu 26.04.
+      Done when: from outside only 22, 80 and 443 answer; the stack comes back after a reboot of a test machine.
+- [ ] D.2 Prepare: DNS A record, SSH key without a passphrase, `develop` merged into `main` with a green CI run, `terraform.tfvars`.
+      Done when: the domain resolves to the VPS and `ssh` with the key works.
+- [ ] D.3 First deployment with stand-ins for OSRM and the geocoder.
+      Done when: `https://<domain>/health` is ok with a valid certificate, sign-in survives a reload, a second `terraform apply` changes nothing.
+- [ ] D.4 Real data: import and activate Warsaw and Vilnius in the admin view; public geocoder.
+      Done when: a map of each city covers the city; an address is found.
+- [ ] D.5 Own OSRM for Warsaw (then Vilnius): data built on the server, memory measured.
+      Done when: a map uses real driving times; memory and times are in `docs/evidence/deployment.md`.
+- [ ] D.6 Operation: nightly backup with a copy off the server and one tested restore; monthly feed import (Warsaw is valid for one month); uptime check.
+      Done when: a restore into an empty database is demonstrated; the reminder or job for the import exists.
+- [ ] D.7 Update and rollback: redeploy a new commit, then the previous one; notes in `specs/microservices.md`.
+      Done when: both are demonstrated without data loss.
+
 ## Phase 10 — Cloud deployment
 
 Meanwhile a provider-agnostic single-VPS deployment exists (`infra/terraform/vps`, Compose profile
