@@ -1,11 +1,10 @@
 // "/cities/:code": the controls of the map (start address, the user's saved places in this
 // city, departure, status, legend, the split of the current map over the classes). The start point and departure are mirrored into the query
 // string, so the address bar always holds a link to the current map.
-import { useEffect } from 'react';
-import { useSearchParams } from 'react-router';
 import { SavePlaceForm, usePlaces, type SavedPlace } from '../features/places/index.ts';
 import { useMapState, AddressSearch, ClassChart, Legend, Status, toSearch } from '../features/map/index.ts';
 import { useSession } from '../features/auth/index.ts';
+import { useSearchMirror } from '../shared/lib/useSearchMirror.ts';
 import { Button, TextField } from '../shared/ui/index.ts';
 
 export function MapPage() {
@@ -13,15 +12,8 @@ export function MapPage() {
   const auth = useSession();
   const signedIn = auth.kind === 'signed-in';
   const places = usePlaces(signedIn);
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  const search = toSearch({ origin, date: departure.date, time: departure.time });
-  useEffect(() => {
-    const current = searchParams.toString();
-    if ((current === '' ? '' : `?${current}`) !== search) {
-      setSearchParams(new URLSearchParams(search), { replace: true });
-    }
-  }, [search, searchParams, setSearchParams]);
+  useSearchMirror(toSearch({ origin, date: departure.date, time: departure.time }));
 
   const showPlace = (p: SavedPlace) =>
     pick({ lat: p.location.lat, lon: p.location.lon, label: p.label, address: p.addressText });

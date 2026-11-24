@@ -22,7 +22,10 @@ function poolAs(user: string, password = 'pw', statementTimeoutMs = 5_000): pg.P
 }
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  container = await new PostgreSqlContainer('postgres:16-alpine')
+    .withTmpFs({ '/var/lib/postgresql/data': 'rw' })
+    .withCommand(['postgres', '-c', 'fsync=off'])
+    .start();
   const admin = poolAs(container.getUsername(), container.getPassword());
   await admin.query(`
     CREATE ROLE app_admin LOGIN PASSWORD 'pw';

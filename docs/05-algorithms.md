@@ -102,8 +102,8 @@ city bounds.
 
 Loading (`services/accessibility/src/timetables/`): at start-up the active feed of every city in
 `CITIES` and its hex access are fetched from transit-data; on `transit.feed.activated.v1` the new
-snapshot is built completely, recorded in `feed_snapshots` (same transaction as the inbox row) and
-then swapped in with one assignment; a failed load leaves the previous snapshot serving and the
+snapshot is built completely, recorded in `feed_snapshots` (same transaction as the inbox row) and,
+after the commit, swapped in with one assignment; a failed load leaves the previous snapshot serving and the
 message is retried. Readiness requires at least one loaded city.
 
 In-memory structures per `(feedVersionId, date)`, typed arrays, built once and kept in an LRU:

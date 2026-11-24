@@ -42,5 +42,6 @@ export async function register(page: Page, email: string, name: string): Promise
   await page.getByLabel('Name (optional)').fill(name);
   await page.getByLabel('Password').fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
+  // The menu is there for everyone; the user's own link only once the registration is answered.
+  await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name })).toBeVisible();
 }
