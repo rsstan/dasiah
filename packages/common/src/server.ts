@@ -18,6 +18,7 @@ import Fastify, {
   type FastifyRequest,
 } from 'fastify';
 import { correlationIdFrom, CORRELATION_HEADER, runWithContext } from './context.ts';
+import { isDatabaseOverload } from './db.ts';
 import { AppError, ServiceUnavailableError, TooManyRequestsError } from './errors.ts';
 import type { Logger } from './logger.ts';
 import { stopTracing } from './tracing.ts';
@@ -182,7 +183,16 @@ export function createServer({
     done();
   });
 
-  app.setErrorHandler((error, req, reply) => {
+  app.setErrorHandler((raised, req, reply) => {
+    // A database that cannot answer right now is an overload the client may retry, not a defect.
+    const error = isDatabaseOverload(raised)
+      ? new ServiceUnavailableError(
+          'The service is busy right now.',
+          5,
+          { type: '/problems/database-busy' },
+          { cause: raised },
+        )
+      : raised;
     const problem = toProblem(error, req);
     if (problem.status >= 500) {
       req.log.error({ err: error }, 'request failed');

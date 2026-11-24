@@ -21,6 +21,8 @@ export interface PoolOptions {
   readonly applicationName: string;
   readonly max?: number;
   readonly statementTimeoutMs?: number;
+  /** How long a request waits for a free connection. */
+  readonly connectTimeoutMs?: number;
 }
 
 export function createPool({
@@ -28,15 +30,37 @@ export function createPool({
   applicationName,
   max = 10,
   statementTimeoutMs = 5_000,
+  connectTimeoutMs = 5_000,
 }: PoolOptions): pg.Pool {
-  return new pg.Pool({
+  const pool = new pg.Pool({
     connectionString,
     application_name: applicationName,
     max,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: connectTimeoutMs,
     idleTimeoutMillis: 30_000,
     options: `-c statement_timeout=${statementTimeoutMs} -c idle_in_transaction_session_timeout=${statementTimeoutMs * 6}`,
   });
+  // While a client is checked out, pg-pool does not listen for its errors: a connection closed by
+  // the server in the middle of a transaction would be an unhandled 'error' event and end the
+  // process. The next query on that client fails with the error, so nothing is lost here.
+  pool.on('connect', (client) => client.on('error', () => undefined));
+  return pool;
+}
+
+/** SQLSTATEs of "not now": cancelled by a timeout, too many connections, server going down or starting. */
+const OVERLOAD_CODES = new Set(['57014', '25P03', '53300', '57P01', '57P02', '57P03']);
+
+/** Whether an error means that the database cannot answer at the moment (a retry may work). */
+export function isDatabaseOverload(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const { code } = error as { code?: unknown };
+  // pg-pool reports a connection that did not become free in time without a code.
+  return (
+    (typeof code === 'string' && OVERLOAD_CODES.has(code)) ||
+    /^timeout exceeded when trying to connect|^Connection terminated/.test(error.message)
+  );
 }
 
 export class UnsafeDatabaseRoleError extends Error {

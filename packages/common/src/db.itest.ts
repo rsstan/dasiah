@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runWithContext } from './context.ts';
-import { assertServiceRole, createPool, UnsafeDatabaseRoleError, withTransaction } from './db.ts';
+import { assertServiceRole, createPool, isDatabaseOverload, UnsafeDatabaseRoleError, withTransaction } from './db.ts';
 
 let container: StartedPostgreSqlContainer;
 const pools: pg.Pool[] = [];
@@ -88,6 +88,44 @@ describe('pool and transactions', () => {
     ).rejects.toThrow('boom');
     const exists = await pool.query(`SELECT to_regclass('public.tx_probe') AS t`);
     expect(exists.rows[0]?.t).toBeNull();
+  });
+
+  it('survives the server closing a connection that a transaction is using', async () => {
+    const pool = poolAs('svc_sample');
+    const admin = poolAs(container.getUsername(), container.getPassword());
+    const failed = withTransaction(pool, async (client) => {
+      const { rows } = await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+      const closed = new Promise((resolve) => client.once('end', resolve));
+      await admin.query('SELECT pg_terminate_backend($1)', [rows[0]?.pid]);
+      await closed; // busy elsewhere, not querying, when the connection goes away
+      await client.query('SELECT 1');
+    });
+    await expect(failed).rejects.toThrow();
+    // The process is alive and the pool hands out a working connection.
+    expect((await pool.query<{ n: number }>('SELECT 1 AS n')).rows).toEqual([{ n: 1 }]);
+  });
+
+  it('tells overload of the database from other errors', async () => {
+    const slow = await poolAs('svc_sample', 'pw', 100)
+      .query('SELECT pg_sleep(1)')
+      .catch((e: unknown) => e);
+    expect(isDatabaseOverload(slow)).toBe(true);
+
+    const url = new URL(container.getConnectionUri());
+    const tiny = createPool({
+      connectionString: url.toString(),
+      applicationName: 'tiny',
+      max: 1,
+      connectTimeoutMs: 100,
+    });
+    pools.push(tiny);
+    const held = await tiny.connect();
+    const refused = await tiny.query('SELECT 1').catch((e: unknown) => e);
+    held.release();
+    expect(isDatabaseOverload(refused)).toBe(true);
+
+    const broken = await tiny.query('SELECT nonsense').catch((e: unknown) => e);
+    expect(isDatabaseOverload(broken)).toBe(false);
   });
 
   it('returns dates as strings and bigint counts as numbers', async () => {
