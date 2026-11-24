@@ -6,6 +6,8 @@
 
 ## Contents
 
+- [How to run](#how-to-run)
+- [Where each criterion is implemented](#where-each-criterion-is-implemented)
 - [Live application](#live-application)
 - [At a glance](#at-a-glance)
 - [Architecture diagram](#architecture-diagram)
@@ -22,7 +24,79 @@
 - [Theme, accessibility, chart](#theme-accessibility-chart)
 - [Tests](#tests)
 - [Tech stack and why](#tech-stack-and-why)
-- [How to run](#how-to-run)
+
+## How to run
+
+> [!IMPORTANT]
+> The front-end needs the back-end services, so the whole project is started together. **The full
+> instructions (ports, accounts, settings, server) are in
+> [specs/microservices.md → How to run](microservices.md#how-to-run).** Below is the short version.
+
+| Option | Commands | Open |
+| --- | --- | --- |
+| 1. Only look | nothing to install | <https://dasiah.app> |
+| 2. Everything in Docker (needs only Docker) | see below | <http://localhost:8000> |
+| 3. Front-end development with live reload (needs also Node.js 24 and pnpm) | option 2, then see below | <http://localhost:5173> |
+
+Option 2, in the repository root:
+
+```bash
+docker compose -f compose.setup.yaml run --rm setup   # once: creates .env
+docker compose up -d --build --wait                    # first time 5-10 minutes
+```
+
+Option 3, after option 2:
+
+```bash
+corepack enable
+pnpm install
+GATEWAY_URL=http://localhost:8000 pnpm web:dev        # /api goes to the services in Docker
+```
+
+Other commands: `pnpm web:build` (production build in `apps/web/dist`), `pnpm test` (unit and component
+tests), end-to-end tests: [specs/testing.md](testing.md#run-locally).
+
+Sign in as `demo.user@example.com` or `demo.admin@example.com`; the password is `SEED_DEMO_PASSWORD` in
+`.env` (locally). In the local Warsaw type `Central Station` as the start address.
+
+## Where each criterion is implemented
+
+| Criterion | Code | Description |
+| --- | --- | --- |
+| **Documentation** | | |
+| Architecture diagram | | [Architecture diagram](#architecture-diagram) |
+| Architecture approach | | [Architecture approach](#architecture-approach) |
+| API for the client, with examples | [contracts/openapi/gateway.yaml](../contracts/openapi/gateway.yaml) | [API used by the client](#api-used-by-the-client) |
+| User flows, navigation | | [User flows and navigation](#user-flows-and-navigation) |
+| Tech stack justification | | [Tech stack and why](#tech-stack-and-why) |
+| **Architecture** | | |
+| Single-page application on a modern framework, bundler | [apps/web/](../apps/web/), [vite.config.ts](../apps/web/vite.config.ts) | [At a glance](#at-a-glance) |
+| Components, pages and services separated | [pages/](../apps/web/src/pages/), [features/](../apps/web/src/features/), [shared/](../apps/web/src/shared/) | [Architecture diagram](#architecture-diagram) |
+| Routing, protected pages | [router.tsx](../apps/web/src/app/router.tsx), [guards.tsx](../apps/web/src/app/guards.tsx) | [Routes](#routes) |
+| Local and global state | [session.ts](../apps/web/src/features/auth/session.ts), [queryClient.ts](../apps/web/src/shared/api/queryClient.ts), [MapState.tsx](../apps/web/src/features/map/MapState.tsx) | [State management](#state-management) |
+| Real API, typed data, one request layer | [client.ts](../apps/web/src/shared/api/client.ts), [models/types.ts](../apps/web/src/models/types.ts) | [API used by the client](#api-used-by-the-client) |
+| **Implementation** | | |
+| Reusable and layout components, own UI kit | [shared/ui/](../apps/web/src/shared/ui/), [SiteLayout.tsx](../apps/web/src/app/SiteLayout.tsx), [CityLayout.tsx](../apps/web/src/app/CityLayout.tsx) | [Components and styles](#components-and-styles) |
+| Forms with validation | [AuthForm.tsx](../apps/web/src/features/auth/AuthForm.tsx), [validation.ts](../apps/web/src/shared/lib/validation.ts) | [Forms and lists](#forms-and-lists) |
+| Lists and tables, search, filter, sort | [PlacesList.tsx](../apps/web/src/features/places/PlacesList.tsx), [AdminView.tsx](../apps/web/src/features/admin/AdminView.tsx), [AddressSearch.tsx](../apps/web/src/features/map/AddressSearch.tsx) | [Forms and lists](#forms-and-lists) |
+| Responsive layout, CSS architecture | [tokens.css](../apps/web/src/styles/tokens.css), [index.css](../apps/web/src/styles/index.css) | [Components and styles](#components-and-styles) |
+| ESLint, Prettier | [eslint.config.js](../eslint.config.js) | [Modules and loading](#modules-and-loading) |
+| Logging | [logger.ts](../apps/web/src/shared/lib/logger.ts) | [Errors, loading and logging](#errors-loading-and-logging) |
+| No unjustified inline styles, no `any` | | [Components and styles](#components-and-styles) |
+| **Error handling** | | |
+| Global error handler | [ErrorBoundary.tsx](../apps/web/src/app/ErrorBoundary.tsx) | [Errors, loading and logging](#errors-loading-and-logging) |
+| Toasts; 401, 403, 404, 500 | [errorPolicy.ts](../apps/web/src/shared/api/errorPolicy.ts), [Toaster.tsx](../apps/web/src/shared/ui/Toaster.tsx), [NotFoundPage.tsx](../apps/web/src/pages/NotFoundPage.tsx), [ForbiddenPage.tsx](../apps/web/src/pages/ForbiddenPage.tsx) | [Errors, loading and logging](#errors-loading-and-logging) |
+| Loading states | [Skeleton.tsx](../apps/web/src/shared/ui/Skeleton.tsx) | [Errors, loading and logging](#errors-loading-and-logging) |
+| **Tests** | | |
+| Unit and component tests | e.g. [session.test.ts](../apps/web/src/features/auth/session.test.ts), [AuthForm.test.tsx](../apps/web/src/features/auth/AuthForm.test.tsx), [PlacesList.test.tsx](../apps/web/src/features/places/PlacesList.test.tsx) | [Tests](#tests) |
+| End-to-end tests | [tests/e2e/src/](../tests/e2e/src/) | [Tests](#tests) |
+| **Maximum** | | |
+| Direction 1: feature modules, lazy routes | [boundaries.js](../apps/web/eslint/boundaries.js), [router.tsx](../apps/web/src/app/router.tsx) | [Modules and loading](#modules-and-loading) |
+| Direction 3: performance | [hexagons.worker.ts](../apps/web/src/features/map/hexagons.worker.ts), [useHexagons.ts](../apps/web/src/features/map/useHexagons.ts) | [Performance](#performance), [measurements](../docs/evidence/frontend-performance.md) |
+| Direction 4: theme, accessibility, chart | [theme.ts](../apps/web/src/shared/lib/theme.ts), [accessibility.spec.ts](../tests/e2e/src/accessibility.spec.ts), [ClassChart.tsx](../apps/web/src/features/map/ClassChart.tsx) | [Theme, accessibility, chart](#theme-accessibility-chart) |
+
+Evidence and status of every requirement:
+[requirements matrix](../docs/07-requirements-matrix.md#front-end-minimum).
 
 ## Live application
 
@@ -456,13 +530,3 @@ POST /api/v1/places
 | **h3-js** | The same H3 grid as the server; hexagons built and merged in the browser | — |
 | **Vitest, Testing Library, Playwright** | Same test runner as the services; tests through what the user sees; real browser for end-to-end | Jest, Cypress |
 | **ESLint, Prettier** | One style; react-hooks rules; a rule that keeps server calls in the api layer | — |
-
-## How to run
-
-- **Nothing to install:** <https://dasiah.app>.
-- **Everything in Docker** (the built page on <http://localhost:8000>):
-  [specs/microservices.md](microservices.md#a-docker-compose-recommended).
-- **Development with live reload** (needs Node.js and pnpm): start the stack as above, then
-  `GATEWAY_URL=http://localhost:8000 pnpm web:dev` and open <http://localhost:5173>; the dev
-  server proxies `/api` to the gateway.
-- `pnpm web:build` writes the production build to `apps/web/dist`.
